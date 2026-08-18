@@ -31,7 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ntk_flashcard_db"
                 )
-                .addCallback(DatabaseCallback(scope))
+                .addCallback(DatabaseCallback(context.applicationContext, scope))
                 .build()
                 INSTANCE = instance
                 instance
@@ -39,21 +39,28 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         private class DatabaseCallback(
+            private val context: Context,
             private val scope: CoroutineScope
         ) : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
                 INSTANCE?.let { database ->
                     scope.launch {
-                        populateInitialData(database.flashCardDao())
+                        populateInitialData(context, database.flashCardDao())
                     }
                 }
             }
         }
 
-        suspend fun populateInitialData(dao: FlashCardDao) {
-            dao.insertDecks(DefaultVocabData.getDefaultDecks())
-            dao.insertCards(DefaultVocabData.getDefaultFlashCards())
+        suspend fun populateInitialData(context: Context, dao: FlashCardDao) {
+            val jsonVocab = JsonVocabLoader.loadVocabFromJson(context)
+            if (jsonVocab != null && jsonVocab.first.isNotEmpty()) {
+                dao.insertDecks(jsonVocab.first)
+                dao.insertCards(jsonVocab.second)
+            } else {
+                dao.insertDecks(DefaultVocabData.getDefaultDecks())
+                dao.insertCards(DefaultVocabData.getDefaultFlashCards())
+            }
         }
     }
 }
