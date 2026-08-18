@@ -120,10 +120,15 @@ private fun CardFrontSide(
     Surface(
         modifier = modifier
             .fillMaxSize()
-            .shadow(12.dp, RoundedCornerShape(24.dp), spotColor = NTKPrimary.copy(alpha = 0.25f)),
+            .shadow(
+                elevation = 14.dp,
+                shape = RoundedCornerShape(24.dp),
+                spotColor = Color(0x33334155),
+                ambientColor = Color(0x1F334155)
+            ),
         shape = RoundedCornerShape(24.dp),
         color = Color.White,
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFE2E8F0))
+        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFCBD5E1)) // Crisp Gray Focus Border
     ) {
         Column(
             modifier = Modifier
@@ -272,10 +277,15 @@ private fun CardBackSide(
     Surface(
         modifier = modifier
             .fillMaxSize()
-            .shadow(12.dp, RoundedCornerShape(24.dp), spotColor = NTKPrimary.copy(alpha = 0.25f)),
+            .shadow(
+                elevation = 14.dp,
+                shape = RoundedCornerShape(24.dp),
+                spotColor = Color(0x33334155),
+                ambientColor = Color(0x1F334155)
+            ),
         shape = RoundedCornerShape(24.dp),
         color = Color(0xFFFAF5FF), // Soft lavender background
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFE9D5FF))
+        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFCBD5E1)) // Crisp Gray Focus Border
     ) {
         Column(
             modifier = Modifier

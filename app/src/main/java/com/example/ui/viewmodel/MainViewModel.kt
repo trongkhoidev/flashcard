@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -115,53 +116,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startStudyByLanguage(langCode: String) {
         viewModelScope.launch {
-            val decks = repository.getDecksByLanguage(langCode)
-            decks.collect { list ->
-                val targetDeck = list.firstOrNull()
-                if (targetDeck != null) {
-                    startStudyDeck(targetDeck)
-                }
+            val list = repository.getDecksByLanguage(langCode).first()
+            val targetDeck = list.firstOrNull()
+            if (targetDeck != null) {
+                startStudyDeck(targetDeck)
             }
         }
     }
 
     fun openDeckDetail(deck: DeckEntity) {
         viewModelScope.launch {
-            repository.getCardsForDeck(deck.id).collect { cards ->
-                _currentScreen.value = ScreenState.DeckDetail(deck, cards)
-            }
+            val cards = repository.getCardsForDeck(deck.id).first()
+            _currentScreen.value = ScreenState.DeckDetail(deck, cards)
         }
     }
 
     fun startStudyDeck(deck: DeckEntity) {
         viewModelScope.launch {
-            repository.getCardsForDeck(deck.id).collect { cards ->
-                _currentScreen.value = ScreenState.Study(deck, cards)
-            }
+            val cards = repository.getCardsForDeck(deck.id).first()
+            _currentScreen.value = ScreenState.Study(deck, cards)
         }
     }
 
     fun startQuizDeck(deck: DeckEntity) {
         viewModelScope.launch {
-            repository.getCardsForDeck(deck.id).collect { cards ->
-                _currentScreen.value = ScreenState.Quiz(deck, cards)
-            }
+            val cards = repository.getCardsForDeck(deck.id).first()
+            _currentScreen.value = ScreenState.Quiz(deck, cards)
         }
     }
 
     fun startMatchDeck(deck: DeckEntity) {
         viewModelScope.launch {
-            repository.getCardsForDeck(deck.id).collect { cards ->
-                _currentScreen.value = ScreenState.Match(deck, cards)
-            }
+            val cards = repository.getCardsForDeck(deck.id).first()
+            _currentScreen.value = ScreenState.Match(deck, cards)
         }
     }
 
     fun openStarredCards() {
         viewModelScope.launch {
-            repository.getStarredCards().collect { cards ->
-                _currentScreen.value = ScreenState.Starred(cards)
-            }
+            val cards = repository.getStarredCards().first()
+            _currentScreen.value = ScreenState.Starred(cards)
         }
     }
 

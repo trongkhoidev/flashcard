@@ -2,7 +2,10 @@ package com.example.ui.study
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Pause
@@ -89,6 +94,15 @@ fun FlashcardStudyScreen(
     var isFlipped by remember { mutableStateOf(false) }
     var isAutoPlay by remember { mutableStateOf(false) }
     var isCompleted by remember { mutableStateOf(false) }
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+
+    // Auto-dismiss transient toast
+    LaunchedEffect(toastMessage) {
+        if (toastMessage != null) {
+            delay(1500)
+            toastMessage = null
+        }
+    }
 
     // Auto play slideshow logic
     LaunchedEffect(isAutoPlay, currentIndex, isFlipped, isCompleted) {
@@ -141,13 +155,21 @@ fun FlashcardStudyScreen(
 
         val currentCard = cardList.getOrNull(currentIndex) ?: cardList.first()
 
+        val handleToggleStar: () -> Unit = {
+            val newStarred = !currentCard.isStarred
+            onToggleStar(currentCard.id, currentCard.isStarred)
+            cardList = cardList.map {
+                if (it.id == currentCard.id) it.copy(isStarred = newStarred) else it
+            }
+            toastMessage = if (newStarred) "✓ Đã thêm \"${currentCard.frontWord}\" vào Từ điển" else "Đã bỏ lưu từ"
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            // TOP BAR
+            // TOP BAR (Pinned to top)
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -185,44 +207,20 @@ fun FlashcardStudyScreen(
                         )
                     }
 
-                    Row {
-                        // Shuffle button
-                        IconButton(
-                            onClick = {
-                                cardList = cardList.shuffled()
-                                currentIndex = 0
-                                isFlipped = false
-                            },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(Color.White, CircleShape)
-                                .shadow(2.dp, CircleShape)
-                        ) {
-                            Icon(
-                                Icons.Default.Shuffle,
-                                contentDescription = "Trộn thẻ",
-                                tint = NTKPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(6.dp))
-
-                        // Auto-play button
-                        IconButton(
-                            onClick = { isAutoPlay = !isAutoPlay },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(if (isAutoPlay) NTKPrimary else Color.White, CircleShape)
-                                .shadow(2.dp, CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = if (isAutoPlay) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Tự động học",
-                                tint = if (isAutoPlay) Color.White else NTKPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                    // Auto-play button in top right
+                    IconButton(
+                        onClick = { isAutoPlay = !isAutoPlay },
+                        modifier = Modifier
+                            .size(42.dp)
+                            .background(if (isAutoPlay) NTKPrimary else Color.White, CircleShape)
+                            .shadow(2.dp, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (isAutoPlay) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Tự động học",
+                            tint = if (isAutoPlay) Color.White else NTKPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
 
@@ -240,114 +238,228 @@ fun FlashcardStudyScreen(
                 )
             }
 
-            // MIDDLE 3D CARD
-            Flashcard3DView(
-                card = currentCard,
-                isFlipped = isFlipped,
-                onFlip = { isFlipped = !isFlipped },
-                onSpeak = { text -> onSpeak(text, languageTag) },
-                onToggleStar = { onToggleStar(currentCard.id, currentCard.isStarred) },
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            // BOTTOM RATING & NAVIGATION BUTTONS
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Đánh giá mức độ ghi nhớ:",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = NTKTextSecondary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Spaced Repetition Action Buttons
-                Row(
+            // CENTER SECTION: Perfectly vertically centers the Card along with the Controls above & below it
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    // Hard (🔴)
-                    Button(
-                        onClick = {
-                            onRecordReview(currentCard.id, 3)
-                            advanceNext(cardList.size, currentIndex, onNext = { currentIndex = it; isFlipped = false }, onDone = { isCompleted = true })
-                        },
+                    // 1. VIBRANT ACTION BUTTONS (Situated directly above the card: Trộn thẻ | Lưu từ điển | Mặt trước/sau)
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .testTag("btn_rate_hard"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEE2E2))
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("🔴 Khó", color = HardRed, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-
-                    // Good (🟡)
-                    Button(
-                        onClick = {
-                            onRecordReview(currentCard.id, 2)
-                            advanceNext(cardList.size, currentIndex, onNext = { currentIndex = it; isFlipped = false }, onDone = { isCompleted = true })
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .testTag("btn_rate_good"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEF3C7))
-                    ) {
-                        Text("🟡 Nhớ vừa", color = GoodYellow, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-
-                    // Easy / Mastered (🟢)
-                    Button(
-                        onClick = {
-                            onRecordReview(currentCard.id, 1)
-                            advanceNext(cardList.size, currentIndex, onNext = { currentIndex = it; isFlipped = false }, onDone = { isCompleted = true })
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .testTag("btn_rate_easy"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD1FAE5))
-                    ) {
-                        Text("🟢 Đã thuộc", color = EasyGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Navigation Controls (Prev / Next)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = {
-                            if (currentIndex > 0) {
-                                currentIndex--
+                        // VIBRANT SHUFFLE BUTTON (Warm Golden Amber Theme)
+                        Surface(
+                            onClick = {
+                                cardList = cardList.shuffled()
+                                currentIndex = 0
                                 isFlipped = false
-                            }
-                        },
-                        enabled = currentIndex > 0
-                    ) {
-                        Text("← Thẻ trước")
-                    }
-
-                    TextButton(
-                        onClick = {
-                            if (currentIndex < cardList.size - 1) {
-                                currentIndex++
-                                isFlipped = false
-                            } else {
-                                isCompleted = true
+                            },
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFFFF7ED), // Soft warm amber container
+                            shadowElevation = 2.dp,
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFFDBA74)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("btn_shuffle_cards")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Shuffle,
+                                    contentDescription = "Trộn thẻ",
+                                    tint = Color(0xFFEA580C),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Trộn thẻ",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFC2410C)
+                                )
                             }
                         }
+
+                        // VIBRANT SAVE TO DICTIONARY BUTTON (Royal Purple / Fuchsia Theme with Bookmark Icon)
+                        Surface(
+                            onClick = handleToggleStar,
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (currentCard.isStarred) Color(0xFFF3E8FF) else Color(0xFFFAF5FF),
+                            shadowElevation = 2.dp,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.2.dp,
+                                if (currentCard.isStarred) Color(0xFFC084FC) else Color(0xFFE9D5FF)
+                            ),
+                            modifier = Modifier
+                                .weight(1.15f)
+                                .testTag("btn_save_dictionary")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (currentCard.isStarred) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                    contentDescription = "Thêm vào Từ điển",
+                                    tint = if (currentCard.isStarred) Color(0xFF7E22CE) else Color(0xFF9333EA),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (currentCard.isStarred) "Đã lưu từ" else "+ Lưu từ điển",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (currentCard.isStarred) Color(0xFF6B21A8) else Color(0xFF7E22CE)
+                                )
+                            }
+                        }
+
+                        // VIBRANT FACE TOGGLE BUTTON (Sky Blue for Front / Emerald for Back)
+                        Surface(
+                            onClick = { isFlipped = !isFlipped },
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (isFlipped) Color(0xFFECFDF5) else Color(0xFFEFF6FF),
+                            shadowElevation = 2.dp,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.2.dp,
+                                if (isFlipped) Color(0xFF86EFAC) else Color(0xFF93C5FD)
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("btn_flip_indicator")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Lật mặt thẻ",
+                                    tint = if (isFlipped) Color(0xFF16A34A) else Color(0xFF2563EB),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isFlipped) "Mặt sau" else "Mặt trước",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isFlipped) Color(0xFF15803D) else Color(0xFF1D4ED8)
+                                )
+                            }
+                        }
+                    }
+
+                    // 2. MIDDLE 3D FLASHCARD (Centered in screen)
+                    Flashcard3DView(
+                        card = currentCard,
+                        isFlipped = isFlipped,
+                        onFlip = { isFlipped = !isFlipped },
+                        onSpeak = { text -> onSpeak(text, languageTag) },
+                        onToggleStar = handleToggleStar,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // 3. BOTTOM NAVIGATION BUTTONS (Directly underneath the card)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (currentIndex < cardList.size - 1) "Thẻ tiếp →" else "Hoàn thành ✓")
+                        // Previous Card Button
+                        OutlinedButton(
+                            onClick = {
+                                if (currentIndex > 0) {
+                                    currentIndex--
+                                    isFlipped = false
+                                }
+                            },
+                            enabled = currentIndex > 0,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                                .testTag("btn_prev_card"),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.White,
+                                contentColor = NTKTextPrimary,
+                                disabledContainerColor = Color(0xFFF8FAFC),
+                                disabledContentColor = Color(0xFF94A3B8)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.5.dp,
+                                if (currentIndex > 0) Color(0xFFCBD5E1) else Color(0xFFE2E8F0)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Thẻ trước",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Thẻ trước",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Next Card / Complete Button
+                        val isLastCard = currentIndex >= cardList.size - 1
+                        Button(
+                            onClick = {
+                                if (!isLastCard) {
+                                    currentIndex++
+                                    isFlipped = false
+                                } else {
+                                    isCompleted = true
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1.2f)
+                                .height(54.dp)
+                                .shadow(
+                                    elevation = 4.dp,
+                                    shape = RoundedCornerShape(18.dp),
+                                    spotColor = if (isLastCard) Color(0x3310B981) else Color(0x336366F1)
+                                )
+                                .testTag("btn_next_card"),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isLastCard) Color(0xFF10B981) else NTKPrimary
+                            )
+                        ) {
+                            Text(
+                                text = if (isLastCard) "Hoàn thành ✓" else "Thẻ tiếp",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = if (isLastCard) Icons.Default.CheckCircle else Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = if (isLastCard) "Hoàn thành" else "Thẻ tiếp",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -436,6 +548,42 @@ fun FlashcardStudyScreen(
                     TextButton(onClick = onBack) {
                         Text("Về trang chủ", color = NTKTextSecondary)
                     }
+                }
+            }
+        }
+
+        // Transient Toast Message for Instant Bookmark Feedback
+        AnimatedVisibility(
+            visible = toastMessage != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { 60 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { 60 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 28.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xEE1E1B4B), // Deep indigo toast
+                shadowElevation = 8.dp,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF818CF8).copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Bookmark,
+                        contentDescription = null,
+                        tint = Color(0xFFC084FC),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = toastMessage ?: "",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
