@@ -12,10 +12,10 @@ import kotlinx.coroutines.withContext
 
 class FlashCardRepository(private val dao: FlashCardDao) {
 
-    suspend fun checkAndSeedDatabase() = withContext(Dispatchers.IO) {
+    suspend fun checkAndSeedDatabase(context: android.content.Context) = withContext(Dispatchers.IO) {
         val count = dao.getTotalCardsCount().firstOrNull() ?: 0
         if (count == 0) {
-            AppDatabase.populateInitialData(dao)
+            AppDatabase.populateInitialData(context, dao)
         }
     }
 

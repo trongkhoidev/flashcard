@@ -62,7 +62,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            repository.checkAndSeedDatabase()
+            repository.checkAndSeedDatabase(application)
         }
     }
 
