@@ -1,3 +1,13 @@
 <resources>
-    <string name="app_name">Flashcard</string>
+    <string name="app_name">NTK FlashCard</string>
+    <string name="app_slogan_1">Học nhanh – Nhớ lâu</string>
+    <string name="app_slogan_2">Mọi ngôn ngữ trong tầm tay</string>
+    <string name="btn_start_learning">Bắt đầu học ngay</string>
+    <string name="btn_login">Đăng nhập</string>
+    <string name="title_choose_language">Chọn ngôn ngữ bạn muốn học</string>
+    <string name="title_decks">Bộ từ vựng theo chủ đề</string>
+    <string name="btn_study_flashcard">Học Flashcard</string>
+    <string name="btn_quiz">Luyện Trắc nghiệm</string>
+    <string name="btn_word_match">Ghép từ vựng</string>
+    <string name="btn_add_card">Thêm thẻ mới</string>
 </resources>

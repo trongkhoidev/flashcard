@@ -1,0 +1,6 @@
+{
+  "name": "NTK FlashCard",
+  "description": "Ứng dụng học từ vựng đa ngôn ngữ bằng flashcard thông minh với hệ thống lặp lại ngắt quãng, phát âm giọng chuẩn và trắc nghiệm ghi nhớ.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
