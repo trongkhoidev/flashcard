@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -26,10 +29,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -239,16 +245,32 @@ fun CreateCardDialog(
 @Composable
 fun CreateDeckDialog(
     currentLanguageCode: String,
+    allCards: List<FlashCardEntity> = emptyList(),
     onDismiss: () -> Unit,
-    onSave: (DeckEntity) -> Unit
+    onSave: (DeckEntity, List<FlashCardEntity>) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var subtitle by remember { mutableStateOf("") }
     var selectedEmoji by remember { mutableStateOf("📚") }
     var selectedLevel by remember { mutableStateOf("Cơ bản") }
+    var wordTypeTab by remember { mutableIntStateOf(0) } // 0 = Từ đã lưu, 1 = Từ chưa thuộc
+    val selectedCards = remember { mutableStateListOf<FlashCardEntity>() }
 
     val emojis = listOf("📚", "💡", "✈️", "☕", "💼", "🍲", "🎯", "🌟", "🌸", "🔥")
     val levels = listOf("Cơ bản", "Trung cấp", "Nâng cao")
+
+    // Filter cards matching current deck language
+    val langCards = remember(allCards, currentLanguageCode) {
+        allCards.filter { it.languageCode.equals(currentLanguageCode, ignoreCase = true) }
+    }
+
+    val candidateCards = remember(langCards, wordTypeTab) {
+        if (wordTypeTab == 0) {
+            langCards.filter { it.isStarred }
+        } else {
+            langCards.filter { !it.isMastered }
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -358,6 +380,171 @@ fun CreateDeckDialog(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Chọn từ vựng đưa vào bộ thẻ:", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NTKTextSecondary)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Word Selection Tabs
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val starredCount = langCards.count { it.isStarred }
+                    val weakCount = langCards.count { !it.isMastered }
+
+                    Surface(
+                        onClick = { wordTypeTab = 0 },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (wordTypeTab == 0) Color(0xFFECEBFF) else Color(0xFFF8FAFC),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (wordTypeTab == 0) NTKPrimary else Color(0xFFE2E8F0)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("⭐ Đã lưu", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (wordTypeTab == 0) NTKPrimary else NTKTextSecondary)
+                            Text("($starredCount từ)", fontSize = 10.sp, color = if (wordTypeTab == 0) NTKPrimary.copy(alpha = 0.8f) else Color(0xFF94A3B8))
+                        }
+                    }
+
+                    Surface(
+                        onClick = { wordTypeTab = 1 },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (wordTypeTab == 1) Color(0xFFECEBFF) else Color(0xFFF8FAFC),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (wordTypeTab == 1) NTKPrimary else Color(0xFFE2E8F0)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("💡 Chưa thuộc", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (wordTypeTab == 1) NTKPrimary else NTKTextSecondary)
+                            Text("($weakCount từ)", fontSize = 10.sp, color = if (wordTypeTab == 1) NTKPrimary.copy(alpha = 0.8f) else Color(0xFF94A3B8))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Select All / Deselect All helpers
+                if (candidateCards.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val isAllSelected = candidateCards.all { selectedCards.contains(it) }
+                        TextButton(
+                            onClick = {
+                                if (isAllSelected) {
+                                    selectedCards.removeAll(candidateCards)
+                                } else {
+                                    candidateCards.forEach { card ->
+                                        if (!selectedCards.contains(card)) {
+                                            selectedCards.add(card)
+                                        }
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = if (isAllSelected) "Bỏ chọn tất cả" else "Chọn tất cả (${candidateCards.size})",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NTKPrimary
+                            )
+                        }
+
+                        Text(
+                            text = "Đã chọn: ${selectedCards.size} từ",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF16A34A)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Scrollable candidates list
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                ) {
+                    if (candidateCards.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (wordTypeTab == 0) "Chưa có từ vựng nào đã lưu" else "Tuyệt vời! Bạn đã thuộc hết từ vựng",
+                                fontSize = 12.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            candidateCards.forEach { card ->
+                                val isSelected = selectedCards.contains(card)
+                                Surface(
+                                    onClick = {
+                                        if (isSelected) {
+                                            selectedCards.remove(card)
+                                        } else {
+                                            selectedCards.add(card)
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) Color(0xFFF5F3FF) else Color.White,
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        if (isSelected) NTKPrimary.copy(alpha = 0.5f) else Color(0xFFF1F5F9)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = card.frontWord,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF1E293B)
+                                            )
+                                            Text(
+                                                text = card.backMeaning,
+                                                fontSize = 12.sp,
+                                                color = Color(0xFF64748B)
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.Add,
+                                            contentDescription = null,
+                                            tint = if (isSelected) NTKPrimary else Color(0xFF94A3B8),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Button(
@@ -374,7 +561,8 @@ fun CreateDeckDialog(
                                     level = selectedLevel,
                                     colorHex = "#4D47E9",
                                     isCustom = true
-                                )
+                                ),
+                                selectedCards.toList()
                             )
                         }
                     },

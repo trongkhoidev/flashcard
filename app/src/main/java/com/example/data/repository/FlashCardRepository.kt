@@ -31,6 +31,8 @@ class FlashCardRepository(private val dao: FlashCardDao) {
 
     fun getCardsByLanguage(langCode: String): Flow<List<FlashCardEntity>> = dao.getCardsByLanguage(langCode)
 
+    fun getAllCards(): Flow<List<FlashCardEntity>> = dao.getAllCards()
+
     fun getStarredCards(): Flow<List<FlashCardEntity>> = dao.getStarredCards()
 
     fun getMasteredCards(): Flow<List<FlashCardEntity>> = dao.getMasteredCards()

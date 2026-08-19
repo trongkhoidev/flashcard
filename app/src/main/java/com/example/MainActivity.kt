@@ -59,6 +59,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     val decks by viewModel.decksForCurrentLanguage.collectAsStateWithLifecycle()
     val allDecks by viewModel.allDecks.collectAsStateWithLifecycle()
     val starredCards by viewModel.starredCardsList.collectAsStateWithLifecycle()
+    val allCards by viewModel.allCardsList.collectAsStateWithLifecycle()
     val streakDays by viewModel.streakDays.collectAsStateWithLifecycle()
     val masteredCount by viewModel.masteredCount.collectAsStateWithLifecycle()
     val totalCount by viewModel.totalCardsCount.collectAsStateWithLifecycle()
@@ -101,6 +102,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                     decks = decks,
                     allDecksList = allDecks,
                     starredCards = starredCards,
+                    allCardsList = allCards,
                     streakDays = streakDays,
                     masteredWordsCount = masteredCount,
                     totalWordsCount = totalCount,
@@ -118,8 +120,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                     onStartStudySaved = { cards, title, langCode -> viewModel.startStudySavedCards(cards, title, langCode) },
                     onStartQuizSaved = { cards, title, langCode -> viewModel.startQuizSavedCards(cards, title, langCode) },
                     onStartMatchSaved = { cards, title, langCode -> viewModel.startMatchSavedCards(cards, title, langCode) },
-                    onCreateDeckDirect = { title, subtitle, langCode, level ->
-                        viewModel.createNewDeck(
+                    onCreateDeckDirect = { title, subtitle, langCode, level, selectedCards ->
+                        viewModel.createNewDeckWithCards(
                             DeckEntity(
                                 id = "deck_${System.currentTimeMillis()}",
                                 languageCode = langCode,
@@ -129,7 +131,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                                 level = level,
                                 colorHex = "#6366F1",
                                 cardCount = 0
-                            )
+                            ),
+                            selectedCards
                         )
                     },
                     onImportCardsDirect = { deckId, cards ->
@@ -230,9 +233,10 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     if (showCreateDeckDialog) {
         CreateDeckDialog(
             currentLanguageCode = selectedLanguage.code,
+            allCards = allCards,
             onDismiss = { showCreateDeckDialog = false },
-            onSave = { newDeck ->
-                viewModel.createNewDeck(newDeck)
+            onSave = { newDeck, selectedCards ->
+                viewModel.createNewDeckWithCards(newDeck, selectedCards)
                 showCreateDeckDialog = false
             }
         )

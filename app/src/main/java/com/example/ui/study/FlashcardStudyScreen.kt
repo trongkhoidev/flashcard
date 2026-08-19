@@ -390,12 +390,6 @@ fun FlashcardStudyScreen(
                             onClick = {
                                 onRecordReview(currentCard.id, 3)
                                 toastMessage = "❌ Đã ghi nhận \"Chưa thuộc\""
-                                if (currentIndex < cardList.size - 1) {
-                                    currentIndex++
-                                    isFlipped = false
-                                } else {
-                                    isCompleted = true
-                                }
                             },
                             modifier = Modifier
                                 .weight(1f)

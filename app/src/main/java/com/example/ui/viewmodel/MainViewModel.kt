@@ -56,6 +56,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val starredCardsList: StateFlow<List<FlashCardEntity>> = repository.getStarredCards()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allCardsList: StateFlow<List<FlashCardEntity>> = repository.getAllCards()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val masteredCount: StateFlow<Int> = repository.getMasteredCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
@@ -99,6 +102,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun createNewDeck(deck: DeckEntity) {
         viewModelScope.launch {
             repository.insertDeck(deck)
+        }
+    }
+
+    fun createNewDeckWithCards(deck: DeckEntity, selectedCards: List<FlashCardEntity>) {
+        viewModelScope.launch {
+            val deckWithCount = deck.copy(cardCount = selectedCards.size)
+            repository.insertDeck(deckWithCount)
+            
+            val newCards = selectedCards.map { card ->
+                FlashCardEntity(
+                    deckId = deck.id,
+                    languageCode = deck.languageCode,
+                    frontWord = card.frontWord,
+                    phonetic = card.phonetic,
+                    partOfSpeech = card.partOfSpeech,
+                    frontExample = card.frontExample,
+                    backMeaning = card.backMeaning,
+                    backExampleTranslation = card.backExampleTranslation,
+                    memoryTip = card.memoryTip,
+                    difficulty = card.difficulty,
+                    isStarred = card.isStarred,
+                    isMastered = card.isMastered,
+                    reviewCount = card.reviewCount,
+                    lastReviewedTimestamp = card.lastReviewedTimestamp
+                )
+            }
+            repository.insertCards(newCards)
         }
     }
 

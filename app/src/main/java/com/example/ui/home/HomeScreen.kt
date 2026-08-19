@@ -86,6 +86,7 @@ fun HomeScreen(
     decks: List<DeckEntity>,
     allDecksList: List<DeckEntity> = emptyList(),
     starredCards: List<FlashCardEntity> = emptyList(),
+    allCardsList: List<FlashCardEntity> = emptyList(),
     streakDays: Int = 7,
     masteredWordsCount: Int = 15,
     totalWordsCount: Int = 20,
@@ -103,7 +104,7 @@ fun HomeScreen(
     onStartStudySaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
     onStartQuizSaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
     onStartMatchSaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
-    onCreateDeckDirect: (String, String, String, String) -> Unit = { _, _, _, _ -> },
+    onCreateDeckDirect: (String, String, String, String, List<FlashCardEntity>) -> Unit = { _, _, _, _, _ -> },
     onImportCardsDirect: (String, List<FlashCardEntity>) -> Unit = { _, _ -> },
     onStudyByLang: (String) -> Unit = {},
     modifier: Modifier = Modifier
@@ -346,9 +347,10 @@ fun HomeScreen(
     if (showCreateDeckDialog) {
         CreateDeckDialog(
             currentLanguageCode = selectedLanguage.code,
+            allCards = allCardsList,
             onDismiss = { showCreateDeckDialog = false },
-            onConfirm = { title, subtitle, langCode, level ->
-                onCreateDeckDirect(title, subtitle, langCode, level)
+            onSave = { deck, selectedCards ->
+                onCreateDeckDirect(deck.title, deck.subtitle, deck.languageCode, deck.level, selectedCards)
                 showCreateDeckDialog = false
             }
         )
