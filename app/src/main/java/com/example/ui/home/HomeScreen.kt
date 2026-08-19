@@ -99,6 +99,10 @@ fun HomeScreen(
     onOpenProfile: () -> Unit,
     onOpenStarred: () -> Unit,
     onSpeak: (String, String) -> Unit = { _, _ -> },
+    onToggleStar: (Long, Boolean) -> Unit = { _, _ -> },
+    onStartStudySaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
+    onStartQuizSaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
+    onStartMatchSaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
     onCreateDeckDirect: (String, String, String, String) -> Unit = { _, _, _, _ -> },
     onImportCardsDirect: (String, List<FlashCardEntity>) -> Unit = { _, _ -> },
     onStudyByLang: (String) -> Unit = {},
@@ -137,9 +141,9 @@ fun HomeScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFFAFAFE),
-                        Color(0xFFF6F5FD),
-                        Color(0xFFF1EEFB)
+                        Color(0xFFF0F9FF),
+                        Color(0xFFE0F2FE),
+                        Color(0xFFF8FAFC)
                     )
                 )
             )
@@ -208,18 +212,22 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // 5. "Tiếp tục học" SECTION: Eiffel Tower thumbnail, "Tiếng Pháp cơ bản", 32/50 thẻ, "Học tiếp"
+                            // 5. "Tiếp tục học" SECTION: Dynamic active language/deck
+                            val currentActiveDeck = decks.firstOrNull()
+                                ?: effectiveDecks.firstOrNull { it.languageCode == selectedLanguage.code }
+                                ?: effectiveDecks.firstOrNull()
+                            val studiedCount = ((currentActiveDeck?.cardCount ?: 50) * 0.64f).toInt().coerceAtLeast(1)
+                            val totalCount = currentActiveDeck?.cardCount?.takeIf { it > 0 } ?: 50
+
                             ContinueLearningSection(
-                                title = "Tiếng Pháp cơ bản",
-                                studiedCount = 32,
-                                totalCount = 50,
+                                title = currentActiveDeck?.title ?: "${selectedLanguage.displayName} cơ bản",
+                                studiedCount = studiedCount,
+                                totalCount = totalCount,
                                 onContinueClick = {
-                                    val frDeck = effectiveDecks.firstOrNull { it.languageCode == "fr" }
-                                        ?: effectiveDecks.firstOrNull()
-                                    if (frDeck != null) {
-                                        onOpenDeckDetail(frDeck)
+                                    if (currentActiveDeck != null) {
+                                        onOpenDeckDetail(currentActiveDeck)
                                     } else {
-                                        onStudyByLang("fr")
+                                        onStudyByLang(selectedLanguage.code)
                                     }
                                 },
                                 onViewAllClick = { showAllDecksSheet = true }
@@ -324,7 +332,12 @@ fun HomeScreen(
     if (showSavedCardsDialog) {
         SavedCardsDialog(
             starredCards = starredCards,
+            decks = effectiveDecks,
             onSpeak = onSpeak,
+            onToggleStar = onToggleStar,
+            onStartStudy = onStartStudySaved,
+            onStartQuiz = onStartQuizSaved,
+            onStartMatch = onStartMatchSaved,
             onDismiss = { showSavedCardsDialog = false }
         )
     }
@@ -433,63 +446,202 @@ fun HomeScreen(
         }
     }
 
-    // View All Decks Bottom Sheet
+    // View All Decks / Continue Learning by Languages Bottom Sheet
     if (showAllDecksSheet) {
+        var sheetLangFilter by remember { mutableStateOf<String?>(null) }
+        val distinctLangCodes = remember(effectiveDecks) {
+            effectiveDecks.map { it.languageCode }.distinct()
+        }
+        val displayedDecks = remember(sheetLangFilter, effectiveDecks) {
+            if (sheetLangFilter == null) effectiveDecks else effectiveDecks.filter { it.languageCode == sheetLangFilter }
+        }
+        val decksByLanguage = remember(displayedDecks) {
+            displayedDecks.groupBy { it.languageCode }
+        }
+
         ModalBottomSheet(
-            onDismissRequest = { showAllDecksSheet = false },
+            onDismissRequest = {
+                showAllDecksSheet = false
+                sheetLangFilter = null
+            },
             sheetState = allDecksSheetState,
-            containerColor = Color.White,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            containerColor = Color(0xFFFAFAFE),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Tất cả bộ thẻ từ vựng",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E1B4B)
-                    )
-                    IconButton(onClick = { showAllDecksSheet = false }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF94A3B8))
+                    Column {
+                        Text(
+                            text = "Tiến trình học tập",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF1E1B4B)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (distinctLangCodes.size <= 1) {
+                                val lang = distinctLangCodes.firstOrNull()?.let { AppLanguage.fromCode(it) } ?: selectedLanguage
+                                "Đang học ${lang.displayName} (${displayedDecks.size} bộ thẻ)"
+                            } else {
+                                "Đang học ${distinctLangCodes.size} ngôn ngữ (${effectiveDecks.size} bộ thẻ)"
+                            },
+                            fontSize = 13.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            showAllDecksSheet = false
+                            sheetLangFilter = null
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
+                // If multiple languages exist, show filter chips
+                if (distinctLangCodes.size > 1) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // "Tất cả" chip
+                        val isAllSelected = sheetLangFilter == null
+                        Surface(
+                            onClick = { sheetLangFilter = null },
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isAllSelected) Color(0xFF0284C7) else Color.White,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isAllSelected) Color(0xFF0284C7) else Color(0xFFE2E8F0)
+                            ),
+                            shadowElevation = if (isAllSelected) 2.dp else 0.dp
+                        ) {
+                            Text(
+                                text = "🌐 Tất cả (${effectiveDecks.size})",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isAllSelected) Color.White else Color(0xFF475569),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            )
+                        }
+
+                        // Each language chip
+                        distinctLangCodes.forEach { langCode ->
+                            val lang = AppLanguage.fromCode(langCode)
+                            val isSelected = sheetLangFilter == langCode
+                            val count = effectiveDecks.count { it.languageCode == langCode }
+
+                            Surface(
+                                onClick = { sheetLangFilter = langCode },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) Color(0xFF0284C7) else Color.White,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSelected) Color(0xFF0284C7) else Color(0xFFE2E8F0)
+                                ),
+                                shadowElevation = if (isSelected) 2.dp else 0.dp
+                            ) {
+                                Text(
+                                    text = "${lang.flagEmoji} ${lang.displayName} ($count)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else Color(0xFF475569),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                // List of Decks Grouped by Language or Single Language List
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(420.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .height(460.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(effectiveDecks, key = { it.id }) { deck ->
-                        DeckListCard(
-                            deck = deck,
-                            onClickDetail = {
-                                showAllDecksSheet = false
-                                onOpenDeckDetail(deck)
-                            },
-                            onStudy = {
-                                showAllDecksSheet = false
-                                onStudyDeck(deck)
-                            },
-                            onQuiz = {
-                                showAllDecksSheet = false
-                                onQuizDeck(deck)
-                            },
-                            onMatch = {
-                                showAllDecksSheet = false
-                                onMatchDeck(deck)
+                    decksByLanguage.forEach { (langCode, langDecks) ->
+                        val lang = AppLanguage.fromCode(langCode)
+
+                        // If "Tất cả" is selected and we have multiple languages, render language header section
+                        if (distinctLangCodes.size > 1 && sheetLangFilter == null) {
+                            item(key = "header_$langCode") {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 6.dp, bottom = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(text = lang.flagEmoji, fontSize = 20.sp)
+                                    Text(
+                                        text = lang.displayName,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFE0F2FE)
+                                    ) {
+                                        Text(
+                                            text = "${langDecks.size} bộ thẻ",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF0284C7),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                             }
-                        )
+                        }
+
+                        items(langDecks, key = { it.id }) { deck ->
+                            DeckListCard(
+                                deck = deck,
+                                onClickDetail = {
+                                    showAllDecksSheet = false
+                                    onOpenDeckDetail(deck)
+                                },
+                                onStudy = {
+                                    showAllDecksSheet = false
+                                    onStudyDeck(deck)
+                                },
+                                onQuiz = {
+                                    showAllDecksSheet = false
+                                    onQuizDeck(deck)
+                                },
+                                onMatch = {
+                                    showAllDecksSheet = false
+                                    onMatchDeck(deck)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -628,7 +780,7 @@ private fun DeckListCard(
                 Button(
                     onClick = onStudy,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                     modifier = Modifier.weight(1.2f).height(36.dp),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
                 ) {
@@ -689,7 +841,7 @@ private fun ExploreDecksTab(
             text = "Khám phá kho từ vựng",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E1B4B)
+            color = Color(0xFF0F172A)
         )
         Text(
             text = "Chọn ngôn ngữ để học các bộ thẻ chuyên sâu",
@@ -711,11 +863,11 @@ private fun ExploreDecksTab(
                 Surface(
                     onClick = { onSelectLanguage(lang) },
                     shape = RoundedCornerShape(14.dp),
-                    color = if (isSelected) Color(0xFF6366F1) else Color.White,
+                    color = if (isSelected) Color(0xFF0284C7) else Color.White,
                     shadowElevation = 2.dp,
                     modifier = Modifier.border(
                         1.dp,
-                        if (isSelected) Color(0xFF6366F1) else Color(0xFFE2E8F0),
+                        if (isSelected) Color(0xFF0284C7) else Color(0xFFE2E8F0),
                         RoundedCornerShape(14.dp)
                     )
                 ) {
@@ -883,7 +1035,7 @@ private fun AccountProfileTab(
                         .size(56.dp)
                         .background(
                             Brush.linearGradient(
-                                listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
+                                listOf(Color(0xFF0284C7), Color(0xFF38BDF8))
                             ),
                             CircleShape
                         ),
@@ -902,7 +1054,7 @@ private fun AccountProfileTab(
                         text = userName,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E1B4B)
+                        color = Color(0xFF0F172A)
                     )
                     Text(
                         text = "Học viên xuất sắc 🌟",
@@ -912,7 +1064,7 @@ private fun AccountProfileTab(
                 }
 
                 TextButton(onClick = onOpenEditProfile) {
-                    Text("Sửa", fontWeight = FontWeight.Bold, color = Color(0xFF6366F1))
+                    Text("Sửa", fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
                 }
             }
         }
@@ -932,7 +1084,7 @@ private fun AccountProfileTab(
                     text = "Tổng kết thành tích",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E1B4B)
+                    color = Color(0xFF0F172A)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
@@ -949,7 +1101,7 @@ private fun AccountProfileTab(
                     }
                     Column {
                         Text("📚 Tổng số thẻ", fontSize = 12.sp, color = Color(0xFF64748B))
-                        Text("$totalCount thẻ", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF6366F1))
+                        Text("$totalCount thẻ", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF0284C7))
                     }
                 }
             }

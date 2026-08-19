@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
@@ -97,6 +98,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -288,7 +290,7 @@ fun DeckDetailScreen(
                                     onStartQuiz()
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Filled.Quiz, contentDescription = null, tint = Color(0xFF6366F1))
+                                    Icon(Icons.Filled.Quiz, contentDescription = null, tint = Color(0xFF0284C7))
                                 }
                             )
                             DropdownMenuItem(
@@ -344,9 +346,9 @@ fun DeckDetailScreen(
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color.White,
-                            contentColor = Color(0xFF6366F1)
+                            contentColor = Color(0xFF0284C7)
                         ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E7FF)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0F2FE)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
@@ -354,7 +356,7 @@ fun DeckDetailScreen(
                         Icon(
                             imageVector = Icons.Filled.Share,
                             contentDescription = "Share",
-                            tint = Color(0xFF6366F1),
+                            tint = Color(0xFF0284C7),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -362,7 +364,7 @@ fun DeckDetailScreen(
                             text = "Chia sẻ bộ thẻ",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6366F1)
+                            color = Color(0xFF0284C7)
                         )
                     }
                 }
@@ -392,7 +394,7 @@ fun DeckDetailScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Language Tag Pill (Light Pink)
+                    // Language Tag Pill (Squirtle Ocean Blue)
                     val langLabel = when (deck.languageCode) {
                         "ja" -> "Tiếng Nhật"
                         "fr" -> "Tiếng Pháp"
@@ -404,15 +406,15 @@ fun DeckDetailScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFFDF2F8))
-                            .border(1.dp, Color(0xFFFBCFE8), RoundedCornerShape(8.dp))
+                            .background(Color(0xFFE0F2FE))
+                            .border(1.dp, Color(0xFFBAE6FD), RoundedCornerShape(8.dp))
                             .padding(horizontal = 10.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = langLabel,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFDB2777)
+                            color = Color(0xFF0284C7)
                         )
                     }
 
@@ -421,7 +423,7 @@ fun DeckDetailScreen(
                         text = deck.title,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
-                        color = Color(0xFF1E1B4B),
+                        color = Color(0xFF0F172A),
                         lineHeight = 26.sp
                     )
 
@@ -435,7 +437,7 @@ fun DeckDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF6366F1))
+                                .background(Color(0xFF0284C7))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Icon(
@@ -507,14 +509,14 @@ fun DeckDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0xFFEEF2FF))
+                                    .background(Color(0xFFE0F2FE))
                                     .padding(horizontal = 7.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = tag,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF4F46E5)
+                                    color = Color(0xFF0284C7)
                                 )
                             }
                         }
@@ -529,17 +531,17 @@ fun DeckDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Primary Study Button (Purple filled)
+                // Primary Study Button (Ocean Blue filled)
                 Button(
                     onClick = onStartStudy,
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6366F1)
+                        containerColor = Color(0xFF0284C7)
                     ),
                     modifier = Modifier
                         .weight(1.3f)
                         .height(54.dp)
-                        .shadow(4.dp, RoundedCornerShape(18.dp), spotColor = Color(0x336366F1))
+                        .shadow(4.dp, RoundedCornerShape(18.dp), spotColor = Color(0x330284C7))
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayCircle,
@@ -573,7 +575,7 @@ fun DeckDetailScreen(
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color.White,
-                        contentColor = Color(0xFF6366F1)
+                        contentColor = Color(0xFF0284C7)
                     ),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     modifier = Modifier
@@ -583,14 +585,14 @@ fun DeckDetailScreen(
                     if (isDownloading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
-                            color = Color(0xFF6366F1),
+                            color = Color(0xFF0284C7),
                             strokeWidth = 2.dp
                         )
                     } else {
                         Icon(
                             imageVector = if (isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.FileDownload,
                             contentDescription = "Download",
-                            tint = if (isDownloaded) Color(0xFF10B981) else Color(0xFF6366F1),
+                            tint = if (isDownloaded) Color(0xFF10B981) else Color(0xFF0284C7),
                             modifier = Modifier.size(22.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -598,7 +600,7 @@ fun DeckDetailScreen(
                             text = if (isDownloaded) "Đã tải" else "Tải xuống",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDownloaded) Color(0xFF10B981) else Color(0xFF6366F1)
+                            color = if (isDownloaded) Color(0xFF10B981) else Color(0xFF0284C7)
                         )
                     }
                 }
@@ -611,13 +613,13 @@ fun DeckDetailScreen(
             TabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.Transparent,
-                contentColor = Color(0xFF6366F1),
+                contentColor = Color(0xFF0284C7),
                 divider = {},
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
                         height = 3.dp,
-                        color = Color(0xFF6366F1)
+                        color = Color(0xFF0284C7)
                     )
                 }
             ) {
@@ -630,7 +632,7 @@ fun DeckDetailScreen(
                                 text = title,
                                 fontSize = 14.sp,
                                 fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Medium,
-                                color = if (selectedTabIndex == index) Color(0xFF6366F1) else Color(0xFF64748B)
+                                color = if (selectedTabIndex == index) Color(0xFF0284C7) else Color(0xFF64748B)
                             )
                         }
                     )
@@ -647,7 +649,7 @@ fun DeckDetailScreen(
                         text = "Chủ đề",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E1B4B)
+                        color = Color(0xFF0F172A)
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -680,14 +682,14 @@ fun DeckDetailScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(36.dp)
-                                                .background(Color(0xFFEEF2FF), CircleShape),
+                                                .background(Color(0xFFE0F2FE), CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = "${topic.id}",
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF4F46E5)
+                                                color = Color(0xFF0284C7)
                                             )
                                         }
 
@@ -718,7 +720,7 @@ fun DeckDetailScreen(
                                                 text = "${topic.progressPercent}%",
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (topic.progressPercent == 100) Color(0xFF10B981) else Color(0xFF6366F1)
+                                                color = if (topic.progressPercent == 100) Color(0xFF10B981) else Color(0xFF0284C7)
                                             )
 
                                             LinearProgressIndicator(
@@ -727,7 +729,7 @@ fun DeckDetailScreen(
                                                     .width(60.dp)
                                                     .height(6.dp)
                                                     .clip(RoundedCornerShape(3.dp)),
-                                                color = if (topic.progressPercent == 100) Color(0xFF10B981) else Color(0xFF6366F1),
+                                                color = if (topic.progressPercent == 100) Color(0xFF10B981) else Color(0xFF0284C7),
                                                 trackColor = Color(0xFFE2E8F0)
                                             )
                                         }
@@ -802,7 +804,7 @@ fun DeckDetailScreen(
                                                                 Icon(
                                                                     imageVector = Icons.Filled.VolumeUp,
                                                                     contentDescription = "Speak",
-                                                                    tint = Color(0xFF6366F1),
+                                                                    tint = Color(0xFF0284C7),
                                                                     modifier = Modifier.size(18.dp)
                                                                 )
                                                             }
@@ -815,7 +817,7 @@ fun DeckDetailScreen(
 
                                             Button(
                                                 onClick = onStartStudy,
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                                                 shape = RoundedCornerShape(12.dp),
                                                 modifier = Modifier.fillMaxWidth().height(44.dp)
                                             ) {
@@ -830,213 +832,161 @@ fun DeckDetailScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // SECTION: NHẬN XÉT NỔI BẬT (FEATURED REVIEWS)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Nhận xét nổi bật",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E1B4B)
-                        )
-
-                        Text(
-                            text = "Xem tất cả >",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6366F1),
-                            modifier = Modifier.clickable { selectedTabIndex = 2 }
-                        )
-                    }
+                    // SECTION: CHẾ ĐỘ LUYỆN TẬP (QUIZ & MATCH BUTTON CARDS)
+                    Text(
+                        text = "Chế độ luyện tập",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Horizontal Review Cards
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        reviews.forEach { rev ->
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color = Color.White,
-                                shadowElevation = 1.dp,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF1F5F9)),
-                                modifier = Modifier.width(280.dp)
+                        // 1. CARD BUTTON: Luyện trắc nghiệm (Quiz)
+                        Surface(
+                            onClick = onStartQuiz,
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFFF0F9FF),
+                            shadowElevation = 2.dp,
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFBAE6FD)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("btn_quiz_mode_card")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(14.dp),
-                                    verticalAlignment = Alignment.Top,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                // Icon Box
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(Color(0xFF38BDF8), Color(0xFF0284C7))
+                                            ),
+                                            RoundedCornerShape(16.dp)
+                                        )
+                                        .shadow(3.dp, RoundedCornerShape(16.dp), spotColor = Color(0x400284C7)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    // Avatar
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .background(rev.avatarBgColor, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(text = rev.avatarEmoji, fontSize = 22.sp)
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Filled.Quiz,
+                                        contentDescription = "Quiz Icon",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
 
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        // 5 Stars
-                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            repeat(rev.rating) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.Star,
-                                                    contentDescription = null,
-                                                    tint = Color(0xFFF59E0B),
-                                                    modifier = Modifier.size(15.dp)
-                                                )
-                                            }
-                                        }
+                                // Title & Description
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Luyện trắc nghiệm (Quiz)",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = "4 lựa chọn phản xạ • Rèn luyện trí nhớ nhanh",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748B),
+                                        lineHeight = 16.sp
+                                    )
+                                }
 
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        Text(
-                                            text = rev.content,
-                                            fontSize = 13.sp,
-                                            lineHeight = 17.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF1E293B),
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-
-                                        Spacer(modifier = Modifier.height(6.dp))
-
-                                        Text(
-                                            text = "${rev.authorName} • ${rev.timeAgo}",
-                                            fontSize = 11.sp,
-                                            color = Color(0xFF94A3B8)
-                                        )
-                                    }
+                                // Arrow Action Pill
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(Color(0xFFE0F2FE), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Bắt đầu Quiz",
+                                        tint = Color(0xFF0284C7),
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // STATS OVERVIEW BAR (Cards, Bookmarks, Study time)
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        color = Color(0xFFF1F5F9).copy(alpha = 0.6f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
+                        // 2. CARD BUTTON: Nối từ Nhanh (Match)
+                        Surface(
+                            onClick = onStartMatch,
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFFECFEFF),
+                            shadowElevation = 2.dp,
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFA5F3FC)),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 14.dp, horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
+                                .testTag("btn_match_mode_card")
                         ) {
-                            // Total cards
                             Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
+                                // Icon Box
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .background(Color(0xFFEEF2FF), RoundedCornerShape(10.dp)),
+                                        .size(48.dp)
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(Color(0xFF06B6D4), Color(0xFF0284C7))
+                                            ),
+                                            RoundedCornerShape(16.dp)
+                                        )
+                                        .shadow(3.dp, RoundedCornerShape(16.dp), spotColor = Color(0x400284C7)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Style,
-                                        contentDescription = null,
-                                        tint = Color(0xFF6366F1),
-                                        modifier = Modifier.size(20.dp)
+                                        contentDescription = "Match Icon",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(26.dp)
                                     )
                                 }
-                                Column {
+
+                                // Title & Description
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "${if (deck.cardCount > 0) deck.cardCount else cards.size}",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color(0xFF1E1B4B)
+                                        text = "Nối từ Nhanh (Match)",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF083344)
                                     )
+                                    Spacer(modifier = Modifier.height(3.dp))
                                     Text(
-                                        text = "Tổng số thẻ",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF64748B)
+                                        text = "Ghép đôi từ và nghĩa • Tốc độ & tập trung",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF0E7490),
+                                        lineHeight = 16.sp
                                     )
                                 }
-                            }
 
-                            Box(modifier = Modifier.width(1.dp).height(28.dp).background(Color(0xFFCBD5E1)))
-
-                            // Saved cards
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                                // Arrow Action Pill
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .background(Color(0xFFF3E8FF), RoundedCornerShape(10.dp)),
+                                        .size(36.dp)
+                                        .background(Color(0xFFCFFAFE), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.Bookmark,
-                                        contentDescription = null,
-                                        tint = Color(0xFF9333EA),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = "24",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color(0xFF1E1B4B)
-                                    )
-                                    Text(
-                                        text = "Đã lưu",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF64748B)
-                                    )
-                                }
-                            }
-
-                            Box(modifier = Modifier.width(1.dp).height(28.dp).background(Color(0xFFCBD5E1)))
-
-                            // Study duration
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .background(Color(0xFFE0F2FE), RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Schedule,
-                                        contentDescription = null,
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Bắt đầu Match",
                                         tint = Color(0xFF0284C7),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = "~3h",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color(0xFF1E1B4B)
-                                    )
-                                    Text(
-                                        text = "Thời gian học",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF64748B)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
@@ -1160,7 +1110,7 @@ private fun StatsDetailTab(
             text = "Tiến độ học tập chi tiết",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E1B4B)
+            color = Color(0xFF0F172A)
         )
 
         Surface(
@@ -1190,7 +1140,7 @@ private fun StatsDetailTab(
                             text = "$mastered / $total từ",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E1B4B)
+                            color = Color(0xFF0F172A)
                         )
                     }
                 }
@@ -1232,7 +1182,7 @@ private fun StatsDetailTab(
             text = "Luyện tập & Ôn thi",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E1B4B)
+            color = Color(0xFF0F172A)
         )
 
         Row(
@@ -1242,15 +1192,15 @@ private fun StatsDetailTab(
             Surface(
                 onClick = onStartQuiz,
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFEEF2FF),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC7D2FE)),
+                color = Color(0xFFF0F9FF),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBAE6FD)),
                 modifier = Modifier.weight(1f)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Icon(Icons.Filled.Quiz, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(28.dp))
+                    Icon(Icons.Filled.Quiz, contentDescription = null, tint = Color(0xFF0284C7), modifier = Modifier.size(28.dp))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Trắc nghiệm", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1B4B))
-                    Text("4 lựa chọn nhanh", fontSize = 12.sp, color = Color(0xFF6366F1))
+                    Text("Trắc nghiệm", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                    Text("4 lựa chọn nhanh", fontSize = 12.sp, color = Color(0xFF0284C7))
                 }
             }
 
@@ -1287,12 +1237,12 @@ private fun ReviewsDetailTab(
                 text = "Tất cả đánh giá (${reviews.size})",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E1B4B)
+                color = Color(0xFF0F172A)
             )
 
             Button(
                 onClick = onAddReview,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                 shape = RoundedCornerShape(10.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
@@ -1383,7 +1333,7 @@ private fun AddReviewDialog(
                     text = "Viết nhận xét bộ thẻ ✨",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E1B4B)
+                    color = Color(0xFF0F172A)
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -1443,7 +1393,7 @@ private fun AddReviewDialog(
                                 onSubmit(name, rating, comment)
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("Gửi nhận xét", fontWeight = FontWeight.Bold)

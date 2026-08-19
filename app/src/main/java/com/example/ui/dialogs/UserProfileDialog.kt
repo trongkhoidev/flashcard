@@ -85,7 +85,7 @@ fun UserProfileDialog(
                         .size(76.dp)
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(Color(0xFF818CF8), Color(0xFF4D47E9))
+                                colors = listOf(Color(0xFF38BDF8), Color(0xFF0284C7))
                             ),
                             shape = CircleShape
                         ),

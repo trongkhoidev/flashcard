@@ -159,6 +159,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun startStudySavedCards(cards: List<FlashCardEntity>, title: String = "Từ vựng đã lưu", langCode: String = "en") {
+        val customDeck = DeckEntity(
+            id = "starred_study_${System.currentTimeMillis()}",
+            languageCode = langCode,
+            title = title,
+            subtitle = "Tiếp tục học ${cards.size} từ đã lưu",
+            iconEmoji = "⭐",
+            level = "Đã lưu",
+            colorHex = "#0284C7",
+            cardCount = cards.size
+        )
+        _currentScreen.value = ScreenState.Study(customDeck, cards)
+    }
+
+    fun startQuizSavedCards(cards: List<FlashCardEntity>, title: String = "Trắc nghiệm từ đã lưu", langCode: String = "en") {
+        val customDeck = DeckEntity(
+            id = "starred_quiz_${System.currentTimeMillis()}",
+            languageCode = langCode,
+            title = title,
+            subtitle = "Kiểm tra ${cards.size} từ đã lưu",
+            iconEmoji = "⚡",
+            level = "Đã lưu",
+            colorHex = "#0284C7",
+            cardCount = cards.size
+        )
+        _currentScreen.value = ScreenState.Quiz(customDeck, cards)
+    }
+
+    fun startMatchSavedCards(cards: List<FlashCardEntity>, title: String = "Ghép thẻ từ đã lưu", langCode: String = "en") {
+        val customDeck = DeckEntity(
+            id = "starred_match_${System.currentTimeMillis()}",
+            languageCode = langCode,
+            title = title,
+            subtitle = "Ghép cặp ${cards.size} từ đã lưu",
+            iconEmoji = "🧩",
+            level = "Đã lưu",
+            colorHex = "#0284C7",
+            cardCount = cards.size
+        )
+        _currentScreen.value = ScreenState.Match(customDeck, cards)
+    }
+
     override fun onCleared() {
         super.onCleared()
         ttsManager.shutdown()

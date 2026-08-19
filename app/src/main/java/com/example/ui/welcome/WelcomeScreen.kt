@@ -4,8 +4,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,11 +41,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -73,7 +78,15 @@ fun WelcomeScreen(
     var currentPage by remember { mutableIntStateOf(0) }
     val totalPages = 3
 
-    // Background Gradient matching the user's design image
+    // Auto-advance slide text carousel every 3.5 seconds
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(3500)
+            currentPage = (currentPage + 1) % totalPages
+        }
+    }
+
+    // Background Gradient matching the Squirtle ocean theme
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -81,9 +94,9 @@ fun WelcomeScreen(
                 Brush.verticalGradient(
                     colors = listOf(
                         Color(0xFFFFFFFF),
-                        Color(0xFFFAF8FF),
-                        Color(0xFFF0EFFF),
-                        Color(0xFFE9E6FF)
+                        Color(0xFFF0F9FF),
+                        Color(0xFFE0F2FE),
+                        Color(0xFFBAE6FD).copy(alpha = 0.35f)
                     )
                 )
             )
@@ -126,10 +139,13 @@ fun WelcomeScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Slide feature description text
+                // Slide feature description text with smooth slide + fade transition
                 AnimatedContent(
                     targetState = currentPage,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    transitionSpec = {
+                        (slideInHorizontally(animationSpec = tween(400)) { width -> width / 4 } + fadeIn(animationSpec = tween(400)))
+                            .togetherWith(slideOutHorizontally(animationSpec = tween(400)) { width -> -width / 4 } + fadeOut(animationSpec = tween(400)))
+                    },
                     label = "page_description"
                 ) { page ->
                     val (title, subtitle) = when (page) {
@@ -180,7 +196,7 @@ fun WelcomeScreen(
                                 .width(dotWidth)
                                 .shadow(if (isSelected) 2.dp else 0.dp, RoundedCornerShape(4.dp))
                                 .background(
-                                    color = if (isSelected) NTKPrimary else Color(0xFFD6D3F8),
+                                    color = if (isSelected) NTKPrimary else Color(0xFFBAE6FD),
                                     shape = RoundedCornerShape(4.dp)
                                 )
                                 .clickable { currentPage = i }

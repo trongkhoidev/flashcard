@@ -207,7 +207,10 @@ fun HomeSearchBar(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
                 if (query.isEmpty()) {
                     Text(
                         text = "Tìm kiếm bộ thẻ, chủ đề...",
@@ -224,6 +227,7 @@ fun HomeSearchBar(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     ),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF0284C7)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("home_search_input")
@@ -237,7 +241,7 @@ fun HomeSearchBar(
                 Icon(
                     imageVector = Icons.Outlined.Tune,
                     contentDescription = "Filter",
-                    tint = Color(0xFF6366F1),
+                    tint = Color(0xFF0284C7),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -247,7 +251,7 @@ fun HomeSearchBar(
 
 /**
  * Streak Mascot Banner:
- * Purple Gradient banner with 7-day tracker and 3D Owl mascot with graduation cap
+ * Ocean Cyan/Blue Gradient banner with 7-day tracker and 3D Squirtle Turtle mascot
  */
 @Composable
 fun StreakMascotBanner(
@@ -279,7 +283,7 @@ fun StreakMascotBanner(
             .shadow(
                 elevation = 12.dp,
                 shape = RoundedCornerShape(24.dp),
-                spotColor = Color(0x664F46E5)
+                spotColor = Color(0x550284C7)
             )
             .clickable { onBannerClick() }
             .testTag("streak_mascot_banner")
@@ -290,10 +294,10 @@ fun StreakMascotBanner(
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF6366F1),
-                            Color(0xFF7C3AED),
-                            Color(0xFF8B5CF6),
-                            Color(0xFFA78BFA)
+                            Color(0xFF0369A1),
+                            Color(0xFF0284C7),
+                            Color(0xFF0EA5E9),
+                            Color(0xFF38BDF8)
                         ),
                         start = Offset(0f, 0f),
                         end = Offset(1000f, 1000f)
@@ -310,7 +314,7 @@ fun StreakMascotBanner(
                     modifier = Modifier.weight(1.15f)
                 ) {
                     Text(
-                        text = "Chuỗi ngày học",
+                        text = "Chuỗi ngày học cùng Squirtle 🐢",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White.copy(alpha = 0.9f)
@@ -325,7 +329,7 @@ fun StreakMascotBanner(
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = "Giữ vững phong độ nhé!",
+                        text = "Bơi nhanh tiến bước cùng từ vựng!",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
                         color = Color.White.copy(alpha = 0.9f)
@@ -354,7 +358,7 @@ fun StreakMascotBanner(
 
                                 when {
                                     index < 5 -> {
-                                        // Checked days (T2-T6): White circle with purple checkmark
+                                        // Checked days (T2-T6): White circle with ocean blue checkmark
                                         Box(
                                             modifier = Modifier
                                                 .size(20.dp)
@@ -364,7 +368,7 @@ fun StreakMascotBanner(
                                             Icon(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = null,
-                                                tint = Color(0xFF6366F1),
+                                                tint = Color(0xFF0284C7),
                                                 modifier = Modifier.size(13.dp)
                                             )
                                         }
@@ -401,7 +405,7 @@ fun StreakMascotBanner(
 
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Right Column: Adorable Owl Mascot with sparkles
+                // Right Column: Cute 3D Squirtle Mascot with water sparkles
                 Box(
                     modifier = Modifier
                         .weight(0.85f)
@@ -411,17 +415,17 @@ fun StreakMascotBanner(
                     // Magical Sparkles in background
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawSparkle(Offset(size.width * 0.15f, size.height * 0.2f), 8f * sparkleAlpha, Color.White)
-                        drawSparkle(Offset(size.width * 0.85f, size.height * 0.15f), 10f * sparkleAlpha, Color(0xFFFEF08A))
+                        drawSparkle(Offset(size.width * 0.85f, size.height * 0.15f), 10f * sparkleAlpha, Color(0xFFBAE6FD))
                         drawSparkle(Offset(size.width * 0.9f, size.height * 0.75f), 6f * sparkleAlpha, Color.White)
                     }
 
-                    // Owl Mascot Image
+                    // Squirtle Turtle Mascot Image
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(R.drawable.ntk_owl_mascot)
+                            .data(R.drawable.img_squirtle_mascot_1787155903327)
                             .crossfade(true)
                             .build(),
-                        contentDescription = "NTK Owl Mascot",
+                        contentDescription = "Squirtle Turtle Mascot",
                         modifier = Modifier
                             .size(122.dp)
                             .clip(CircleShape),
@@ -454,8 +458,8 @@ fun QuickActionGrid(
         QuickActionItem(
             title = "Tạo bộ thẻ",
             icon = Icons.Outlined.Style,
-            iconTint = Color(0xFF6366F1),
-            bgColor = Color(0xFFEEF2FF),
+            iconTint = Color(0xFF0284C7),
+            bgColor = Color(0xFFE0F2FE),
             modifier = Modifier.weight(1f),
             onClick = onCreateDeck,
             testTag = "quick_create_deck"
@@ -589,12 +593,12 @@ fun ContinueLearningSection(
                     text = "Xem tất cả",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF6366F1)
+                    color = Color(0xFF0284C7)
                 )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color(0xFF6366F1),
+                    tint = Color(0xFF0284C7),
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -668,7 +672,7 @@ fun ContinueLearningSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .background(Color(0xFFEDE9FE), RoundedCornerShape(3.dp))
+                            .background(Color(0xFFE0F2FE), RoundedCornerShape(3.dp))
                     ) {
                         Box(
                             modifier = Modifier
@@ -676,7 +680,7 @@ fun ContinueLearningSection(
                                 .height(6.dp)
                                 .background(
                                     Brush.horizontalGradient(
-                                        listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
+                                        listOf(Color(0xFF0284C7), Color(0xFF38BDF8))
                                     ),
                                     RoundedCornerShape(3.dp)
                                 )
@@ -691,7 +695,7 @@ fun ContinueLearningSection(
                     onClick = onContinueClick,
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6366F1)
+                        containerColor = Color(0xFF0284C7)
                     ),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         horizontal = 16.dp,
@@ -754,12 +758,12 @@ fun YourDecksSection(
                     text = "Xem tất cả",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF6366F1)
+                    color = Color(0xFF0284C7)
                 )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color(0xFF6366F1),
+                    tint = Color(0xFF0284C7),
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -940,7 +944,7 @@ fun DailyGoalCard(
 
                     // Background Track
                     drawCircle(
-                        color = Color(0xFFEDE9FE),
+                        color = Color(0xFFE0F2FE),
                         radius = radius,
                         center = center,
                         style = Stroke(width = strokeWidth)
@@ -950,7 +954,7 @@ fun DailyGoalCard(
                     val sweepAngle = 360f * (percentage / 100f)
                     drawArc(
                         brush = Brush.sweepGradient(
-                            listOf(Color(0xFF6366F1), Color(0xFF4F46E5), Color(0xFF7C3AED))
+                            listOf(Color(0xFF0284C7), Color(0xFF0EA5E9), Color(0xFF38BDF8))
                         ),
                         startAngle = -90f,
                         sweepAngle = sweepAngle,
@@ -965,7 +969,7 @@ fun DailyGoalCard(
                     text = "$percentage%",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E1B4B)
+                    color = Color(0xFF0F172A)
                 )
             }
 
@@ -987,7 +991,7 @@ fun DailyGoalCard(
                         text = "$currentCount",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4338CA)
+                        color = Color(0xFF0284C7)
                     )
                     Text(
                         text = " / $targetCount thẻ",
@@ -1100,7 +1104,7 @@ private fun NavBarItem(
         Icon(
             imageVector = icon,
             contentDescription = title,
-            tint = if (isSelected) Color(0xFF4F46E5) else Color(0xFF94A3B8),
+            tint = if (isSelected) Color(0xFF0284C7) else Color(0xFF94A3B8),
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.height(3.dp))
@@ -1108,7 +1112,7 @@ private fun NavBarItem(
             text = title,
             fontSize = 11.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) Color(0xFF4F46E5) else Color(0xFF94A3B8)
+            color = if (isSelected) Color(0xFF0284C7) else Color(0xFF94A3B8)
         )
     }
 }

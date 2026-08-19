@@ -104,8 +104,8 @@ private fun LaurelBranch(isLeft: Boolean, modifier: Modifier = Modifier) {
     Canvas(
         modifier = modifier.size(width = 24.dp, height = 36.dp)
     ) {
-        val strokeColor = Color(0xFFA5B4FC)
-        val leafColor = Color(0xFFC7D2FE)
+        val strokeColor = Color(0xFF38BDF8)
+        val leafColor = Color(0xFFBAE6FD)
 
         val stemPath = Path().apply {
             if (isLeft) {

@@ -71,7 +71,7 @@ fun GlowingCardsHeader(modifier: Modifier = Modifier) {
                 .shadow(6.dp, RoundedCornerShape(14.dp), spotColor = NTKPrimary.copy(alpha = 0.3f))
                 .background(
                     Brush.linearGradient(
-                        colors = listOf(Color(0xFF818CF8), Color(0xFF6366F1))
+                        colors = listOf(Color(0xFF38BDF8), Color(0xFF0EA5E9))
                     ),
                     shape = RoundedCornerShape(14.dp)
                 )
@@ -86,7 +86,7 @@ fun GlowingCardsHeader(modifier: Modifier = Modifier) {
                 .shadow(6.dp, RoundedCornerShape(14.dp), spotColor = NTKTertiary.copy(alpha = 0.3f))
                 .background(
                     Brush.linearGradient(
-                        colors = listOf(Color(0xFF7C3AED), Color(0xFF6D28D9))
+                        colors = listOf(Color(0xFF0284C7), Color(0xFF0369A1))
                     ),
                     shape = RoundedCornerShape(14.dp)
                 )
@@ -100,8 +100,8 @@ fun GlowingCardsHeader(modifier: Modifier = Modifier) {
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF5B50FF),
-                            Color(0xFF4338CA)
+                            Color(0xFF0EA5E9),
+                            Color(0xFF0284C7)
                         )
                     ),
                     shape = RoundedCornerShape(16.dp)
@@ -125,7 +125,7 @@ fun GlowingCardsHeader(modifier: Modifier = Modifier) {
                 .offset(x = 42.dp, y = (-18).dp)
                 .size(10.dp)
                 .rotate(45f)
-                .background(Color(0xFFC7D2FE), shape = RoundedCornerShape(2.dp))
+                .background(Color(0xFFBAE6FD), shape = RoundedCornerShape(2.dp))
         )
 
         // Sparkle 2 Top Left
@@ -134,7 +134,7 @@ fun GlowingCardsHeader(modifier: Modifier = Modifier) {
                 .offset(x = (-38).dp, y = (-14).dp)
                 .size(7.dp)
                 .rotate(45f)
-                .background(Color(0xFFDDD6FE), shape = RoundedCornerShape(1.5.dp))
+                .background(Color(0xFFE0F2FE), shape = RoundedCornerShape(1.5.dp))
         )
 
         // Sparkle 3 Bottom Left

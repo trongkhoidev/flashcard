@@ -46,8 +46,8 @@ fun OwlMascotView(
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            Color(0xFFE8EBFF),
-                            Color(0xFFF3F0FF),
+                            Color(0xFFE0F2FE),
+                            Color(0xFFBAE6FD).copy(alpha = 0.6f),
                             Color.Transparent
                         )
                     ),
@@ -55,10 +55,10 @@ fun OwlMascotView(
                 )
         )
 
-        // Owl 3D Mascot Image (Loaded synchronously & reliably via painterResource)
+        // Squirtle Turtle 3D Mascot Image (Loaded synchronously & reliably via painterResource)
         Image(
-            painter = painterResource(id = R.drawable.ntk_owl_mascot),
-            contentDescription = "NTK Owl Mascot",
+            painter = painterResource(id = R.drawable.img_squirtle_mascot_1787155903327),
+            contentDescription = "Squirtle Turtle Mascot",
             modifier = Modifier
                 .size(235.dp)
                 .clip(CircleShape),

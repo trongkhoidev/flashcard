@@ -114,6 +114,10 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                     onOpenProfile = { showProfileDialog = true },
                     onOpenStarred = { viewModel.openStarredCards() },
                     onSpeak = { text, langTag -> viewModel.speak(text, langTag) },
+                    onToggleStar = { id, starred -> viewModel.toggleStar(id, starred) },
+                    onStartStudySaved = { cards, title, langCode -> viewModel.startStudySavedCards(cards, title, langCode) },
+                    onStartQuizSaved = { cards, title, langCode -> viewModel.startQuizSavedCards(cards, title, langCode) },
+                    onStartMatchSaved = { cards, title, langCode -> viewModel.startMatchSavedCards(cards, title, langCode) },
                     onCreateDeckDirect = { title, subtitle, langCode, level ->
                         viewModel.createNewDeck(
                             DeckEntity(

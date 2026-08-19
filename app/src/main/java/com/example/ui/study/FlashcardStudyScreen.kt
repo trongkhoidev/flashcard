@@ -28,7 +28,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -131,7 +133,7 @@ fun FlashcardStudyScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFFFAF9FF), Color(0xFFF0EFFF))
+                    colors = listOf(Color(0xFFF0F9FF), Color(0xFFE0F2FE))
                 )
             )
             .statusBarsPadding()
@@ -375,9 +377,110 @@ fun FlashcardStudyScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // 3. BOTTOM NAVIGATION BUTTONS (Directly underneath the card)
+                    // 3. MASTERY RATING BUTTONS: "Chưa thuộc" (Red) & "Đã thuộc" (Green)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // CHƯA THUỘC BUTTON (Vibrant Red)
+                        Surface(
+                            onClick = {
+                                onRecordReview(currentCard.id, 3)
+                                toastMessage = "❌ Đã ghi nhận \"Chưa thuộc\""
+                                if (currentIndex < cardList.size - 1) {
+                                    currentIndex++
+                                    isFlipped = false
+                                } else {
+                                    isCompleted = true
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .shadow(
+                                    elevation = 3.dp,
+                                    shape = RoundedCornerShape(16.dp),
+                                    spotColor = Color(0x33EF4444)
+                                )
+                                .testTag("btn_not_memorized"),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFFEF2F2), // Soft Rose Red background
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFFCA5A5))
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Chưa thuộc",
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(19.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Chưa thuộc",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
+                        }
+
+                        // ĐÃ THUỘC BUTTON (Vibrant Green)
+                        Surface(
+                            onClick = {
+                                onRecordReview(currentCard.id, 1)
+                                toastMessage = "✓ Đã ghi nhận \"Đã thuộc\""
+                                if (currentIndex < cardList.size - 1) {
+                                    currentIndex++
+                                    isFlipped = false
+                                } else {
+                                    isCompleted = true
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .shadow(
+                                    elevation = 3.dp,
+                                    shape = RoundedCornerShape(16.dp),
+                                    spotColor = Color(0x3310B981)
+                                )
+                                .testTag("btn_memorized"),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFECFDF5), // Soft Mint Green background
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF6EE7B7))
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Đã thuộc",
+                                    tint = Color(0xFF059669),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Đã thuộc",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF059669)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 4. BOTTOM NAVIGATION BUTTONS (Directly underneath the mastery buttons)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),

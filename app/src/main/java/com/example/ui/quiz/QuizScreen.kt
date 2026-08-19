@@ -113,7 +113,7 @@ fun QuizScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFFFAF9FF), Color(0xFFF3F0FF))
+                    colors = listOf(Color(0xFFF0F9FF), Color(0xFFE0F2FE))
                 )
             )
             .statusBarsPadding()
@@ -152,7 +152,7 @@ fun QuizScreen(
                     // Score pill
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFECEBFF), RoundedCornerShape(12.dp))
+                            .background(Color(0xFFE0F2FE), RoundedCornerShape(12.dp))
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -222,7 +222,7 @@ fun QuizScreen(
                         onClick = { onSpeak(currentCard.frontWord, languageTag) },
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color(0xFFEEF2FF), CircleShape)
+                            .background(Color(0xFFE0F2FE), CircleShape)
                     ) {
                         Icon(
                             Icons.Default.VolumeUp,
@@ -244,7 +244,7 @@ fun QuizScreen(
                     val isSelected = selectedOption == option
 
                     val backgroundColor = when {
-                        !isAnswerSubmitted -> if (isSelected) Color(0xFFECEBFF) else Color.White
+                        !isAnswerSubmitted -> if (isSelected) Color(0xFFE0F2FE) else Color.White
                         isCorrectOption -> Color(0xFFD1FAE5) // Green
                         isSelected -> Color(0xFFFEE2E2) // Red
                         else -> Color.White

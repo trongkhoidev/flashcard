@@ -103,7 +103,7 @@ fun WordMatchScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFFFAF9FF), Color(0xFFF3F0FF))
+                    colors = listOf(Color(0xFFF0F9FF), Color(0xFFE0F2FE))
                 )
             )
             .statusBarsPadding()
@@ -184,7 +184,7 @@ fun WordMatchScreen(
 
                     val bg = when {
                         isMatched -> Color(0xFFE2E8F0).copy(alpha = 0.4f)
-                        isSelected -> Color(0xFFECEBFF)
+                        isSelected -> Color(0xFFE0F2FE)
                         isWrong -> Color(0xFFFEE2E2)
                         else -> Color.White
                     }
