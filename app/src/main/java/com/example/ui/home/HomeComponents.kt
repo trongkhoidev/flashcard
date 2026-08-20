@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
@@ -439,12 +440,12 @@ fun StreakMascotBanner(
 
 /**
  * Quick Action Grid:
- * 4 cards: "Tạo bộ thẻ", "Nhập thẻ", "Thống kê", "Đã lưu"
+ * 4 cards: "Tạo bộ thẻ", "Ôn tập", "Thống kê", "Đã lưu"
  */
 @Composable
 fun QuickActionGrid(
     onCreateDeck: () -> Unit,
-    onImportCards: () -> Unit,
+    onReviewCards: () -> Unit,
     onViewStats: () -> Unit,
     onViewSaved: () -> Unit,
     modifier: Modifier = Modifier
@@ -465,13 +466,13 @@ fun QuickActionGrid(
             testTag = "quick_create_deck"
         )
         QuickActionItem(
-            title = "Nhập thẻ",
-            icon = Icons.Outlined.Description,
-            iconTint = Color(0xFF3B82F6),
-            bgColor = Color(0xFFEFF6FF),
+            title = "Ôn tập",
+            icon = Icons.Outlined.History,
+            iconTint = Color(0xFF8B5CF6),
+            bgColor = Color(0xFFF3E8FF),
             modifier = Modifier.weight(1f),
-            onClick = onImportCards,
-            testTag = "quick_import_cards"
+            onClick = onReviewCards,
+            testTag = "quick_review_cards"
         )
         QuickActionItem(
             title = "Thống kê",
@@ -1026,7 +1027,7 @@ fun DailyGoalCard(
 
 /**
  * Bottom Navigation Bar:
- * 4 Tabs: Trang chủ, Khám phá, Ôn tập, Tài khoản
+ * 4 Tabs: Trang chủ, Khám phá, BXH, Tài khoản
  */
 @Composable
 fun HomeBottomNavBar(
@@ -1067,11 +1068,11 @@ fun HomeBottomNavBar(
                 testTag = "tab_explore"
             )
             NavBarItem(
-                title = "Ôn tập",
-                icon = Icons.Outlined.History,
+                title = "BXH",
+                icon = Icons.Outlined.EmojiEvents,
                 isSelected = selectedTab == 2,
                 onClick = { onTabSelected(2) },
-                testTag = "tab_review"
+                testTag = "tab_leaderboard"
             )
             NavBarItem(
                 title = "Tài khoản",

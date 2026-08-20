@@ -64,6 +64,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     val masteredCount by viewModel.masteredCount.collectAsStateWithLifecycle()
     val totalCount by viewModel.totalCardsCount.collectAsStateWithLifecycle()
     val userName by viewModel.userName.collectAsStateWithLifecycle()
+    val userVipLevel by viewModel.userVipLevel.collectAsStateWithLifecycle()
 
     var showProfileDialog by remember { mutableStateOf(false) }
     var showCreateDeckDialog by remember { mutableStateOf(false) }
@@ -107,6 +108,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                     masteredWordsCount = masteredCount,
                     totalWordsCount = totalCount,
                     userName = userName,
+                    userVipLevel = userVipLevel,
+                    onSelectVipLevel = { viewModel.updateUserVipLevel(it) },
                     onOpenDeckDetail = { deck -> viewModel.openDeckDetail(deck) },
                     onStudyDeck = { deck -> viewModel.startStudyDeck(deck) },
                     onQuizDeck = { deck -> viewModel.startQuizDeck(deck) },
@@ -162,6 +165,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                     deckTitle = screen.deck.title,
                     languageTag = selectedLanguage.ttsLanguageTag,
                     cards = screen.cards,
+                    userVipLevel = userVipLevel,
                     onBack = { viewModel.navigateTo(ScreenState.Home) },
                     onSpeak = { text, tag -> viewModel.speak(text, tag) },
                     onToggleStar = { id, starred -> viewModel.toggleStar(id, starred) },
@@ -196,6 +200,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                     deckTitle = "Từ vựng đã lưu (Starred)",
                     languageTag = selectedLanguage.ttsLanguageTag,
                     cards = screen.cards,
+                    userVipLevel = userVipLevel,
                     onBack = { viewModel.navigateTo(ScreenState.Home) },
                     onSpeak = { text, tag -> viewModel.speak(text, tag) },
                     onToggleStar = { id, starred -> viewModel.toggleStar(id, starred) },
@@ -221,11 +226,13 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     if (showProfileDialog) {
         UserProfileDialog(
             userName = userName,
+            userVipLevel = userVipLevel,
             streakDays = streakDays,
             masteredWordsCount = masteredCount,
             totalWordsCount = totalCount,
             onDismiss = { showProfileDialog = false },
-            onUpdateName = { viewModel.updateUserName(it) }
+            onUpdateName = { viewModel.updateUserName(it) },
+            onSelectVipLevel = { viewModel.updateUserVipLevel(it) }
         )
     }
 

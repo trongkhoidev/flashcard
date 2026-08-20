@@ -84,6 +84,7 @@ fun FlashcardStudyScreen(
     deckTitle: String,
     languageTag: String,
     cards: List<FlashCardEntity>,
+    userVipLevel: Int = 0,
     onBack: () -> Unit,
     onSpeak: (String, String) -> Unit,
     onToggleStar: (Long, Boolean) -> Unit,
@@ -371,6 +372,7 @@ fun FlashcardStudyScreen(
                     Flashcard3DView(
                         card = currentCard,
                         isFlipped = isFlipped,
+                        userVipLevel = userVipLevel,
                         onFlip = { isFlipped = !isFlipped },
                         onSpeak = { text -> onSpeak(text, languageTag) },
                         onToggleStar = handleToggleStar,

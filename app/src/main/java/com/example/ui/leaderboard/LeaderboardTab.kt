@@ -1,0 +1,901 @@
+package com.example.ui.leaderboard
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Fireplace
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MilitaryTech
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+
+import com.example.ui.components.VipAvatarFrame
+import com.example.ui.components.VipLevel
+
+enum class LeaderboardFilterType(val title: String, val iconEmoji: String) {
+    POINTS("Tổng điểm", "👑"),
+    STREAK("Chuỗi ngày học", "🔥"),
+    CARDS("Số thẻ đã học", "🗂️")
+}
+
+enum class TimePeriod(val label: String) {
+    THIS_WEEK("Tuần này"),
+    THIS_MONTH("Tháng này"),
+    ALL_TIME("Tất cả")
+}
+
+sealed class RankTrend {
+    data class Up(val valCount: Int) : RankTrend()
+    data class Down(val valCount: Int) : RankTrend()
+    object Same : RankTrend()
+}
+
+data class LeaderboardUser(
+    val rank: Int,
+    val name: String,
+    val points: Int,
+    val streakDays: Int,
+    val cardsLearned: Int,
+    val trend: RankTrend,
+    val avatarBgColor: Color,
+    val avatarEmoji: String,
+    val vipLevel: Int = 0,
+    val isCurrentUser: Boolean = false
+)
+
+@Composable
+fun LeaderboardTab(
+    userName: String = "Bạn",
+    userVipLevel: Int = 1,
+    userScore: Int = 1250,
+    userStreak: Int = 7,
+    userCardsLearned: Int = 42,
+    modifier: Modifier = Modifier
+) {
+    var selectedFilter by remember { mutableStateOf(LeaderboardFilterType.POINTS) }
+    var selectedTimePeriod by remember { mutableStateOf(TimePeriod.THIS_WEEK) }
+    var showTimeMenu by remember { mutableStateOf(false) }
+    var selectedUserForDialog by remember { mutableStateOf<LeaderboardUser?>(null) }
+    var showAllRewardsDialog by remember { mutableStateOf(false) }
+
+    // Mock dataset matching the user's provided UI mockup accurately
+    val leaderboardList = remember(selectedFilter, selectedTimePeriod) {
+        val multiplier = when (selectedTimePeriod) {
+            TimePeriod.THIS_WEEK -> 1.0f
+            TimePeriod.THIS_MONTH -> 3.5f
+            TimePeriod.ALL_TIME -> 8.0f
+        }
+
+        listOf(
+            LeaderboardUser(1, "Minh Anh", (12850 * multiplier).toInt(), (25 * multiplier).toInt().coerceAtMost(365), (320 * multiplier).toInt(), RankTrend.Same, Color(0xFFFDE68A), "👦🏻", vipLevel = 5),
+            LeaderboardUser(2, "Bảo Ngọc", (9450 * multiplier).toInt(), (18 * multiplier).toInt().coerceAtMost(365), (240 * multiplier).toInt(), RankTrend.Up(1), Color(0xFFFBCFE8), "👧🏻", vipLevel = 3),
+            LeaderboardUser(3, "Hoàng Nam", (7650 * multiplier).toInt(), (15 * multiplier).toInt().coerceAtMost(365), (190 * multiplier).toInt(), RankTrend.Down(1), Color(0xFFFED7AA), "👦🏽", vipLevel = 2),
+            LeaderboardUser(4, "Khánh Linh", (6240 * multiplier).toInt(), 14, 160, RankTrend.Up(2), Color(0xFFFDE68A), "👧🏽", vipLevel = 4),
+            LeaderboardUser(5, "Gia Huy", (5870 * multiplier).toInt(), 12, 145, RankTrend.Down(1), Color(0xFFBAE6FD), "👦🏼", vipLevel = 1),
+            LeaderboardUser(6, "Phương Anh", (4980 * multiplier).toInt(), 10, 130, RankTrend.Same, Color(0xFFE9D5FF), "👧🏿", vipLevel = 6),
+            LeaderboardUser(7, "Quang Huy", (4210 * multiplier).toInt(), 9, 115, RankTrend.Up(3), Color(0xFFFED7AA), "👦🏻", vipLevel = 2),
+            LeaderboardUser(8, "Thảo Vy", (3860 * multiplier).toInt(), 8, 100, RankTrend.Down(2), Color(0xFFFECDD3), "👧🏻", vipLevel = 1),
+            LeaderboardUser(9, "Đức Mạnh", (3450 * multiplier).toInt(), 7, 90, RankTrend.Same, Color(0xFFA7F3D0), "👦🏽", vipLevel = 3),
+            LeaderboardUser(10, "Mai Chi", (3120 * multiplier).toInt(), 6, 80, RankTrend.Same, Color(0xFFFDE68A), "👧🏼", vipLevel = 4)
+        )
+    }
+
+    val currentUserItem = remember(userName, userVipLevel, userScore, userStreak, userCardsLearned, selectedTimePeriod) {
+        val multiplier = when (selectedTimePeriod) {
+            TimePeriod.THIS_WEEK -> 1.0f
+            TimePeriod.THIS_MONTH -> 3.2f
+            TimePeriod.ALL_TIME -> 6.5f
+        }
+        LeaderboardUser(
+            rank = 23,
+            name = userName,
+            points = (userScore * multiplier).toInt(),
+            streakDays = (userStreak * multiplier).toInt(),
+            cardsLearned = (userCardsLearned * multiplier).toInt(),
+            trend = RankTrend.Same,
+            avatarBgColor = Color(0xFFDDD6FE),
+            avatarEmoji = "🧑🏻‍💻",
+            vipLevel = userVipLevel,
+            isCurrentUser = true
+        )
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .testTag("leaderboard_screen")
+    ) {
+        // 1. TOP HEADER: "Bảng xếp hạng 🏆", Subtitle & Dropdown selector
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Bảng xếp hạng",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF1E1B4B)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "🏆", fontSize = 22.sp)
+                }
+                Text(
+                    text = "Cạnh tranh – Học tập – Vươn xa mỗi ngày!",
+                    fontSize = 12.sp,
+                    color = Color(0xFF64748B)
+                )
+            }
+
+            // Time Period Selector Pill Dropdown
+            Box {
+                Surface(
+                    onClick = { showTimeMenu = true },
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White,
+                    shadowElevation = 2.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.testTag("time_period_dropdown")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("🗓️", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = selectedTimePeriod.label,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4338CA)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Dropdown",
+                            tint = Color(0xFF6366F1),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = showTimeMenu,
+                    onDismissRequest = { showTimeMenu = false }
+                ) {
+                    TimePeriod.values().forEach { period ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = period.label,
+                                    fontWeight = if (period == selectedTimePeriod) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (period == selectedTimePeriod) Color(0xFF4338CA) else Color(0xFF334155)
+                                )
+                            },
+                            onClick = {
+                                selectedTimePeriod = period
+                                showTimeMenu = false
+                            },
+                            leadingIcon = {
+                                if (period == selectedTimePeriod) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF4338CA))
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 2. SEGMENTED FILTER TABS: "Tổng điểm" | "Chuỗi ngày học" | "Số thẻ đã học"
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color(0xFFF1F5F9),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                LeaderboardFilterType.values().forEach { filter ->
+                    val isSelected = selectedFilter == filter
+                    Surface(
+                        onClick = { selectedFilter = filter },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) Color(0xFF6366F1) else Color.Transparent,
+                        shadowElevation = if (isSelected) 3.dp else 0.dp,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = filter.iconEmoji, fontSize = 13.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = filter.title,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else Color(0xFF64748B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // 3. TOP 3 PODIUM SECTION (Rank 2, Rank 1, Rank 3)
+        val top1 = leaderboardList[0]
+        val top2 = leaderboardList[1]
+        val top3 = leaderboardList[2]
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            // Rank 2 (Left)
+            PodiumCard(
+                user = top2,
+                rankBadgeColor = Color(0xFF3B82F6), // Silver/Blue
+                cardBgColor = Color(0xFFF5F3FF),
+                borderColor = Color(0xFFDDD6FE),
+                filterType = selectedFilter,
+                elevation = 2.dp,
+                modifier = Modifier.weight(1f),
+                onClick = { selectedUserForDialog = top2 }
+            )
+
+            // Rank 1 (Center - Prominent Crown & Highest)
+            PodiumCard(
+                user = top1,
+                rankBadgeColor = Color(0xFFF59E0B), // Gold
+                cardBgColor = Color(0xFFFFFBEB),
+                borderColor = Color(0xFFFDE68A),
+                filterType = selectedFilter,
+                isTop1 = true,
+                elevation = 6.dp,
+                modifier = Modifier.weight(1.15f),
+                onClick = { selectedUserForDialog = top1 }
+            )
+
+            // Rank 3 (Right)
+            PodiumCard(
+                user = top3,
+                rankBadgeColor = Color(0xFFEA580C), // Bronze/Orange
+                cardBgColor = Color(0xFFFFF7ED),
+                borderColor = Color(0xFFFED7AA),
+                filterType = selectedFilter,
+                elevation = 2.dp,
+                modifier = Modifier.weight(1f),
+                onClick = { selectedUserForDialog = top3 }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // 4. LEADERBOARD LIST CONTAINER (Ranks 4 - 10 & Current User)
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            shadowElevation = 3.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF1F5F9)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
+            ) {
+                // Ranks 4 to 10
+                leaderboardList.drop(3).forEach { user ->
+                    LeaderboardRowItem(
+                        user = user,
+                        filterType = selectedFilter,
+                        onClick = { selectedUserForDialog = user }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Highlighted Current User Row (Rank 23 "Bạn")
+                LeaderboardRowItem(
+                    user = currentUserItem,
+                    filterType = selectedFilter,
+                    isCurrentUser = true,
+                    onClick = { selectedUserForDialog = currentUserItem }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 5. REWARDS SECTION ("Phần thưởng", "Xem tất cả >")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Phần thưởng",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E1B4B)
+            )
+
+            Row(
+                modifier = Modifier.clickable { showAllRewardsDialog = true },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Xem tất cả",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF6366F1)
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Xem tất cả",
+                    tint = Color(0xFF6366F1),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            RewardCard(
+                icon = "🏆",
+                title = "Top 1",
+                points = "500 ⭐",
+                rewardText = "7 ngày VIP",
+                bgColor = Color(0xFFFFFBEB),
+                borderColor = Color(0xFFFDE68A),
+                onClick = { showAllRewardsDialog = true }
+            )
+            RewardCard(
+                icon = "🥈",
+                title = "Top 2-3",
+                points = "300 ⭐",
+                rewardText = "3 ngày VIP",
+                bgColor = Color(0xFFF8FAFC),
+                borderColor = Color(0xFFE2E8F0),
+                onClick = { showAllRewardsDialog = true }
+            )
+            RewardCard(
+                icon = "🥉",
+                title = "Top 4-10",
+                points = "100 ⭐",
+                rewardText = "1 ngày VIP",
+                bgColor = Color(0xFFFFF7ED),
+                borderColor = Color(0xFFFED7AA),
+                onClick = { showAllRewardsDialog = true }
+            )
+            RewardCard(
+                icon = "🎁",
+                title = "Tham gia",
+                points = "50 ⭐",
+                rewardText = "Quà động viên",
+                bgColor = Color(0xFFFEF2F2),
+                borderColor = Color(0xFFFECDD3),
+                onClick = { showAllRewardsDialog = true }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // USER DETAIL DIALOG ON CLICK
+    selectedUserForDialog?.let { user ->
+        Dialog(onDismissRequest = { selectedUserForDialog = null }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(user.avatarBgColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(user.avatarEmoji, fontSize = 36.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = user.name,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E1B4B)
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFEEF2FF),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Hạng #${user.rank} • ${selectedTimePeriod.label}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4338CA),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("👑 Điểm số", fontSize = 11.sp, color = Color(0xFF64748B))
+                            Text("%,d".format(user.points), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF4338CA))
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🔥 Chuỗi", fontSize = 11.sp, color = Color(0xFF64748B))
+                            Text("${user.streakDays} ngày", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFEA580C))
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🗂️ Đã học", fontSize = 11.sp, color = Color(0xFF64748B))
+                            Text("${user.cardsLearned} thẻ", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF10B981))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = { selectedUserForDialog = null },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Text("Đóng", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+
+    // ALL REWARDS DETAILS DIALOG
+    if (showAllRewardsDialog) {
+        Dialog(onDismissRequest = { showAllRewardsDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "🎁 Bảng quà tặng học tập",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E1B4B)
+                    )
+                    Text(
+                        text = "Phần thưởng tự động trao vào cuối tuần",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    val rewardList = listOf(
+                        Triple("🥇 Top 1 Vô Địch", "500 Điểm thưởng + 7 Ngày VIP", "Cùng huy hiệu vương miện Vàng"),
+                        Triple("🥈 Top 2-3 Á Quân", "300 Điểm thưởng + 3 Ngày VIP", "Cùng huy hiệu Bạc danh dự"),
+                        Triple("🥉 Top 4-10 Xuất Sắc", "100 Điểm thưởng + 1 Ngày VIP", "Cùng huy hiệu Đồng nỗ lực"),
+                        Triple("🎗️ Top 11-50 Cố Gắng", "50 Điểm thưởng động viên", "Dành cho người chăm chỉ")
+                    )
+
+                    rewardList.forEach { (title, reward, desc) ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1B4B))
+                                Text(reward, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4338CA))
+                                Text(desc, fontSize = 11.sp, color = Color(0xFF64748B))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { showAllRewardsDialog = false },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Text("Hiểu rồi", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PodiumCard(
+    user: LeaderboardUser,
+    rankBadgeColor: Color,
+    cardBgColor: Color,
+    borderColor: Color,
+    filterType: LeaderboardFilterType,
+    isTop1: Boolean = false,
+    elevation: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val displayValue = when (filterType) {
+        LeaderboardFilterType.POINTS -> "%,d điểm".format(user.points)
+        LeaderboardFilterType.STREAK -> "${user.streakDays} ngày"
+        LeaderboardFilterType.CARDS -> "${user.cardsLearned} thẻ"
+    }
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(22.dp),
+        color = cardBgColor,
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, borderColor),
+        shadowElevation = elevation,
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = if (isTop1) 16.dp else 12.dp, horizontal = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Crown for Top 1
+            if (isTop1) {
+                Text(
+                    text = "👑",
+                    fontSize = 22.sp,
+                    modifier = Modifier.offset(y = (2).dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Avatar Container with VIP Border and Rank Badge
+            Box(
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                VipAvatarFrame(
+                    vipLevel = VipLevel.fromLevel(user.vipLevel),
+                    avatarSize = if (isTop1) 62.dp else 52.dp
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(user.avatarBgColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = user.avatarEmoji,
+                            fontSize = if (isTop1) 32.sp else 26.sp
+                        )
+                    }
+                }
+
+                // Rank Badge Circle
+                Surface(
+                    shape = CircleShape,
+                    color = rankBadgeColor,
+                    modifier = Modifier
+                        .size(if (isTop1) 22.dp else 18.dp)
+                        .offset(y = 6.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "${user.rank}",
+                            fontSize = if (isTop1) 12.sp else 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // User Name
+            Text(
+                text = user.name,
+                fontSize = if (isTop1) 15.sp else 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E1B4B),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Main Score Value Display (Star + points)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color(0xFF6366F1),
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = displayValue,
+                    fontSize = if (isTop1) 13.sp else 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF4338CA)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Secondary Pill (Chuỗi x ngày)
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.padding(horizontal = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🔥", fontSize = 10.sp)
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = "Chuỗi ${user.streakDays} ngày",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFEA580C)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LeaderboardRowItem(
+    user: LeaderboardUser,
+    filterType: LeaderboardFilterType,
+    isCurrentUser: Boolean = false,
+    onClick: () -> Unit
+) {
+    val displayValue = when (filterType) {
+        LeaderboardFilterType.POINTS -> "%,d điểm".format(user.points)
+        LeaderboardFilterType.STREAK -> "${user.streakDays} ngày"
+        LeaderboardFilterType.CARDS -> "${user.cardsLearned} thẻ"
+    }
+
+    val rowBg = if (isCurrentUser) Color(0xFFEEF2FF) else Color.Transparent
+    val rowBorderColor = if (isCurrentUser) Color(0xFF818CF8) else Color.Transparent
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = rowBg,
+        border = if (isCurrentUser) androidx.compose.foundation.BorderStroke(1.2.dp, rowBorderColor) else null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Rank Number & Trend Indicator Column
+            Column(
+                modifier = Modifier.width(36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "${user.rank}",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (isCurrentUser) Color(0xFF4338CA) else Color(0xFF1E1B4B)
+                )
+
+                when (user.trend) {
+                    is RankTrend.Up -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("↑", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                            Text("${user.trend.valCount}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                        }
+                    }
+                    is RankTrend.Down -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("↓", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                            Text("${user.trend.valCount}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                        }
+                    }
+                    is RankTrend.Same -> {
+                        Text("-", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // User Avatar with VIP Border Frame
+            VipAvatarFrame(
+                vipLevel = VipLevel.fromLevel(user.vipLevel),
+                avatarSize = 42.dp
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(user.avatarBgColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(user.avatarEmoji, fontSize = 22.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // User Name
+            Text(
+                text = user.name,
+                fontSize = 14.sp,
+                fontWeight = if (isCurrentUser) FontWeight.ExtraBold else FontWeight.SemiBold,
+                color = if (isCurrentUser) Color(0xFF312E81) else Color(0xFF1E293B),
+                modifier = Modifier.weight(1f)
+            )
+
+            // Star Score Value
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color(0xFF6366F1),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = displayValue,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF4338CA)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RewardCard(
+    icon: String,
+    title: String,
+    points: String,
+    rewardText: String,
+    bgColor: Color,
+    borderColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = bgColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+        shadowElevation = 1.dp,
+        modifier = Modifier.width(135.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = icon, fontSize = 28.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1B4B))
+            Spacer(modifier = Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = points, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF6366F1))
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = rewardText, fontSize = 10.sp, color = Color(0xFF64748B), textAlign = TextAlign.Center)
+        }
+    }
+}

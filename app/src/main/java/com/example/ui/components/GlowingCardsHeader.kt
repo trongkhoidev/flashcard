@@ -28,6 +28,8 @@ import com.example.ui.theme.NTKPrimaryDark
 import com.example.ui.theme.NTKPrimaryLight
 import com.example.ui.theme.NTKTertiary
 
+import androidx.compose.ui.graphics.graphicsLayer
+
 @Composable
 fun GlowingCardsHeader(modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "cards_float")
@@ -44,7 +46,9 @@ fun GlowingCardsHeader(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(100.dp, 84.dp)
-            .offset(y = floatY.dp),
+            .graphicsLayer {
+                translationY = floatY.dp.toPx()
+            },
         contentAlignment = Alignment.Center
     ) {
         // Subtle glow background

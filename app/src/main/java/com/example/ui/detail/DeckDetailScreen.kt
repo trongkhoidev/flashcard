@@ -118,15 +118,6 @@ data class DeckTopic(
     val description: String = ""
 )
 
-data class DeckReview(
-    val authorName: String,
-    val avatarBgColor: Color,
-    val avatarEmoji: String,
-    val rating: Int,
-    val content: String,
-    val timeAgo: String
-)
-
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DeckDetailScreen(
@@ -141,12 +132,9 @@ fun DeckDetailScreen(
 ) {
     val context = LocalContext.current
     var isFavorite by remember { mutableStateOf(false) }
-    var isDownloaded by remember { mutableStateOf(false) }
-    var isDownloading by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var expandedTopicId by remember { mutableStateOf<Int?>(null) }
-    var showAddReviewDialog by remember { mutableStateOf(false) }
 
     // Dynamic Topic chapters based on deck
     val topics = remember(deck.id) {
@@ -180,35 +168,6 @@ fun DeckDetailScreen(
                 DeckTopic(5, "Luyện phản xạ nhanh", 40, 0, "Tập phản xạ câu hỏi phỏng vấn & đàm thoại")
             )
         }
-    }
-
-    val reviews = remember {
-        mutableStateListOf(
-            DeckReview(
-                authorName = "Mai Anh",
-                avatarBgColor = Color(0xFFF3E8FF),
-                avatarEmoji = "👩🏻",
-                rating = 5,
-                content = "Rất dễ hiểu và hữu ích cho người mới bắt đầu!",
-                timeAgo = "2 ngày trước"
-            ),
-            DeckReview(
-                authorName = "Tuấn Nam",
-                avatarBgColor = Color(0xFFFEF3C7),
-                avatarEmoji = "👨🏻",
-                rating = 5,
-                content = "Học rất nhanh nhớ, phát âm chuẩn và hình minh họa siêu đẹp!",
-                timeAgo = "3 ngày trước"
-            ),
-            DeckReview(
-                authorName = "Linh Đan",
-                avatarBgColor = Color(0xFFDCFCE7),
-                avatarEmoji = "👧🏻",
-                rating = 5,
-                content = "Flashcard thiết kế thông minh, chia chủ đề rất khoa học.",
-                timeAgo = "5 ngày trước"
-            )
-        )
     }
 
     Scaffold(
@@ -303,69 +262,7 @@ fun DeckDetailScreen(
                                     Icon(Icons.Filled.Style, contentDescription = null, tint = Color(0xFF10B981))
                                 }
                             )
-                            DropdownMenuItem(
-                                text = { Text("Chia sẻ bộ thẻ") },
-                                onClick = {
-                                    showMoreMenu = false
-                                    val sendIntent: Intent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        putExtra(Intent.EXTRA_TEXT, "Học từ vựng ${deck.title} cùng NTK FlashCard nhé! 🚀")
-                                        type = "text/plain"
-                                    }
-                                    val shareIntent = Intent.createChooser(sendIntent, "Chia sẻ bộ thẻ")
-                                    context.startActivity(shareIntent)
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Filled.Share, contentDescription = null, tint = Color(0xFF3B82F6))
-                                }
-                            )
                         }
-                    }
-                }
-            }
-        },
-        bottomBar = {
-            Surface(
-                color = Color.White,
-                shadowElevation = 8.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-            ) {
-                Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            val sendIntent: Intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, "Học từ vựng ${deck.title} cực nhanh và hiệu quả trên ứng dụng NTK FlashCard! 🌟")
-                                type = "text/plain"
-                            }
-                            val shareIntent = Intent.createChooser(sendIntent, "Chia sẻ bộ thẻ")
-                            context.startActivity(shareIntent)
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color(0xFF0284C7)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0F2FE)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Share,
-                            contentDescription = "Share",
-                            tint = Color(0xFF0284C7),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Chia sẻ bộ thẻ",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0284C7)
-                        )
                     }
                 }
             }
@@ -526,90 +423,37 @@ fun DeckDetailScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // TWO ACTION BUTTONS: [ Học ngay ] [ Tải xuống ]
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // PRIMARY ACTION BUTTON: [ Học ngay ]
+            Button(
+                onClick = onStartStudy,
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF0284C7)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+                    .shadow(4.dp, RoundedCornerShape(18.dp), spotColor = Color(0x330284C7))
             ) {
-                // Primary Study Button (Ocean Blue filled)
-                Button(
-                    onClick = onStartStudy,
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0284C7)
-                    ),
-                    modifier = Modifier
-                        .weight(1.3f)
-                        .height(54.dp)
-                        .shadow(4.dp, RoundedCornerShape(18.dp), spotColor = Color(0x330284C7))
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.PlayCircle,
-                        contentDescription = "Study Now",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Học ngay",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
-                // Secondary Download Button
-                OutlinedButton(
-                    onClick = {
-                        if (!isDownloaded) {
-                            isDownloading = true
-                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                isDownloading = false
-                                isDownloaded = true
-                                Toast.makeText(context, "Đã tải xuống ngoại tuyến bộ thẻ ${deck.title}! 📥", Toast.LENGTH_SHORT).show()
-                            }, 1200)
-                        } else {
-                            Toast.makeText(context, "Bộ thẻ đã được tải sẵn trên máy!", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF0284C7)
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(54.dp)
-                ) {
-                    if (isDownloading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color(0xFF0284C7),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.FileDownload,
-                            contentDescription = "Download",
-                            tint = if (isDownloaded) Color(0xFF10B981) else Color(0xFF0284C7),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isDownloaded) "Đã tải" else "Tải xuống",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDownloaded) Color(0xFF10B981) else Color(0xFF0284C7)
-                        )
-                    }
-                }
+                Icon(
+                    imageVector = Icons.Filled.PlayCircle,
+                    contentDescription = "Study Now",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Học ngay",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3 TABS: [ Nội dung ] [ Thống kê ] [ Nhận xét (24) ]
-            val tabTitles = listOf("📖 Nội dung", "📈 Thống kê", "💬 Nhận xét (24)")
+            // 2 TABS: [ Nội dung ] [ Thống kê ]
+            val tabTitles = listOf("📖 Nội dung", "📈 Thống kê")
             TabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.Transparent,
@@ -1003,39 +847,10 @@ fun DeckDetailScreen(
                         onStartMatch = onStartMatch
                     )
                 }
-
-                2 -> {
-                    // TAB 3: TẤT CẢ NHẬN XÉT (REVIEWS TAB)
-                    ReviewsDetailTab(
-                        reviews = reviews,
-                        onAddReview = { showAddReviewDialog = true }
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-
-    if (showAddReviewDialog) {
-        AddReviewDialog(
-            onDismiss = { showAddReviewDialog = false },
-            onSubmit = { author, rating, text ->
-                reviews.add(
-                    0,
-                    DeckReview(
-                        authorName = author,
-                        avatarBgColor = Color(0xFFFEE2E2),
-                        avatarEmoji = "🧑🏻‍💻",
-                        rating = rating,
-                        content = text,
-                        timeAgo = "Vừa xong"
-                    )
-                )
-                showAddReviewDialog = false
-                Toast.makeText(context, "Cảm ơn bạn đã đóng góp nhận xét! ✨", Toast.LENGTH_SHORT).show()
-            }
-        )
     }
 }
 
@@ -1216,188 +1031,6 @@ private fun StatsDetailTab(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Nối thẻ nhớ", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1B4B))
                     Text("Ghép từ & nghĩa", fontSize = 12.sp, color = Color(0xFF059669))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReviewsDetailTab(
-    reviews: List<DeckReview>,
-    onAddReview: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Tất cả đánh giá (${reviews.size})",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
-            )
-
-            Button(
-                onClick = onAddReview,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text("+ Viết nhận xét", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        reviews.forEach { rev ->
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                shadowElevation = 1.dp,
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF1F5F9)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .background(rev.avatarBgColor, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = rev.avatarEmoji, fontSize = 20.sp)
-                    }
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = rev.authorName,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1E293B)
-                            )
-                            Text(
-                                text = rev.timeAgo,
-                                fontSize = 11.sp,
-                                color = Color(0xFF94A3B8)
-                            )
-                        }
-
-                        Row(modifier = Modifier.padding(vertical = 3.dp)) {
-                            repeat(rev.rating) {
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = Color(0xFFF59E0B),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = rev.content,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            color = Color(0xFF475569)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AddReviewDialog(
-    onDismiss: () -> Unit,
-    onSubmit: (String, Int, String) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var rating by remember { mutableIntStateOf(5) }
-    var comment by remember { mutableStateOf("") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    text = "Viết nhận xét bộ thẻ ✨",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Star Picker
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    (1..5).forEach { star ->
-                        IconButton(onClick = { rating = star }) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = "$star star",
-                                tint = if (star <= rating) Color(0xFFF59E0B) else Color(0xFFCBD5E1),
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Tên của bạn") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = comment,
-                    onValueChange = { comment = it },
-                    label = { Text("Cảm nghĩ của bạn về bộ thẻ...") },
-                    minLines = 3,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Hủy", color = Color(0xFF64748B))
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (name.isNotBlank() && comment.isNotBlank()) {
-                                onSubmit(name, rating, comment)
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Gửi nhận xét", fontWeight = FontWeight.Bold)
-                    }
                 }
             }
         }

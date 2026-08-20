@@ -43,6 +43,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _userName = MutableStateFlow("Bạn Học")
     val userName: StateFlow<String> = _userName.asStateFlow()
 
+    private val _userVipLevel = MutableStateFlow(1) // Default VIP 1 for test user
+    val userVipLevel: StateFlow<Int> = _userVipLevel.asStateFlow()
+
     private val _streakDays = MutableStateFlow(7)
     val streakDays: StateFlow<Int> = _streakDays.asStateFlow()
 
@@ -68,6 +71,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             repository.checkAndSeedDatabase()
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
         }
     }
 
@@ -83,6 +87,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _userName.value = name
     }
 
+    fun updateUserVipLevel(level: Int) {
+        _userVipLevel.value = level
+    }
+
     fun speak(text: String, languageTag: String = "en-US") {
         ttsManager.speak(text, languageTag)
     }
@@ -96,6 +104,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun recordReview(cardId: Long, difficulty: Int) {
         viewModelScope.launch {
             repository.recordCardReview(cardId, difficulty)
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
         }
     }
 

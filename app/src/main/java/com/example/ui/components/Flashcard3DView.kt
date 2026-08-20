@@ -58,6 +58,7 @@ import com.example.ui.theme.NTKTextSecondary
 fun Flashcard3DView(
     card: FlashCardEntity,
     isFlipped: Boolean,
+    userVipLevel: Int = 0,
     onFlip: () -> Unit,
     onSpeak: (String) -> Unit,
     onToggleStar: () -> Unit,
@@ -92,6 +93,7 @@ fun Flashcard3DView(
             // FRONT SIDE OF CARD
             CardFrontSide(
                 card = card,
+                userVipLevel = userVipLevel,
                 onSpeak = onSpeak,
                 onToggleStar = onToggleStar,
                 onFlip = onFlip
@@ -100,6 +102,7 @@ fun Flashcard3DView(
             // BACK SIDE OF CARD (Rotated 180 so it appears upright)
             CardBackSide(
                 card = card,
+                userVipLevel = userVipLevel,
                 onSpeak = onSpeak,
                 onToggleStar = onToggleStar,
                 onFlip = onFlip,
@@ -112,155 +115,155 @@ fun Flashcard3DView(
 @Composable
 private fun CardFrontSide(
     card: FlashCardEntity,
+    userVipLevel: Int = 0,
     onSpeak: (String) -> Unit,
     onToggleStar: () -> Unit,
     onFlip: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxSize()
-            .shadow(
-                elevation = 14.dp,
-                shape = RoundedCornerShape(24.dp),
-                spotColor = Color(0x33334155),
-                ambientColor = Color(0x1F334155)
-            ),
-        shape = RoundedCornerShape(24.dp),
-        color = Color.White,
-        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFCBD5E1)) // Crisp Gray Focus Border
+    VipCardFrame(
+        userVipLevel = userVipLevel,
+        modifier = modifier.fillMaxSize(),
+        cornerRadius = 24.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            border = if (userVipLevel == 0) androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFCBD5E1)) else null
         ) {
-            // Top Bar: Part of speech badge & Action buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Part of speech pill
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFFEEF2FF), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = card.partOfSpeech.uppercase(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = NTKPrimary
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Pronounce Audio Button
-                    IconButton(
-                        onClick = { onSpeak(card.frontWord) },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
-                            .testTag("btn_pronounce_front")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.VolumeUp,
-                            contentDescription = "Phát âm",
-                            tint = NTKPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // Star Bookmark Button
-                    IconButton(
-                        onClick = onToggleStar,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
-                            .testTag("btn_star_card")
-                    ) {
-                        Icon(
-                            imageVector = if (card.isStarred) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = "Yêu thích",
-                            tint = if (card.isStarred) Color(0xFFF59E0B) else NTKTextMuted,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            // Center: Main Word & Phonetic
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = card.frontWord,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = NTKTextPrimary,
-                    textAlign = TextAlign.Center
-                )
-
-                if (card.phonetic.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = card.phonetic,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = NTKPrimary,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                if (card.frontExample.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(14.dp))
+                // Top Bar: Part of speech badge & Action buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Part of speech pill
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                            .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .background(Color(0xFFEEF2FF), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "\"${card.frontExample}\"",
-                            fontSize = 13.sp,
-                            fontStyle = FontStyle.Italic,
-                            color = NTKTextSecondary,
-                            textAlign = TextAlign.Center,
-                            maxLines = 3
+                            text = card.partOfSpeech.uppercase(),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NTKPrimary
                         )
                     }
-                }
-            }
 
-            // Bottom Prompt: Tap to flip hint
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onFlip() }
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Flip,
-                    contentDescription = null,
-                    tint = NTKPrimaryLight,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Chạm thẻ để xem giải nghĩa",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = NTKPrimaryLight
-                )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Pronounce Audio Button
+                        IconButton(
+                            onClick = { onSpeak(card.frontWord) },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(Color(0xFFF1F5F9), CircleShape)
+                                .testTag("btn_pronounce_front")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VolumeUp,
+                                contentDescription = "Phát âm",
+                                tint = NTKPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        // Star Bookmark Button
+                        IconButton(
+                            onClick = onToggleStar,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(Color(0xFFF1F5F9), CircleShape)
+                                .testTag("btn_star_card")
+                        ) {
+                            Icon(
+                                imageVector = if (card.isStarred) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                                contentDescription = "Yêu thích",
+                                tint = if (card.isStarred) Color(0xFFF59E0B) else NTKTextMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Center: Main Word & Phonetic
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = card.frontWord,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NTKTextPrimary,
+                        textAlign = TextAlign.Center
+                    )
+
+                    if (card.phonetic.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = card.phonetic,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = NTKPrimary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    if (card.frontExample.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "\"${card.frontExample}\"",
+                                fontSize = 13.sp,
+                                fontStyle = FontStyle.Italic,
+                                color = NTKTextSecondary,
+                                textAlign = TextAlign.Center,
+                                maxLines = 3
+                            )
+                        }
+                    }
+                }
+
+                // Bottom Prompt: Tap to flip hint
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onFlip() }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Flip,
+                        contentDescription = null,
+                        tint = NTKPrimaryLight,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Chạm thẻ để xem giải nghĩa",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NTKPrimaryLight
+                    )
+                }
             }
         }
     }
@@ -269,147 +272,147 @@ private fun CardFrontSide(
 @Composable
 private fun CardBackSide(
     card: FlashCardEntity,
+    userVipLevel: Int = 0,
     onSpeak: (String) -> Unit,
     onToggleStar: () -> Unit,
     onFlip: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxSize()
-            .shadow(
-                elevation = 14.dp,
-                shape = RoundedCornerShape(24.dp),
-                spotColor = Color(0x33334155),
-                ambientColor = Color(0x1F334155)
-            ),
-        shape = RoundedCornerShape(24.dp),
-        color = Color(0xFFFAF5FF), // Soft lavender background
-        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFCBD5E1)) // Crisp Gray Focus Border
+    VipCardFrame(
+        userVipLevel = userVipLevel,
+        modifier = modifier.fillMaxSize(),
+        cornerRadius = 24.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFFFAF5FF), // Soft lavender background
+            border = if (userVipLevel == 0) androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFCBD5E1)) else null
         ) {
-            // Top Bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFFE0E7FF), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Ý NGHĨA",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = NTKPrimary
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = { onSpeak(card.frontWord) },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .background(Color.White, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.VolumeUp,
-                            contentDescription = "Phát âm",
-                            tint = NTKPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    IconButton(
-                        onClick = onToggleStar,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .background(Color.White, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = if (card.isStarred) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = "Yêu thích",
-                            tint = if (card.isStarred) Color(0xFFF59E0B) else NTKTextMuted,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            // Center Meaning & Translation
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = card.backMeaning,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = NTKTextPrimary,
-                    textAlign = TextAlign.Center
-                )
-
-                if (card.backExampleTranslation.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = card.backExampleTranslation,
-                        fontSize = 13.sp,
-                        color = NTKTextSecondary,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                if (card.memoryTip.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                // Top Bar
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFFEF3C7), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .background(Color(0xFFE0E7FF), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "💡 ${card.memoryTip}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF92400E),
+                            text = "Ý NGHĨA",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NTKPrimary
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { onSpeak(card.frontWord) },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(Color.White, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VolumeUp,
+                                contentDescription = "Phát âm",
+                                tint = NTKPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        IconButton(
+                            onClick = onToggleStar,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(Color.White, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (card.isStarred) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                                contentDescription = "Yêu thích",
+                                tint = if (card.isStarred) Color(0xFFF59E0B) else NTKTextMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Center Meaning & Translation
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = card.backMeaning,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NTKTextPrimary,
+                        textAlign = TextAlign.Center
+                    )
+
+                    if (card.backExampleTranslation.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = card.backExampleTranslation,
+                            fontSize = 13.sp,
+                            color = NTKTextSecondary,
                             textAlign = TextAlign.Center
                         )
                     }
-                }
-            }
 
-            // Bottom Prompt: Flip back
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onFlip() }
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Flip,
-                    contentDescription = null,
-                    tint = NTKPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Lật về mặt trước",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = NTKPrimary
-                )
+                    if (card.memoryTip.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFFEF3C7), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "💡 ${card.memoryTip}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF92400E),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                // Bottom Prompt: Flip back
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onFlip() }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Flip,
+                        contentDescription = null,
+                        tint = NTKPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Lật về mặt trước",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NTKPrimary
+                    )
+                }
             }
         }
     }

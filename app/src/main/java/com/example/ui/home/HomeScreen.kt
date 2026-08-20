@@ -77,6 +77,10 @@ import com.example.ui.dialogs.CreateDeckDialog
 import com.example.ui.dialogs.ImportCardsDialog
 import com.example.ui.dialogs.SavedCardsDialog
 import com.example.ui.dialogs.StatsSummaryDialog
+import com.example.ui.components.VipAvatarFrame
+import com.example.ui.components.VipLevel
+import com.example.ui.components.VipLevelSelectorCard
+import com.example.ui.leaderboard.LeaderboardTab
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +95,8 @@ fun HomeScreen(
     masteredWordsCount: Int = 15,
     totalWordsCount: Int = 20,
     userName: String = "bạn",
+    userVipLevel: Int = 1,
+    onSelectVipLevel: (Int) -> Unit = {},
     onOpenDeckDetail: (DeckEntity) -> Unit = {},
     onStudyDeck: (DeckEntity) -> Unit,
     onQuizDeck: (DeckEntity) -> Unit,
@@ -111,6 +117,7 @@ fun HomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedBottomTab by remember { mutableIntStateOf(0) }
+    var showReviewOverlay by remember { mutableStateOf(false) }
 
     // Dialog & Sheet States
     var showStatsDialog by remember { mutableStateOf(false) }
@@ -123,16 +130,20 @@ fun HomeScreen(
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val allDecksSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val effectiveDecks = if (allDecksList.isNotEmpty()) allDecksList else decks
+    val effectiveDecks = remember(allDecksList, decks) {
+        if (allDecksList.isNotEmpty()) allDecksList else decks
+    }
 
     // Filtered decks for search
-    val filteredDecks = if (searchQuery.isBlank()) {
-        decks
-    } else {
-        effectiveDecks.filter {
-            it.title.contains(searchQuery, ignoreCase = true) ||
-            it.subtitle.contains(searchQuery, ignoreCase = true) ||
-            it.level.contains(searchQuery, ignoreCase = true)
+    val filteredDecks = remember(searchQuery, decks, effectiveDecks) {
+        if (searchQuery.isBlank()) {
+            decks
+        } else {
+            effectiveDecks.filter {
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                it.subtitle.contains(searchQuery, ignoreCase = true) ||
+                it.level.contains(searchQuery, ignoreCase = true)
+            }
         }
     }
 
@@ -154,162 +165,177 @@ fun HomeScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Main Content Area based on Selected Bottom Tab
-            when (selectedBottomTab) {
-                0 -> {
-                    // TAB 0: TRANG CHỦ (Home Dashboard strictly following the provided mockup)
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(bottom = 12.dp)
-                    ) {
-                        Spacer(modifier = Modifier.height(6.dp))
+            // Main Content Area based on Selected Bottom Tab or Review Overlay
+            if (showReviewOverlay) {
+                ReviewHistoryTab(
+                    decks = effectiveDecks,
+                    onOpenDeckDetail = onOpenDeckDetail,
+                    onStudyDeck = onStudyDeck,
+                    onQuizDeck = onQuizDeck,
+                    onMatchDeck = onMatchDeck,
+                    onViewSaved = { showSavedCardsDialog = true },
+                    onBack = { showReviewOverlay = false },
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                when (selectedBottomTab) {
+                    0 -> {
+                        // TAB 0: TRANG CHỦ (Home Dashboard strictly following the provided mockup)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(bottom = 12.dp)
+                        ) {
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                        // 1. TOP HEADER: "Xin chào, 👋", "Hôm nay học gì nào?", Streak Pill "🔥 7"
-                        HomeTopHeader(
-                            userName = userName,
-                            streakDays = streakDays,
-                            onStreakClick = { showStatsDialog = true }
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // 2. SEARCH BAR: "Tìm kiếm bộ thẻ, chủ đề..." with Tune/Filter icon
-                        HomeSearchBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            onFilterClick = { showLanguageFilterSheet = true }
-                        )
-
-                        // If user is searching, show immediate search results
-                        if (searchQuery.isNotBlank()) {
-                            SearchResultsView(
-                                query = searchQuery,
-                                results = filteredDecks,
-                                onOpenDeckDetail = onOpenDeckDetail,
-                                onStudyDeck = onStudyDeck,
-                                onQuizDeck = onQuizDeck,
-                                onMatchDeck = onMatchDeck
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // 3. STREAK MASCOT BANNER: Purple gradient card with 7-day tracker and 3D Owl
-                            StreakMascotBanner(
+                            // 1. TOP HEADER: "Xin chào, 👋", "Hôm nay học gì nào?", Streak Pill "🔥 7"
+                            HomeTopHeader(
+                                userName = userName,
                                 streakDays = streakDays,
-                                onBannerClick = { showStatsDialog = true }
+                                onStreakClick = { showStatsDialog = true }
                             )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                            // 4. QUICK ACTION GRID: "Tạo bộ thẻ", "Nhập thẻ", "Thống kê", "Đã lưu"
-                            QuickActionGrid(
-                                onCreateDeck = { showCreateDeckDialog = true },
-                                onImportCards = { showImportCardsDialog = true },
-                                onViewStats = { showStatsDialog = true },
-                                onViewSaved = { showSavedCardsDialog = true }
+                            // 2. SEARCH BAR: "Tìm kiếm bộ thẻ, chủ đề..." with Tune/Filter icon
+                            HomeSearchBar(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                onFilterClick = { showLanguageFilterSheet = true }
                             )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            // If user is searching, show immediate search results
+                            if (searchQuery.isNotBlank()) {
+                                SearchResultsView(
+                                    query = searchQuery,
+                                    results = filteredDecks,
+                                    onOpenDeckDetail = onOpenDeckDetail,
+                                    onStudyDeck = onStudyDeck,
+                                    onQuizDeck = onQuizDeck,
+                                    onMatchDeck = onMatchDeck
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            // 5. "Tiếp tục học" SECTION: Dynamic active language/deck
-                            val currentActiveDeck = decks.firstOrNull()
-                                ?: effectiveDecks.firstOrNull { it.languageCode == selectedLanguage.code }
-                                ?: effectiveDecks.firstOrNull()
-                            val studiedCount = ((currentActiveDeck?.cardCount ?: 50) * 0.64f).toInt().coerceAtLeast(1)
-                            val totalCount = currentActiveDeck?.cardCount?.takeIf { it > 0 } ?: 50
+                                // 3. STREAK MASCOT BANNER: Purple gradient card with 7-day tracker and 3D Owl
+                                StreakMascotBanner(
+                                    streakDays = streakDays,
+                                    onBannerClick = { showStatsDialog = true }
+                                )
 
-                            ContinueLearningSection(
-                                title = currentActiveDeck?.title ?: "${selectedLanguage.displayName} cơ bản",
-                                studiedCount = studiedCount,
-                                totalCount = totalCount,
-                                onContinueClick = {
-                                    if (currentActiveDeck != null) {
-                                        onOpenDeckDetail(currentActiveDeck)
-                                    } else {
-                                        onStudyByLang(selectedLanguage.code)
-                                    }
-                                },
-                                onViewAllClick = { showAllDecksSheet = true }
-                            )
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                                // 4. QUICK ACTION GRID: "Tạo bộ thẻ", "Ôn tập", "Thống kê", "Đã lưu"
+                                QuickActionGrid(
+                                    onCreateDeck = { showCreateDeckDialog = true },
+                                    onReviewCards = { showReviewOverlay = true },
+                                    onViewStats = { showStatsDialog = true },
+                                    onViewSaved = { showSavedCardsDialog = true }
+                                )
 
-                            // 6. "Bộ thẻ của bạn" SECTION: Japanese N5, English Basics, Korean, Vietnamese
-                            YourDecksSection(
-                                onDeckClick = { langCode ->
-                                    val targetDeck = effectiveDecks.firstOrNull { it.languageCode == langCode }
-                                    if (targetDeck != null) {
-                                        onOpenDeckDetail(targetDeck)
-                                    } else {
-                                        onStudyByLang(langCode)
-                                    }
-                                },
-                                onViewAllClick = { showAllDecksSheet = true }
-                            )
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                                // 5. "Tiếp tục học" SECTION: Dynamic active language/deck
+                                val currentActiveDeck = decks.firstOrNull()
+                                    ?: effectiveDecks.firstOrNull { it.languageCode == selectedLanguage.code }
+                                    ?: effectiveDecks.firstOrNull()
+                                val studiedCount = ((currentActiveDeck?.cardCount ?: 50) * 0.64f).toInt().coerceAtLeast(1)
+                                val totalCount = currentActiveDeck?.cardCount?.takeIf { it > 0 } ?: 50
 
-                            // 7. "Mục tiêu hôm nay" CARD: 75% Circular Ring, 15 / 20 thẻ, Cheer text
-                            DailyGoalCard(
-                                currentCount = if (masteredWordsCount > 0) masteredWordsCount else 15,
-                                targetCount = if (totalWordsCount > 0) totalWordsCount else 20,
-                                percentage = if (totalWordsCount > 0) (masteredWordsCount * 100 / totalWordsCount).coerceIn(10, 100) else 75,
-                                onClick = { showStatsDialog = true }
-                            )
+                                ContinueLearningSection(
+                                    title = currentActiveDeck?.title ?: "${selectedLanguage.displayName} cơ bản",
+                                    studiedCount = studiedCount,
+                                    totalCount = totalCount,
+                                    onContinueClick = {
+                                        if (currentActiveDeck != null) {
+                                            onOpenDeckDetail(currentActiveDeck)
+                                        } else {
+                                            onStudyByLang(selectedLanguage.code)
+                                        }
+                                    },
+                                    onViewAllClick = { showAllDecksSheet = true }
+                                )
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // 6. "Bộ thẻ của bạn" SECTION: Japanese N5, English Basics, Korean, Vietnamese
+                                YourDecksSection(
+                                    onDeckClick = { langCode ->
+                                        val targetDeck = effectiveDecks.firstOrNull { it.languageCode == langCode }
+                                        if (targetDeck != null) {
+                                            onOpenDeckDetail(targetDeck)
+                                        } else {
+                                            onStudyByLang(langCode)
+                                        }
+                                    },
+                                    onViewAllClick = { showAllDecksSheet = true }
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // 7. "Mục tiêu hôm nay" CARD: 75% Circular Ring, 15 / 20 thẻ, Cheer text
+                                DailyGoalCard(
+                                    currentCount = if (masteredWordsCount > 0) masteredWordsCount else 15,
+                                    targetCount = if (totalWordsCount > 0) totalWordsCount else 20,
+                                    percentage = if (totalWordsCount > 0) (masteredWordsCount * 100 / totalWordsCount).coerceIn(10, 100) else 75,
+                                    onClick = { showStatsDialog = true }
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
                         }
                     }
-                }
 
-                1 -> {
-                    // TAB 1: KHÁM PHÁ (Explore all multilingual decks & categories)
-                    ExploreDecksTab(
-                        decks = effectiveDecks,
-                        selectedLanguage = selectedLanguage,
-                        onSelectLanguage = onSelectLanguage,
-                        onOpenDeckDetail = onOpenDeckDetail,
-                        onStudyDeck = onStudyDeck,
-                        onQuizDeck = onQuizDeck,
-                        onMatchDeck = onMatchDeck,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                    1 -> {
+                        // TAB 1: KHÁM PHÁ (Explore all multilingual decks & categories)
+                        ExploreDecksTab(
+                            decks = effectiveDecks,
+                            selectedLanguage = selectedLanguage,
+                            onSelectLanguage = onSelectLanguage,
+                            onOpenDeckDetail = onOpenDeckDetail,
+                            onStudyDeck = onStudyDeck,
+                            onQuizDeck = onQuizDeck,
+                            onMatchDeck = onMatchDeck,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-                2 -> {
-                    // TAB 2: ÔN TẬP (Spaced Repetition & Daily Quizzes)
-                    ReviewHistoryTab(
-                        decks = effectiveDecks,
-                        onOpenDeckDetail = onOpenDeckDetail,
-                        onStudyDeck = onStudyDeck,
-                        onQuizDeck = onQuizDeck,
-                        onMatchDeck = onMatchDeck,
-                        onViewSaved = { showSavedCardsDialog = true },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                    2 -> {
+                        // TAB 2: BẢNG XẾP HẠNG (Leaderboard strictly matching provided mockup)
+                        LeaderboardTab(
+                            userName = userName,
+                            userVipLevel = userVipLevel,
+                            userScore = if (masteredWordsCount > 0) (masteredWordsCount * 100) + (streakDays * 50) else 1250,
+                            userStreak = streakDays,
+                            userCardsLearned = masteredWordsCount,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-                3 -> {
-                    // TAB 3: TÀI KHOẢN (Profile, Achievements, Settings)
-                    AccountProfileTab(
-                        userName = userName,
-                        streakDays = streakDays,
-                        masteredCount = masteredWordsCount,
-                        totalCount = totalWordsCount,
-                        onOpenEditProfile = onOpenProfile,
-                        onViewStats = { showStatsDialog = true },
-                        modifier = Modifier.weight(1f)
-                    )
+                    3 -> {
+                        // TAB 3: TÀI KHOẢN (Profile, Achievements, Settings)
+                        AccountProfileTab(
+                            userName = userName,
+                            userVipLevel = userVipLevel,
+                            streakDays = streakDays,
+                            masteredCount = masteredWordsCount,
+                            totalCount = totalWordsCount,
+                            onOpenEditProfile = onOpenProfile,
+                            onSelectVipLevel = onSelectVipLevel,
+                            onViewStats = { showStatsDialog = true },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
-            // 8. FIXED BOTTOM NAVIGATION BAR: Trang chủ, Khám phá, Ôn tập, Tài khoản
+            // FIXED BOTTOM NAVIGATION BAR: Trang chủ, Khám phá, BXH, Tài khoản
             HomeBottomNavBar(
-                selectedTab = selectedBottomTab,
+                selectedTab = if (showReviewOverlay) -1 else selectedBottomTab,
                 onTabSelected = { tabIndex ->
                     selectedBottomTab = tabIndex
+                    showReviewOverlay = false
                 }
             )
         }
@@ -916,6 +942,7 @@ private fun ReviewHistoryTab(
     onQuizDeck: (DeckEntity) -> Unit,
     onMatchDeck: (DeckEntity) -> Unit,
     onViewSaved: () -> Unit,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -924,17 +951,36 @@ private fun ReviewHistoryTab(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        Text(
-            text = "Luyện tập & Ôn tập",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E1B4B)
-        )
-        Text(
-            text = "Ôn lại các từ cần củng cố theo thuật toán lặp lại ngắt quãng",
-            fontSize = 13.sp,
-            color = Color(0xFF64748B)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (onBack != null) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.padding(end = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "Quay lại",
+                        tint = Color(0xFF1E1B4B)
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Luyện tập & Ôn tập",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E1B4B)
+                )
+                Text(
+                    text = "Ôn lại các từ cần củng cố theo thuật toán lặp lại ngắt quãng",
+                    fontSize = 13.sp,
+                    color = Color(0xFF64748B)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -1006,13 +1052,19 @@ private fun ReviewHistoryTab(
 @Composable
 private fun AccountProfileTab(
     userName: String,
+    userVipLevel: Int = 1,
     streakDays: Int,
     masteredCount: Int,
     totalCount: Int,
     onOpenEditProfile: () -> Unit,
+    onSelectVipLevel: (Int) -> Unit = {},
     onViewStats: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showWidgetGuideDialog by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val vipLevelObj = VipLevel.fromLevel(userVipLevel)
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -1032,25 +1084,33 @@ private fun AccountProfileTab(
                     .padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(Color(0xFF0284C7), Color(0xFF38BDF8))
-                            ),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                // VIP Outer Border Avatar Ring
+                VipAvatarFrame(
+                    vipLevel = vipLevelObj,
+                    avatarSize = 56.dp
                 ) {
-                    Text(
-                        text = userName.take(1).uppercase(),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF0284C7), Color(0xFF38BDF8))
+                                ),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = userName.take(1).uppercase(),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                    }
                 }
+
                 Spacer(modifier = Modifier.width(14.dp))
+
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = userName,
@@ -1059,9 +1119,10 @@ private fun AccountProfileTab(
                         color = Color(0xFF0F172A)
                     )
                     Text(
-                        text = "Học viên xuất sắc 🌟",
+                        text = if (vipLevelObj == VipLevel.NONE) "Học viên xuất sắc 🌟" else "Học viên ${vipLevelObj.title} ${vipLevelObj.crownEmoji}",
                         fontSize = 13.sp,
-                        color = Color(0xFF64748B)
+                        fontWeight = if (vipLevelObj != VipLevel.NONE) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (vipLevelObj != VipLevel.NONE) vipLevelObj.badgeBgColor else Color(0xFF64748B)
                     )
                 }
 
@@ -1104,6 +1165,179 @@ private fun AccountProfileTab(
                     Column {
                         Text("📚 Tổng số thẻ", fontSize = 12.sp, color = Color(0xFF64748B))
                         Text("$totalCount thẻ", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF0284C7))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Home Screen Widget Banner
+        Surface(
+            onClick = { showWidgetGuideDialog = true },
+            shape = RoundedCornerShape(20.dp),
+            color = Color(0xFFEEF2FF),
+            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFC7D2FE)),
+            shadowElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .background(Color(0xFFE0E7FF), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("📱", fontSize = 22.sp)
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Widget Màn hình chính",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF312E81)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFFFEDD5)
+                        ) {
+                            Text(
+                                text = "🔥 $streakDays ngày",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFEA580C),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Hiển thị từ ngẫu nhiên chưa thuộc & Streak góc nhỏ ngoài màn hình điện thoại",
+                        fontSize = 12.sp,
+                        color = Color(0xFF4338CA)
+                    )
+                }
+            }
+        }
+    }
+
+    if (showWidgetGuideDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showWidgetGuideDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                shadowElevation = 8.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "📱 Widget Màn Hình Chính",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E1B4B)
+                    )
+                    Text(
+                        text = "Ôn tập từ chưa thuộc & xem Chuỗi ngày góc nhỏ",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Simulated Live Widget Box Preview
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color.White,
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFE0E7FF)),
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("📖 Từ đang học", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4338CA))
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFFFFF7ED),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFEDD5))
+                                ) {
+                                    Text("🔥 $streakDays ngày", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFEA580C), modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Resilient", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1B4B))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFFEEF2FF)) {
+                                    Text("adj", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4338CA), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                }
+                            }
+                            Text("/rɪˈzɪl.jənt/", fontSize = 11.sp, color = Color(0xFF64748B))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Kiên cường, phục hồi nhanh", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                            Text("💡 He is resilient in facing challenges.", fontSize = 11.sp, color = Color(0xFF475569))
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("🇬🇧 Tiếng Anh • Chưa thuộc", fontSize = 10.sp, color = Color(0xFF64748B))
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFFEEF2FF),
+                                    border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFC7D2FE))
+                                ) {
+                                    Text("🔄 Từ khác", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF4338CA), modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "💡 Hướng dẫn cài đặt ngoài màn hình:\n1. Nhấn giữ màn hình chính điện thoại\n2. Chọn mục Widget / Tiện ích\n3. Tìm ứng dụng 'NTK FlashCard'\n4. Kéo Widget ra vị trí bạn yêu thích!",
+                        fontSize = 12.sp,
+                        color = Color(0xFF334155),
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Button(
+                        onClick = {
+                            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(context, streakDays)
+                            android.widget.Toast.makeText(context, "🔄 Đã đồng bộ & làm mới dữ liệu Widget!", android.widget.Toast.LENGTH_SHORT).show()
+                            showWidgetGuideDialog = false
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Text("Cập nhật Widget ngay 🔄", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
