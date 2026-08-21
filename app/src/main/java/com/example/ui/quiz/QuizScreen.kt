@@ -1,7 +1,11 @@
 package com.example.ui.quiz
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -14,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,18 +55,24 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -69,6 +80,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.FlashCardEntity
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.example.ui.theme.EasyGreen
 import com.example.ui.theme.HardRed
 import com.example.ui.theme.NTKPrimary
@@ -103,6 +116,7 @@ fun QuizScreen(
     onBack: () -> Unit,
     onSpeak: (String, String) -> Unit,
     onFinishQuiz: (score: Int, total: Int) -> Unit,
+    onStudyNext: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (cards.size < 2) {
@@ -128,7 +142,66 @@ fun QuizScreen(
     var maxStreak by remember { mutableIntStateOf(0) }
     var lastPointsEarned by remember { mutableIntStateOf(0) }
     var lastMultiplier by remember { mutableFloatStateOf(1.0f) }
-    var showPointsPopup by remember { mutableStateOf(false) }
+    var popupTrigger by remember { mutableIntStateOf(0) }
+
+    val popupAlpha = remember { Animatable(0f) }
+    val popupOffsetY = remember { Animatable(0f) }
+    val popupScale = remember { Animatable(0.7f) }
+
+    LaunchedEffect(popupTrigger) {
+        if (popupTrigger > 0) {
+            popupAlpha.snapTo(0f)
+            popupOffsetY.snapTo(6f)
+            popupScale.snapTo(0.7f)
+
+            // Phase 1: Pop in with slight bounce & float up gradually
+            launch {
+                popupAlpha.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 280, easing = LinearOutSlowInEasing)
+                )
+            }
+            launch {
+                popupScale.animateTo(
+                    targetValue = 1.14f,
+                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                )
+                popupScale.animateTo(
+                    targetValue = 1.0f,
+                    animationSpec = tween(durationMillis = 180, easing = LinearEasing)
+                )
+            }
+            launch {
+                popupOffsetY.animateTo(
+                    targetValue = -18f,
+                    animationSpec = tween(durationMillis = 800, easing = LinearOutSlowInEasing)
+                )
+            }
+
+            // Phase 2: Rest & Read
+            delay(900)
+
+            // Phase 3: Float up higher & Dissolve (tan đi) mượt mà
+            launch {
+                popupOffsetY.animateTo(
+                    targetValue = -65f,
+                    animationSpec = tween(durationMillis = 700, easing = FastOutLinearInEasing)
+                )
+            }
+            launch {
+                popupAlpha.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 700, easing = FastOutLinearInEasing)
+                )
+            }
+            launch {
+                popupScale.animateTo(
+                    targetValue = 0.92f,
+                    animationSpec = tween(durationMillis = 700, easing = FastOutLinearInEasing)
+                )
+            }
+        }
+    }
 
     var selectedOption by remember { mutableStateOf<String?>(null) }
     var isAnswerSubmitted by remember { mutableStateOf(false) }
@@ -393,40 +466,63 @@ fun QuizScreen(
                     }
                 }
 
-                // FLOATING ANIMATED POINTS POPUP OVERLAY (Offset above card, doesn't shift layout height)
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showPointsPopup && isAnswerSubmitted,
-                    enter = fadeIn() + scaleIn(spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy)) + slideInVertically(initialOffsetY = { -15 }),
-                    exit = fadeOut() + scaleOut(),
-                    modifier = Modifier.offset(y = (-18).dp)
-                ) {
+                // FLOATING ANIMATED POINTS POPUP OVERLAY (Lên dần dần rồi tan đi mượt mà)
+                if (popupAlpha.value > 0.005f) {
                     val popupInfo = getStreakMultiplierInfo(currentStreak)
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = popupInfo.badgeColor,
-                        shadowElevation = 8.dp,
-                        border = androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+                    Box(
+                        modifier = Modifier
+                            .offset(y = (-16).dp)
+                            .graphicsLayer {
+                                alpha = popupAlpha.value
+                                translationY = popupOffsetY.value * density
+                                scaleX = popupScale.value
+                                scaleY = popupScale.value
+                            }
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(22.dp),
+                            color = popupInfo.badgeColor,
+                            shadowElevation = 10.dp,
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color.White)
                         ) {
-                            Text(popupInfo.emoji, fontSize = 18.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            colors = listOf(
+                                                popupInfo.badgeColor,
+                                                popupInfo.badgeColor.copy(alpha = 0.85f)
+                                            )
+                                        )
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(popupInfo.emoji, fontSize = 20.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "+${lastPointsEarned} ĐIỂM!",
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Black,
                                     color = Color.White
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "(${popupInfo.title} x${lastMultiplier})",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White.copy(alpha = 0.92f)
-                                )
+                                if (lastMultiplier > 1.0f) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.White.copy(alpha = 0.25f)
+                                    ) {
+                                        Text(
+                                            text = "${popupInfo.title} x${lastMultiplier}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("✨", fontSize = 16.sp)
                             }
                         }
                     }
@@ -480,12 +576,12 @@ fun QuizScreen(
                                     val earned = (100 * info.multiplier).toInt()
                                     lastPointsEarned = earned
                                     totalPoints += earned
-                                    showPointsPopup = true
+                                    popupTrigger++
                                 } else {
                                     currentStreak = 0
                                     lastPointsEarned = 0
                                     lastMultiplier = 1.0f
-                                    showPointsPopup = false
+                                    popupTrigger = 0
                                 }
                             }
                             .testTag("quiz_option_${option.take(6)}"),
@@ -575,7 +671,7 @@ fun QuizScreen(
             // Next Question Button
             Button(
                 onClick = {
-                    showPointsPopup = false
+                    popupTrigger = 0
                     if (currentIndex < quizCards.size - 1) {
                         currentIndex++
                         selectedOption = null
@@ -726,7 +822,57 @@ fun QuizScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    // PASS >= 50% SUGGESTION CARD
+                    if (accuracy >= 50) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFF0F9FF),
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF0284C7)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("🎉", fontSize = 18.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Bạn có muốn học card tiếp theo không?",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0369A1)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Đạt $accuracy% - Kết quả xuất sắc! Giữ đà học tập để làm chủ toàn bộ từ vựng.",
+                                    fontSize = 12.sp,
+                                    color = NTKTextSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Button(
+                                    onClick = {
+                                        onStudyNext?.invoke()
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(46.dp)
+                                        .testTag("btn_study_next_card"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                                ) {
+                                    Text("🎴 Học card tiếp theo ngay", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
                         onClick = {
@@ -738,22 +884,197 @@ fun QuizScreen(
                             selectedOption = null
                             isAnswerSubmitted = false
                             isQuizCompleted = false
-                            showPointsPopup = false
+                            popupTrigger = 0
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(46.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = NTKPrimary)
+                        colors = if (accuracy >= 50) ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9), contentColor = NTKTextPrimary) else ButtonDefaults.buttonColors(containerColor = NTKPrimary)
                     ) {
                         Text("Làm lại bài kiểm tra", fontWeight = FontWeight.Bold)
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     TextButton(onClick = onBack) {
                         Text("Trở về danh sách bài học", color = NTKTextSecondary)
                     }
+                }
+            }
+        }
+
+        // FIREWORKS CELEBRATION OVERLAY ON TOP OF POPUP (AUTO CLEAR AFTER ~10s)
+        if (isQuizCompleted) {
+            FireworksCanvas(
+                durationMs = 8000L,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+private data class FireworkParticle(
+    var x: Float,
+    var y: Float,
+    var vx: Float,
+    var vy: Float,
+    val color: Color,
+    var alpha: Float,
+    val size: Float,
+    val maxLife: Float,
+    var currentLife: Float = 0f,
+    var rotation: Float = 0f,
+    val vRot: Float = 0f,
+    val shape: Int
+)
+
+@Composable
+fun FireworksCanvas(
+    durationMs: Long = 8000L,
+    modifier: Modifier = Modifier,
+    onFinished: (() -> Unit)? = null
+) {
+    val particles = remember { mutableStateListOf<FireworkParticle>() }
+    var isRunning by remember { mutableStateOf(true) }
+
+    if (!isRunning) return
+
+    LaunchedEffect(Unit) {
+        val colors = listOf(
+            Color(0xFFFF2A6D), // Neon Pink
+            Color(0xFF05D9E8), // Neon Cyan
+            Color(0xFFFFC857), // Gold
+            Color(0xFF7C3AED), // Purple
+            Color(0xFF10B981), // Emerald
+            Color(0xFFFF5722), // Orange
+            Color(0xFFEC4899), // Hot Pink
+            Color(0xFF0284C7)  // Ocean Blue
+        )
+
+        var frame = 0
+        val startTime = System.currentTimeMillis()
+        val maxParticles = 90 // Cap active particles for optimal performance
+
+        while (true) {
+            val elapsed = System.currentTimeMillis() - startTime
+            val isSpawningAllowed = elapsed < durationMs
+
+            withFrameNanos { _ ->
+                frame++
+
+                // Trigger a new firework burst if time remains
+                if (isSpawningAllowed && (frame % 25 == 1 || particles.size < 15) && particles.size < maxParticles) {
+                    val cx = 100f + (Math.random().toFloat() * 800f)
+                    val cy = 150f + (Math.random().toFloat() * 700f)
+                    val burstCount = (25..35).random()
+                    val burstColor = colors.random()
+
+                    for (i in 0 until burstCount) {
+                        if (particles.size >= maxParticles) break
+                        val angle = Math.random() * 2 * Math.PI
+                        val speed = 3f + (Math.random().toFloat() * 11f)
+                        val vx = (Math.cos(angle) * speed).toFloat()
+                        val vy = (Math.sin(angle) * speed).toFloat()
+                        val maxLife = 35f + (Math.random().toFloat() * 30f)
+                        val pColor = if (Math.random() > 0.3) burstColor else colors.random()
+
+                        particles.add(
+                            FireworkParticle(
+                                x = cx,
+                                y = cy,
+                                vx = vx,
+                                vy = vy,
+                                color = pColor,
+                                alpha = 1f,
+                                size = 5f + (Math.random().toFloat() * 8f),
+                                maxLife = maxLife,
+                                currentLife = 0f,
+                                rotation = (Math.random() * 360).toFloat(),
+                                vRot = -10f + (Math.random().toFloat() * 20f),
+                                shape = (0..2).random()
+                            )
+                        )
+                    }
+                }
+
+                // Update particle physics
+                val iterator = particles.iterator()
+                while (iterator.hasNext()) {
+                    val p = iterator.next()
+                    p.currentLife += 1f
+                    if (p.currentLife >= p.maxLife) {
+                        iterator.remove()
+                    } else {
+                        p.x += p.vx
+                        p.y += p.vy
+                        p.vy += 0.25f // Gravity
+                        p.vx *= 0.96f // Drag
+                        p.vy *= 0.96f
+                        p.rotation += p.vRot
+                        p.alpha = (1f - (p.currentLife / p.maxLife)).coerceIn(0f, 1f)
+                    }
+                }
+            }
+
+            // Stop condition: duration passed & remaining particles finished fading out
+            if (!isSpawningAllowed && particles.isEmpty()) {
+                isRunning = false
+                onFinished?.invoke()
+                break
+            }
+        }
+    }
+
+    if (particles.isNotEmpty()) {
+        Canvas(
+            modifier = modifier.fillMaxSize()
+        ) {
+            val scaleX = size.width / 1000f
+            val scaleY = size.height / 1800f
+
+            particles.forEach { p ->
+                val pAlpha = p.alpha.coerceIn(0f, 1f)
+                if (pAlpha > 0.01f) {
+                    drawContext.canvas.save()
+                    drawContext.canvas.translate(p.x * scaleX, p.y * scaleY)
+                    drawContext.canvas.rotate(p.rotation)
+
+                    when (p.shape) {
+                        0 -> {
+                            drawCircle(
+                                color = p.color.copy(alpha = pAlpha),
+                                radius = (p.size / 2f) * scaleX
+                            )
+                        }
+                        1 -> {
+                            val sz = p.size * scaleX
+                            drawRect(
+                                color = p.color.copy(alpha = pAlpha),
+                                topLeft = Offset(-sz / 2f, -sz / 2f),
+                                size = Size(sz, sz * 1.4f)
+                            )
+                        }
+                        else -> {
+                            val r = p.size * scaleX
+                            val path = Path().apply {
+                                moveTo(0f, -r)
+                                lineTo(r * 0.4f, -r * 0.4f)
+                                lineTo(r, 0f)
+                                lineTo(r * 0.4f, r * 0.4f)
+                                lineTo(0f, r)
+                                lineTo(-r * 0.4f, r * 0.4f)
+                                lineTo(-r, 0f)
+                                lineTo(-r * 0.4f, -r * 0.4f)
+                                close()
+                            }
+                            drawPath(
+                                path = path,
+                                color = p.color.copy(alpha = pAlpha)
+                            )
+                        }
+                    }
+                    drawContext.canvas.restore()
                 }
             }
         }

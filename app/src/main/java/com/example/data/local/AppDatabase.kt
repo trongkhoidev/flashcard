@@ -7,18 +7,31 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
+import com.example.data.model.QuizRecordEntity
+import com.example.data.model.StudySessionEntity
+import com.example.data.model.UserProfileEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Database(
-    entities = [DeckEntity::class, FlashCardEntity::class],
-    version = 1,
+    entities = [
+        DeckEntity::class,
+        FlashCardEntity::class,
+        StudySessionEntity::class,
+        QuizRecordEntity::class,
+        UserProfileEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
+    abstract fun deckDao(): DeckDao
     abstract fun flashCardDao(): FlashCardDao
+    abstract fun studySessionDao(): StudySessionDao
+    abstract fun quizRecordDao(): QuizRecordDao
+    abstract fun userProfileDao(): UserProfileDao
 
     companion object {
         @Volatile
@@ -31,6 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ntk_flashcard_db"
                 )
+                .fallbackToDestructiveMigration()
                 .addCallback(DatabaseCallback(scope))
                 .build()
                 INSTANCE = instance
@@ -45,15 +59,37 @@ abstract class AppDatabase : RoomDatabase() {
                 super.onCreate(db)
                 INSTANCE?.let { database ->
                     scope.launch {
-                        populateInitialData(database.flashCardDao())
+                        populateInitialData(
+                            deckDao = database.deckDao(),
+                            flashCardDao = database.flashCardDao(),
+                            userProfileDao = database.userProfileDao()
+                        )
                     }
                 }
             }
         }
 
-        suspend fun populateInitialData(dao: FlashCardDao) {
-            dao.insertDecks(DefaultVocabData.getDefaultDecks())
-            dao.insertCards(DefaultVocabData.getDefaultFlashCards())
+        suspend fun populateInitialData(
+            deckDao: DeckDao,
+            flashCardDao: FlashCardDao,
+            userProfileDao: UserProfileDao
+        ) {
+            deckDao.insertDecks(DefaultVocabData.getDefaultDecks())
+            flashCardDao.insertCards(DefaultVocabData.getDefaultFlashCards())
+            userProfileDao.insertOrUpdateProfile(
+                UserProfileEntity(
+                    id = 1,
+                    userName = "Bạn Học",
+                    avatarEmoji = "🦉",
+                    avatarBgColorHex = "#EEF2FF",
+                    vipLevel = 1,
+                    streakDays = 7,
+                    maxStreakDays = 7,
+                    totalPoints = 1500,
+                    totalCardsLearned = 45,
+                    lastActiveTimestamp = System.currentTimeMillis()
+                )
+            )
         }
     }
 }

@@ -113,6 +113,8 @@ fun HomeScreen(
     onCreateDeckDirect: (String, String, String, String, List<FlashCardEntity>) -> Unit = { _, _, _, _, _ -> },
     onImportCardsDirect: (String, List<FlashCardEntity>) -> Unit = { _, _ -> },
     onStudyByLang: (String) -> Unit = {},
+    onTestSmartNotification: () -> Unit = {},
+    onTestMilestoneNotification: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -324,6 +326,8 @@ fun HomeScreen(
                             onOpenEditProfile = onOpenProfile,
                             onSelectVipLevel = onSelectVipLevel,
                             onViewStats = { showStatsDialog = true },
+                            onTestSmartNotification = onTestSmartNotification,
+                            onTestMilestoneNotification = onTestMilestoneNotification,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -1059,9 +1063,13 @@ private fun AccountProfileTab(
     onOpenEditProfile: () -> Unit,
     onSelectVipLevel: (Int) -> Unit = {},
     onViewStats: () -> Unit,
+    onTestSmartNotification: () -> Unit = {},
+    onTestMilestoneNotification: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showWidgetGuideDialog by remember { mutableStateOf(false) }
+    var notificationScheduledTime by remember { mutableStateOf("19:00 hàng ngày") }
+    var isNotificationActive by remember { mutableStateOf(true) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val vipLevelObj = VipLevel.fromLevel(userVipLevel)
 
@@ -1165,6 +1173,117 @@ private fun AccountProfileTab(
                     Column {
                         Text("📚 Tổng số thẻ", fontSize = 12.sp, color = Color(0xFF64748B))
                         Text("$totalCount thẻ", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF0284C7))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Smart Notification Settings & Test Card
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color(0xFFFEF3C7), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🔔", fontSize = 20.sp)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Thông báo nhắc học thông minh",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E1B4B)
+                            )
+                            Text(
+                                text = "Tự động kiểm tra số từ cần ôn & streak",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Schedule details badge
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("⏰ Giờ nhắc nhở:", fontSize = 12.sp, color = Color(0xFF64748B))
+                            Text(notificationScheduledTime, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFECFDF5)
+                        ) {
+                            Text(
+                                text = "✓ Không spam khi đã học",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF047857),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Action buttons for testing notifications
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            onTestSmartNotification()
+                            android.widget.Toast.makeText(context, "🔔 Đã kích hoạt đánh giá thông báo thông minh!", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Text("Thử chuông 19:00", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = {
+                            onTestMilestoneNotification(streakDays)
+                            android.widget.Toast.makeText(context, "🎉 Đã gửi thông báo thành tựu Streak!", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Text("Thành tựu Streak", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

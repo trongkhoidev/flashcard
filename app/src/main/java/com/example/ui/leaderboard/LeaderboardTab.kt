@@ -290,49 +290,57 @@ fun LeaderboardTab(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // 3. TOP 3 PODIUM SECTION (Rank 2, Rank 1, Rank 3)
+        // 3. TOP 3 PODIUM SECTION (Rank 2, Rank 1, Rank 3 - Bục nhận giải)
         val top1 = leaderboardList[0]
         val top2 = leaderboardList[1]
         val top3 = leaderboardList[2]
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            // Rank 2 (Left)
-            PodiumCard(
+            // Rank 2 (Left - Medium Podium Step)
+            PodiumStep(
                 user = top2,
-                rankBadgeColor = Color(0xFF3B82F6), // Silver/Blue
-                cardBgColor = Color(0xFFF5F3FF),
-                borderColor = Color(0xFFDDD6FE),
+                rank = 2,
+                podiumBlockHeight = 92.dp,
+                podiumGradient = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF94A3B8), Color(0xFF475569))
+                ),
+                podiumBorderColor = Color(0xFFCBD5E1),
                 filterType = selectedFilter,
-                elevation = 2.dp,
                 modifier = Modifier.weight(1f),
                 onClick = { selectedUserForDialog = top2 }
             )
 
-            // Rank 1 (Center - Prominent Crown & Highest)
-            PodiumCard(
+            // Rank 1 (Center - Highest Podium Step)
+            PodiumStep(
                 user = top1,
-                rankBadgeColor = Color(0xFFF59E0B), // Gold
-                cardBgColor = Color(0xFFFFFBEB),
-                borderColor = Color(0xFFFDE68A),
+                rank = 1,
+                podiumBlockHeight = 120.dp,
+                podiumGradient = Brush.verticalGradient(
+                    colors = listOf(Color(0xFFFBBF24), Color(0xFFD97706))
+                ),
+                podiumBorderColor = Color(0xFFFDE68A),
                 filterType = selectedFilter,
                 isTop1 = true,
-                elevation = 6.dp,
                 modifier = Modifier.weight(1.15f),
                 onClick = { selectedUserForDialog = top1 }
             )
 
-            // Rank 3 (Right)
-            PodiumCard(
+            // Rank 3 (Right - Lowest Podium Step)
+            PodiumStep(
                 user = top3,
-                rankBadgeColor = Color(0xFFEA580C), // Bronze/Orange
-                cardBgColor = Color(0xFFFFF7ED),
-                borderColor = Color(0xFFFED7AA),
+                rank = 3,
+                podiumBlockHeight = 78.dp,
+                podiumGradient = Brush.verticalGradient(
+                    colors = listOf(Color(0xFFFB923C), Color(0xFFC2410C))
+                ),
+                podiumBorderColor = Color(0xFFFED7AA),
                 filterType = selectedFilter,
-                elevation = 2.dp,
                 modifier = Modifier.weight(1f),
                 onClick = { selectedUserForDialog = top3 }
             )
@@ -611,143 +619,129 @@ fun LeaderboardTab(
 }
 
 @Composable
-private fun PodiumCard(
+private fun PodiumStep(
     user: LeaderboardUser,
-    rankBadgeColor: Color,
-    cardBgColor: Color,
-    borderColor: Color,
+    rank: Int,
+    podiumBlockHeight: androidx.compose.ui.unit.Dp,
+    podiumGradient: Brush,
+    podiumBorderColor: Color,
     filterType: LeaderboardFilterType,
     isTop1: Boolean = false,
-    elevation: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val displayValue = when (filterType) {
-        LeaderboardFilterType.POINTS -> "%,d điểm".format(user.points)
+        LeaderboardFilterType.POINTS -> "%,d đ".format(user.points)
         LeaderboardFilterType.STREAK -> "${user.streakDays} ngày"
         LeaderboardFilterType.CARDS -> "${user.cardsLearned} thẻ"
     }
 
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(22.dp),
-        color = cardBgColor,
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, borderColor),
-        shadowElevation = elevation,
-        modifier = modifier
+    Column(
+        modifier = modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Bottom
     ) {
-        Column(
+        // Crown for Top 1
+        if (isTop1) {
+            Text(
+                text = "👑",
+                fontSize = 24.sp,
+                modifier = Modifier.padding(bottom = 2.dp)
+            )
+        } else {
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        // Avatar Container with VIP Frame
+        VipAvatarFrame(
+            vipLevel = VipLevel.fromLevel(user.vipLevel),
+            avatarSize = if (isTop1) 62.dp else 50.dp
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(user.avatarBgColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = user.avatarEmoji,
+                    fontSize = if (isTop1) 30.sp else 24.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // User Name
+        Text(
+            text = user.name,
+            fontSize = if (isTop1) 14.sp else 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1E1B4B),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // PODIUM BLOCK (Bục nhận giải chứa Huy chương, Thứ hạng & Điểm số)
+        Surface(
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 6.dp, bottomEnd = 6.dp),
+            color = Color.Transparent,
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, podiumBorderColor),
+            shadowElevation = if (isTop1) 6.dp else 3.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = if (isTop1) 16.dp else 12.dp, horizontal = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .height(podiumBlockHeight)
         ) {
-            // Crown for Top 1
-            if (isTop1) {
-                Text(
-                    text = "👑",
-                    fontSize = 22.sp,
-                    modifier = Modifier.offset(y = (2).dp)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Avatar Container with VIP Border and Rank Badge
             Box(
-                contentAlignment = Alignment.BottomCenter
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(podiumGradient),
+                contentAlignment = Alignment.Center
             ) {
-                VipAvatarFrame(
-                    vipLevel = VipLevel.fromLevel(user.vipLevel),
-                    avatarSize = if (isTop1) 62.dp else 52.dp
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(vertical = 4.dp, horizontal = 2.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .background(user.avatarBgColor),
-                        contentAlignment = Alignment.Center
+                    val medalIcon = when (rank) {
+                        1 -> "🥇"
+                        2 -> "🥈"
+                        else -> "🥉"
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = user.avatarEmoji,
-                            fontSize = if (isTop1) 32.sp else 26.sp
+                            text = medalIcon,
+                            fontSize = if (isTop1) 18.sp else 14.sp
                         )
-                    }
-                }
-
-                // Rank Badge Circle
-                Surface(
-                    shape = CircleShape,
-                    color = rankBadgeColor,
-                    modifier = Modifier
-                        .size(if (isTop1) 22.dp else 18.dp)
-                        .offset(y = 6.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = "${user.rank}",
-                            fontSize = if (isTop1) 12.sp else 10.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            text = "#$rank",
+                            fontSize = if (isTop1) 18.sp else 14.sp,
+                            fontWeight = FontWeight.Black,
                             color = Color.White
                         )
                     }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // User Name
-            Text(
-                text = user.name,
-                fontSize = if (isTop1) 15.sp else 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E1B4B),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Main Score Value Display (Star + points)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    tint = Color(0xFF6366F1),
-                    modifier = Modifier.size(13.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = displayValue,
-                    fontSize = if (isTop1) 13.sp else 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF4338CA)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Secondary Pill (Chuỗi x ngày)
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.padding(horizontal = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("🔥", fontSize = 10.sp)
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = "Chuỗi ${user.streakDays} ngày",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFEA580C)
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.Black.copy(alpha = 0.25f)
+                    ) {
+                        Text(
+                            text = displayValue,
+                            fontSize = if (isTop1) 11.sp else 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }

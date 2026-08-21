@@ -18,6 +18,8 @@ val BubbleChinese = Color(0xFFEF4444)      // Coral Red
 val BubbleFrench = Color(0xFF14B8A6)       // Mint Teal
 val BubbleGerman = Color(0xFF8B5CF6)       // Violet
 val BubbleSpanish = Color(0xFFF97316)      // Orange
+val BubbleItalian = Color(0xFF10B981)      // Emerald Green
+val BubblePortuguese = Color(0xFF06B6D4)   // Turquoise Cyan
 
 // Surface & Backgrounds
 val NTKBackgroundLight = Color(0xFFF0F9FF)

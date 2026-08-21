@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/notif_expanded_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_notif_card"
+    android:orientation="vertical"
+    android:paddingStart="16dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="14dp">
+
+    <!-- Top Section: Logo + Text info + Mascot -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- App Logo Box -->
+        <ImageView
+            android:id="@+id/notif_expanded_app_icon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/ic_app_notification_logo"
+            android:contentDescription="@string/app_name" />
+
+        <!-- Title and Body -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/notif_expanded_header_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="NTK FlashCard • now 🔔"
+                android:textColor="#5856D6"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/notif_expanded_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="🔥 Giờ học tới rồi!"
+                android:textColor="#1F2440"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/notif_expanded_message"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Bạn đã đạt chuỗi học 7 ngày liên tiếp.\nTiếp tục duy trì phong độ nhé!"
+                android:textColor="#4B5270"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Cute Mascot -->
+        <ImageView
+            android:id="@+id/notif_expanded_mascot_image"
+            android:layout_width="62dp"
+            android:layout_height="62dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/img_mascot_penguin_1787286222548"
+            android:contentDescription="Mascot" />
+    </LinearLayout>
+
+    <!-- Middle Streak Container -->
+    <LinearLayout
+        android:id="@+id/notif_streak_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_notif_streak_bar"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp">
+
+        <!-- Flame emoji / icon -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔥"
+            android:textSize="20sp" />
+
+        <!-- Streak Text Column -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Streak hiện tại"
+                android:textColor="#64748B"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/notif_streak_days_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="7 ngày"
+                android:textColor="#5856D6"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- 7 Checkmarks + Gift Box -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="3dp"
+                android:src="@drawable/ic_check_circle_purple" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="3dp"
+                android:src="@drawable/ic_check_circle_purple" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="3dp"
+                android:src="@drawable/ic_check_circle_purple" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="3dp"
+                android:src="@drawable/ic_check_circle_purple" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="3dp"
+                android:src="@drawable/ic_check_circle_purple" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="3dp"
+                android:src="@drawable/ic_check_circle_purple" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="6dp"
+                android:src="@drawable/ic_check_circle_purple" />
+
+            <!-- Reward Gift Box -->
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_gift_box_purple" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Bottom Action Buttons: [▶ Học ngay] & [⏰ Để sau] -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <!-- Button 1: Học ngay -->
+        <TextView
+            android:id="@+id/btn_notif_study_now"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_btn_notif_primary"
+            android:gravity="center"
+            android:text="▶  Học ngay"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <!-- Button 2: Để sau -->
+        <TextView
+            android:id="@+id/btn_notif_snooze"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_btn_notif_secondary"
+            android:gravity="center"
+            android:text="⏰  Để sau"
+            android:textColor="#4338CA"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -90,6 +90,7 @@ fun FlashcardStudyScreen(
     onToggleStar: (Long, Boolean) -> Unit,
     onRecordReview: (Long, Int) -> Unit,
     onStartQuiz: () -> Unit,
+    onSessionFinished: ((cardsCount: Int, masteredCount: Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var cardList by remember(cards) { mutableStateOf(cards) }
@@ -98,6 +99,13 @@ fun FlashcardStudyScreen(
     var isAutoPlay by remember { mutableStateOf(false) }
     var isCompleted by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(isCompleted) {
+        if (isCompleted) {
+            val masteredCount = cardList.count { it.isMastered }
+            onSessionFinished?.invoke(cardList.size, masteredCount)
+        }
+    }
 
     // Auto-dismiss transient toast
     LaunchedEffect(toastMessage) {

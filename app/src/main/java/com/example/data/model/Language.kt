@@ -5,8 +5,10 @@ import com.example.ui.theme.BubbleChinese
 import com.example.ui.theme.BubbleEnglish
 import com.example.ui.theme.BubbleFrench
 import com.example.ui.theme.BubbleGerman
+import com.example.ui.theme.BubbleItalian
 import com.example.ui.theme.BubbleJapanese
 import com.example.ui.theme.BubbleKorean
+import com.example.ui.theme.BubblePortuguese
 import com.example.ui.theme.BubbleSpanish
 import com.example.ui.theme.BubbleVietnamese
 
@@ -90,6 +92,24 @@ enum class AppLanguage(
         bubbleColor = BubbleGerman,
         ttsLanguageTag = "de-DE",
         description = "Giao tiếp, Ngữ pháp, Goethe A1-B1"
+    ),
+    ITALIAN(
+        code = "it",
+        displayName = "Tiếng Ý",
+        nativeName = "Italiano",
+        flagEmoji = "🇮🇹",
+        bubbleColor = BubbleItalian,
+        ttsLanguageTag = "it-IT",
+        description = "Giao tiếp, Du lịch, Từ vựng đời sống"
+    ),
+    PORTUGUESE(
+        code = "pt",
+        displayName = "Tiếng Bồ Đào Nha",
+        nativeName = "Português",
+        flagEmoji = "🇧🇷",
+        bubbleColor = BubblePortuguese,
+        ttsLanguageTag = "pt-BR",
+        description = "Giao tiếp cơ bản, Bồ Đào Nha & Brasil"
     );
 
     companion object {

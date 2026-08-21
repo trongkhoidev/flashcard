@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -37,6 +42,16 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/vocabulary_streak_widget_info" />
         </receiver>
+
+        <!-- SMART STUDY ALARM RECEIVER -->
+        <receiver
+            android:name=".notification.StudyAlarmReceiver"
+            android:exported="false" />
+
+        <!-- NOTIFICATION ACTION BUTTONS RECEIVER -->
+        <receiver
+            android:name=".notification.NotificationActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 
 sealed class ScreenState {
     object Welcome : ScreenState()
+    object Onboarding : ScreenState()
     object Home : ScreenState()
     data class DeckDetail(val deck: DeckEntity, val cards: List<FlashCardEntity>) : ScreenState()
     data class Study(val deck: DeckEntity, val cards: List<FlashCardEntity>) : ScreenState()
@@ -31,7 +32,7 @@ sealed class ScreenState {
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database: AppDatabase = AppDatabase.getDatabase(application, viewModelScope)
-    private val repository: FlashCardRepository = FlashCardRepository(database.flashCardDao())
+    private val repository: FlashCardRepository = FlashCardRepository(database)
     private val ttsManager: TTSManager = TTSManager(application)
 
     private val _currentScreen = MutableStateFlow<ScreenState>(ScreenState.Welcome)
@@ -48,6 +49,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _streakDays = MutableStateFlow(7)
     val streakDays: StateFlow<Int> = _streakDays.asStateFlow()
+
+    private val smartNotificationEngine = com.example.notification.SmartNotificationEngine(application)
+
+    private val _notificationPreview = MutableStateFlow<com.example.notification.NotificationPreviewEvent?>(null)
+    val notificationPreview: StateFlow<com.example.notification.NotificationPreviewEvent?> = _notificationPreview.asStateFlow()
+
+    fun dismissNotificationPreview() {
+        _notificationPreview.value = null
+    }
 
     val decksForCurrentLanguage: StateFlow<List<DeckEntity>> = _selectedLanguage
         .flatMapLatest { lang -> repository.getDecksByLanguage(lang.code) }
@@ -72,6 +82,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.checkAndSeedDatabase()
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
+            
+            // Khởi tạo lịch học AlarmManager thông minh
+            com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
+                getApplication(),
+                com.example.data.model.StudySchedule()
+            )
         }
     }
 
@@ -81,6 +97,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectLanguage(language: AppLanguage) {
         _selectedLanguage.value = language
+    }
+
+    fun updateStudySchedule(reminderHour: Int, reminderMinute: Int = 0) {
+        val schedule = com.example.data.model.StudySchedule(
+            isEnabled = true,
+            reminderHour = reminderHour,
+            reminderMinute = reminderMinute
+        )
+        com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
+            getApplication(),
+            schedule
+        )
     }
 
     fun updateUserName(name: String) {
@@ -106,6 +134,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.recordCardReview(cardId, difficulty)
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
         }
+    }
+
+    fun completeStudySession(deckId: String, deckTitle: String, langCode: String, cardsStudied: Int, masteredCount: Int, durationSecs: Int) {
+        viewModelScope.launch {
+            repository.recordStudySession(
+                com.example.data.model.StudySessionEntity(
+                    deckId = deckId,
+                    deckTitle = deckTitle,
+                    languageCode = langCode,
+                    cardsStudied = cardsStudied,
+                    masteredCount = masteredCount,
+                    durationSeconds = durationSecs,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    fun triggerSmartNotificationTest() {
+        viewModelScope.launch {
+            smartNotificationEngine.evaluateAndSendSmartNotification(
+                isForcedTest = true,
+                onPreviewGenerated = { event ->
+                    _notificationPreview.value = event
+                }
+            )
+        }
+    }
+
+    fun triggerAchievementTest(streak: Int) {
+        smartNotificationEngine.checkAndNotifyStreakMilestone(
+            newStreak = streak,
+            onPreviewGenerated = { event ->
+                _notificationPreview.value = event
+            }
+        )
+    }
+
+    fun snoozeStudyReminderToday() {
+        com.example.notification.NotificationHelper.setSnoozedToday(getApplication())
+        _notificationPreview.value = null
     }
 
     fun createNewDeck(deck: DeckEntity) {
