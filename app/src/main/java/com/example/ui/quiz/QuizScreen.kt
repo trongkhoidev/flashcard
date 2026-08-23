@@ -115,7 +115,10 @@ fun QuizScreen(
     cards: List<FlashCardEntity>,
     onBack: () -> Unit,
     onSpeak: (String, String) -> Unit,
-    onFinishQuiz: (score: Int, total: Int) -> Unit,
+    onFinishQuiz: (score: Int, total: Int, wrongCards: List<FlashCardEntity>) -> Unit,
+    onAnswerCorrect: ((FlashCardEntity) -> Unit)? = null,
+    onAnswerWrong: ((FlashCardEntity) -> Unit)? = null,
+    onStudyWrongCards: ((List<FlashCardEntity>) -> Unit)? = null,
     onStudyNext: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -138,6 +141,7 @@ fun QuizScreen(
     var currentIndex by remember { mutableIntStateOf(0) }
     var score by remember { mutableIntStateOf(0) }
     var totalPoints by remember { mutableIntStateOf(0) }
+    val wrongCards = remember { mutableStateListOf<FlashCardEntity>() }
     var currentStreak by remember { mutableIntStateOf(0) }
     var maxStreak by remember { mutableIntStateOf(0) }
     var lastPointsEarned by remember { mutableIntStateOf(0) }
@@ -469,6 +473,7 @@ fun QuizScreen(
                 // FLOATING ANIMATED POINTS POPUP OVERLAY (Lên dần dần rồi tan đi mượt mà)
                 if (popupAlpha.value > 0.005f) {
                     val popupInfo = getStreakMultiplierInfo(currentStreak)
+                    val density = androidx.compose.ui.platform.LocalDensity.current.density
                     Box(
                         modifier = Modifier
                             .offset(y = (-16).dp)
@@ -577,11 +582,16 @@ fun QuizScreen(
                                     lastPointsEarned = earned
                                     totalPoints += earned
                                     popupTrigger++
+                                    onAnswerCorrect?.invoke(currentCard)
                                 } else {
                                     currentStreak = 0
                                     lastPointsEarned = 0
                                     lastMultiplier = 1.0f
                                     popupTrigger = 0
+                                    if (!wrongCards.any { it.id == currentCard.id || it.frontWord == currentCard.frontWord }) {
+                                        wrongCards.add(currentCard)
+                                    }
+                                    onAnswerWrong?.invoke(currentCard)
                                 }
                             }
                             .testTag("quiz_option_${option.take(6)}"),
@@ -634,33 +644,19 @@ fun QuizScreen(
 
                             if (isAnswerSubmitted) {
                                 if (isCorrectOption) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = EasyGreen
-                                        ) {
-                                            Text(
-                                                text = "+${lastPointsEarned}đ (x$lastMultiplier)",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = Color.White,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = EasyGreen)
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Đúng",
+                                        tint = EasyGreen,
+                                        modifier = Modifier.size(24.dp)
+                                    )
                                 } else if (isSelected) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "Ngắt chuỗi 💔",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = HardRed,
-                                            modifier = Modifier.padding(end = 4.dp)
-                                        )
-                                        Icon(Icons.Default.Close, contentDescription = null, tint = HardRed)
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Sai",
+                                        tint = HardRed,
+                                        modifier = Modifier.size(24.dp)
+                                    )
                                 }
                             }
                         }
@@ -678,7 +674,7 @@ fun QuizScreen(
                         isAnswerSubmitted = false
                     } else {
                         isQuizCompleted = true
-                        onFinishQuiz(score, quizCards.size)
+                        onFinishQuiz(score, quizCards.size, wrongCards.toList())
                     }
                 },
                 modifier = Modifier
@@ -822,8 +818,78 @@ fun QuizScreen(
                         }
                     }
 
-                    // PASS >= 50% SUGGESTION CARD
-                    if (accuracy >= 50) {
+                    // 1. UNMASTERED / WRONG CARDS REVIEW SECTION (TỰ ĐỘNG TẠO BỘ CARD CHƯA THUỘC ĐỂ HỌC LẠI)
+                    if (wrongCards.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFFEF2F2),
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFEF4444)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("⚠️", fontSize = 18.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Có ${wrongCards.size} từ chưa thuộc",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFB91C1C)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Đã tự động tạo bộ thẻ \"⚠️ Cần ôn: $deckTitle\" để bạn rèn luyện.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF7F1D1D),
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                // Preview wrong words
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = wrongCards.take(4).joinToString(", ") { it.frontWord } + if (wrongCards.size > 4) " (+${wrongCards.size - 4})" else "",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFFDC2626),
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Button(
+                                    onClick = {
+                                        onStudyWrongCards?.invoke(wrongCards.toList())
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(46.dp)
+                                        .testTag("btn_study_wrong_cards"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                                ) {
+                                    Text("🔥 Học lại ${wrongCards.size} từ chưa thuộc ngay", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. PASS >= 50% SUGGESTION CARD (Nếu đã đạt điểm tốt)
+                    if (accuracy >= 50 && wrongCards.isEmpty()) {
                         Spacer(modifier = Modifier.height(14.dp))
                         Surface(
                             shape = RoundedCornerShape(16.dp),
@@ -885,12 +951,13 @@ fun QuizScreen(
                             isAnswerSubmitted = false
                             isQuizCompleted = false
                             popupTrigger = 0
+                            wrongCards.clear()
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(46.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = if (accuracy >= 50) ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9), contentColor = NTKTextPrimary) else ButtonDefaults.buttonColors(containerColor = NTKPrimary)
+                        colors = if (accuracy >= 50 && wrongCards.isEmpty()) ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9), contentColor = NTKTextPrimary) else ButtonDefaults.buttonColors(containerColor = NTKPrimary)
                     ) {
                         Text("Làm lại bài kiểm tra", fontWeight = FontWeight.Bold)
                     }

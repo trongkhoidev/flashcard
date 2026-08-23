@@ -313,15 +313,23 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         cards = screen.cards,
                         onBack = { viewModel.navigateTo(ScreenState.Home) },
                         onSpeak = { text, tag -> viewModel.speak(text, tag) },
-                        onFinishQuiz = { score, total ->
-                            viewModel.completeStudySession(
-                                deckId = screen.deck.id,
-                                deckTitle = screen.deck.title,
-                                langCode = screen.deck.languageCode,
-                                cardsStudied = total,
-                                masteredCount = score,
+                        onAnswerCorrect = { correctCard ->
+                            viewModel.markCardMastered(correctCard.id, screen.deck.languageCode)
+                        },
+                        onAnswerWrong = { wrongCard ->
+                            viewModel.markCardUnmastered(wrongCard.id)
+                        },
+                        onFinishQuiz = { score, total, wrongCards ->
+                            viewModel.processQuizResult(
+                                deck = screen.deck,
+                                score = score,
+                                total = total,
+                                wrongCards = wrongCards,
                                 durationSecs = 90
                             )
+                        },
+                        onStudyWrongCards = { wrongCards ->
+                            viewModel.startStudyUnmasteredDeck(screen.deck, wrongCards)
                         },
                         onStudyNext = { viewModel.startStudyDeck(screen.deck) }
                     )

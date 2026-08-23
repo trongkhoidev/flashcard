@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
@@ -88,7 +89,7 @@ fun FlashcardStudyScreen(
     onBack: () -> Unit,
     onSpeak: (String, String) -> Unit,
     onToggleStar: (Long, Boolean) -> Unit,
-    onRecordReview: (Long, Int) -> Unit,
+    onRecordReview: ((Long, Int) -> Unit)? = null,
     onStartQuiz: () -> Unit,
     onSessionFinished: ((cardsCount: Int, masteredCount: Int) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -389,102 +390,79 @@ fun FlashcardStudyScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // 3. MASTERY RATING BUTTONS: "Chưa thuộc" (Red) & "Đã thuộc" (Green)
+                    // 3. QUICK STUDY UTILITY ACTIONS (Flip Card, Pronounce, Star)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // CHƯA THUỘC BUTTON (Vibrant Red)
+                        // Flip Hint & Button
                         Surface(
-                            onClick = {
-                                onRecordReview(currentCard.id, 3)
-                                toastMessage = "❌ Đã ghi nhận \"Chưa thuộc\""
-                            },
+                            onClick = { isFlipped = !isFlipped },
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFF1F5F9),
                             modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp)
-                                .shadow(
-                                    elevation = 3.dp,
-                                    shape = RoundedCornerShape(16.dp),
-                                    spotColor = Color(0x33EF4444)
-                                )
-                                .testTag("btn_not_memorized"),
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFFEF2F2), // Soft Rose Red background
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFFCA5A5))
+                                .height(44.dp)
+                                .testTag("btn_flip_card")
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier.padding(horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Chưa thuộc",
-                                    tint = Color(0xFFDC2626),
-                                    modifier = Modifier.size(19.dp)
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Lật thẻ",
+                                    tint = NTKPrimary,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Chưa thuộc",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFDC2626)
+                                    text = if (isFlipped) "Xem từ vựng" else "Xem nghĩa & ví dụ",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NTKTextPrimary
                                 )
                             }
                         }
 
-                        // ĐÃ THUỘC BUTTON (Vibrant Green)
+                        // Pronounce Button
                         Surface(
                             onClick = {
-                                onRecordReview(currentCard.id, 1)
-                                toastMessage = "✓ Đã ghi nhận \"Đã thuộc\""
-                                if (currentIndex < cardList.size - 1) {
-                                    currentIndex++
-                                    isFlipped = false
-                                } else {
-                                    isCompleted = true
-                                }
+                                val textToSpeak = if (isFlipped) currentCard.backMeaning else currentCard.frontWord
+                                onSpeak(textToSpeak, languageTag)
                             },
+                            shape = RoundedCornerShape(14.dp),
+                            color = NTKPrimary.copy(alpha = 0.1f),
                             modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp)
-                                .shadow(
-                                    elevation = 3.dp,
-                                    shape = RoundedCornerShape(16.dp),
-                                    spotColor = Color(0x3310B981)
-                                )
-                                .testTag("btn_memorized"),
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFECFDF5), // Soft Mint Green background
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF6EE7B7))
+                                .height(44.dp)
+                                .testTag("btn_speak_word")
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier.padding(horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Đã thuộc",
-                                    tint = Color(0xFF059669),
-                                    modifier = Modifier.size(20.dp)
+                                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                                    contentDescription = "Phát âm",
+                                    tint = NTKPrimary,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Đã thuộc",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF059669)
+                                    text = "Phát âm",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NTKPrimary
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // 4. BOTTOM NAVIGATION BUTTONS (Directly underneath the mastery buttons)
+                    // 4. BOTTOM NAVIGATION BUTTONS (Previous & Next Card)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
