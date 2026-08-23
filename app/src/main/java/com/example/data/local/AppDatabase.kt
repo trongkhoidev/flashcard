@@ -8,7 +8,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
 import com.example.data.model.QuizRecordEntity
+import com.example.data.model.StudyScheduleEntity
 import com.example.data.model.StudySessionEntity
+import com.example.data.model.UserAccountEntity
 import com.example.data.model.UserProfileEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,9 +22,11 @@ import kotlinx.coroutines.launch
         FlashCardEntity::class,
         StudySessionEntity::class,
         QuizRecordEntity::class,
-        UserProfileEntity::class
+        UserProfileEntity::class,
+        UserAccountEntity::class,
+        StudyScheduleEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,6 +36,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun studySessionDao(): StudySessionDao
     abstract fun quizRecordDao(): QuizRecordDao
     abstract fun userProfileDao(): UserProfileDao
+    abstract fun userAccountDao(): UserAccountDao
+    abstract fun studyScheduleDao(): StudyScheduleDao
 
     companion object {
         @Volatile

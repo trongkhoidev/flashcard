@@ -132,7 +132,7 @@ fun OnboardingStepsScreen(
             OnboardingLanguageItem(AppLanguage.GERMAN, "Tiếng Đức", "Deutsch", "🇩🇪"),
             OnboardingLanguageItem(AppLanguage.SPANISH, "Tiếng Tây Ban Nha", "Español", "🇪🇸"),
             OnboardingLanguageItem(AppLanguage.ITALIAN, "Tiếng Ý", "Italiano", "🇮🇹"),
-            OnboardingLanguageItem(AppLanguage.PORTUGUESE, "Tiếng Bồ Đào Nha", "Português", "🇧🇷")
+            OnboardingLanguageItem(AppLanguage.PORTUGUESE, "Tiếng Bồ Đào Nha", "Português", "🇵🇹")
         )
     }
 

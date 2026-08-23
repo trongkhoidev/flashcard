@@ -87,6 +87,8 @@ import com.example.ui.leaderboard.LeaderboardTab
 fun HomeScreen(
     selectedLanguage: AppLanguage,
     onSelectLanguage: (AppLanguage) -> Unit,
+    learningLanguages: List<AppLanguage> = listOf(selectedLanguage),
+    onAddLearningLanguage: (AppLanguage) -> Unit = {},
     decks: List<DeckEntity>,
     allDecksList: List<DeckEntity> = emptyList(),
     starredCards: List<FlashCardEntity> = emptyList(),
@@ -128,6 +130,7 @@ fun HomeScreen(
     var showImportCardsDialog by remember { mutableStateOf(false) }
     var showLanguageFilterSheet by remember { mutableStateOf(false) }
     var showAllDecksSheet by remember { mutableStateOf(false) }
+    var showAddLanguageSheet by remember { mutableStateOf(false) }
 
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val allDecksSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -182,7 +185,7 @@ fun HomeScreen(
             } else {
                 when (selectedBottomTab) {
                     0 -> {
-                        // TAB 0: TRANG CHỦ (Home Dashboard strictly following the provided mockup)
+                        // TAB 0: TRANG CHỦ
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -220,11 +223,32 @@ fun HomeScreen(
                             } else {
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // 3. STREAK MASCOT BANNER: Purple gradient card with 7-day tracker and 3D Owl
-                                StreakMascotBanner(
-                                    streakDays = streakDays,
-                                    onBannerClick = { showStatsDialog = true }
-                                )
+                                // Dynamic First-Time vs Returning User State
+                                val isFirstTimeUser = masteredWordsCount == 0 && streakDays <= 1
+                                val currentActiveDeck = decks.firstOrNull()
+                                    ?: effectiveDecks.firstOrNull { it.languageCode == selectedLanguage.code }
+                                    ?: effectiveDecks.firstOrNull()
+
+                                if (isFirstTimeUser) {
+                                    // 3a. First-time Starter Welcome Hero Card
+                                    StarterWelcomeHeroCard(
+                                        userName = userName,
+                                        language = selectedLanguage,
+                                        onStartFirstLesson = {
+                                            if (currentActiveDeck != null) {
+                                                onStudyDeck(currentActiveDeck)
+                                            } else {
+                                                onStudyByLang(selectedLanguage.code)
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    // 3b. Returning user Mascot Banner
+                                    StreakMascotBanner(
+                                        streakDays = streakDays,
+                                        onBannerClick = { showStatsDialog = true }
+                                    )
+                                }
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -239,19 +263,22 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 // 5. "Tiếp tục học" SECTION: Dynamic active language/deck
-                                val currentActiveDeck = decks.firstOrNull()
-                                    ?: effectiveDecks.firstOrNull { it.languageCode == selectedLanguage.code }
-                                    ?: effectiveDecks.firstOrNull()
-                                val studiedCount = ((currentActiveDeck?.cardCount ?: 50) * 0.64f).toInt().coerceAtLeast(1)
-                                val totalCount = currentActiveDeck?.cardCount?.takeIf { it > 0 } ?: 50
+                                val studiedCount = if (masteredWordsCount > 0) {
+                                    masteredWordsCount
+                                } else {
+                                    ((currentActiveDeck?.cardCount ?: 50) * 0.45f).toInt().coerceAtLeast(1)
+                                }
+                                val totalCount = currentActiveDeck?.cardCount?.takeIf { it > 0 } ?: totalWordsCount.takeIf { it > 0 } ?: 50
 
                                 ContinueLearningSection(
                                     title = currentActiveDeck?.title ?: "${selectedLanguage.displayName} cơ bản",
                                     studiedCount = studiedCount,
                                     totalCount = totalCount,
+                                    language = selectedLanguage,
+                                    level = currentActiveDeck?.level ?: "Mới bắt đầu",
                                     onContinueClick = {
                                         if (currentActiveDeck != null) {
-                                            onOpenDeckDetail(currentActiveDeck)
+                                            onStudyDeck(currentActiveDeck)
                                         } else {
                                             onStudyByLang(selectedLanguage.code)
                                         }
@@ -261,26 +288,41 @@ fun HomeScreen(
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // 6. "Bộ thẻ của bạn" SECTION: Japanese N5, English Basics, Korean, Vietnamese
+                                // SRS Due Widget (if returning user with some progress)
+                                if (!isFirstTimeUser) {
+                                    SpacedRepetitionDueWidget(
+                                        dueCount = 8,
+                                        onReviewDueCards = { showReviewOverlay = true }
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+
+                                // 6. "Bộ thẻ của bạn" SECTION: Multi-language chips + Add Language + Deck Cards
                                 YourDecksSection(
-                                    onDeckClick = { langCode ->
-                                        val targetDeck = effectiveDecks.firstOrNull { it.languageCode == langCode }
-                                        if (targetDeck != null) {
-                                            onOpenDeckDetail(targetDeck)
-                                        } else {
-                                            onStudyByLang(langCode)
-                                        }
-                                    },
+                                    decks = decks.ifEmpty { effectiveDecks.filter { it.languageCode == selectedLanguage.code } },
+                                    learningLanguages = learningLanguages,
+                                    selectedLanguage = selectedLanguage,
+                                    onSelectLanguage = onSelectLanguage,
+                                    onAddLanguageClick = { showAddLanguageSheet = true },
+                                    onOpenDeckDetail = onOpenDeckDetail,
+                                    onStudyDeck = onStudyDeck,
+                                    onQuizDeck = onQuizDeck,
+                                    onMatchDeck = onMatchDeck,
+                                    onCreateDeckClick = { showCreateDeckDialog = true },
                                     onViewAllClick = { showAllDecksSheet = true }
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // 7. "Mục tiêu hôm nay" CARD: 75% Circular Ring, 15 / 20 thẻ, Cheer text
+                                // 7. "Mục tiêu hôm nay" CARD: Circular Ring, count / target, Dynamic cheer text
+                                val goalCurrent = masteredWordsCount
+                                val goalTarget = if (totalWordsCount > 0) totalWordsCount else 20
+                                val goalPercentage = if (goalTarget > 0) ((goalCurrent * 100) / goalTarget).coerceIn(0, 100) else 0
+
                                 DailyGoalCard(
-                                    currentCount = if (masteredWordsCount > 0) masteredWordsCount else 15,
-                                    targetCount = if (totalWordsCount > 0) totalWordsCount else 20,
-                                    percentage = if (totalWordsCount > 0) (masteredWordsCount * 100 / totalWordsCount).coerceIn(10, 100) else 75,
+                                    currentCount = goalCurrent,
+                                    targetCount = goalTarget,
+                                    percentage = goalPercentage,
                                     onClick = { showStatsDialog = true }
                                 )
 
@@ -678,6 +720,19 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    // Add New Language Sheet
+    if (showAddLanguageSheet) {
+        AddLanguageBottomSheet(
+            learningLanguages = learningLanguages,
+            onSelectNewLanguage = { lang ->
+                onAddLearningLanguage(lang)
+                onSelectLanguage(lang)
+                showAddLanguageSheet = false
+            },
+            onDismiss = { showAddLanguageSheet = false }
+        )
     }
 }
 

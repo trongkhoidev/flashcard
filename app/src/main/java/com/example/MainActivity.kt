@@ -59,6 +59,8 @@ import com.example.ui.viewmodel.MainViewModel
 import com.example.ui.viewmodel.ScreenState
 import com.example.ui.welcome.OnboardingStepsScreen
 import com.example.ui.welcome.WelcomeScreen
+import com.example.ui.welcome.RegisterScreen
+import com.example.ui.welcome.LoginScreen
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -109,6 +111,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     val context = LocalContext.current
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
     val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
+    val learningLanguages by viewModel.learningLanguages.collectAsStateWithLifecycle()
     val decks by viewModel.decksForCurrentLanguage.collectAsStateWithLifecycle()
     val allDecks by viewModel.allDecks.collectAsStateWithLifecycle()
     val starredCards by viewModel.starredCardsList.collectAsStateWithLifecycle()
@@ -140,6 +143,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     // Android System Back Button Handler
     BackHandler(enabled = currentScreen !is ScreenState.Welcome) {
         when (currentScreen) {
+            is ScreenState.Login -> viewModel.navigateTo(ScreenState.Welcome)
+            is ScreenState.Register -> viewModel.navigateTo(ScreenState.Welcome)
             is ScreenState.Onboarding -> viewModel.navigateTo(ScreenState.Welcome)
             is ScreenState.Home -> viewModel.navigateTo(ScreenState.Welcome)
             else -> viewModel.navigateTo(ScreenState.Home)
@@ -155,12 +160,42 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                             viewModel.navigateTo(ScreenState.Onboarding)
                         },
                         onLoginClick = {
-                            showProfileDialog = true
+                            viewModel.navigateTo(ScreenState.Login)
                         },
                         onSelectLanguage = { code ->
                             val lang = AppLanguage.fromCode(code)
                             viewModel.selectLanguage(lang)
                             viewModel.navigateTo(ScreenState.Onboarding)
+                        }
+                    )
+                }
+
+                is ScreenState.Login -> {
+                    LoginScreen(
+                        onLoginSuccess = { username ->
+                            viewModel.updateUserName(username)
+                            viewModel.navigateTo(ScreenState.Home)
+                        },
+                        onBackToWelcome = {
+                            viewModel.navigateTo(ScreenState.Welcome)
+                        },
+                        onNavigateToRegister = {
+                            viewModel.navigateTo(ScreenState.Register)
+                        }
+                    )
+                }
+
+                is ScreenState.Register -> {
+                    RegisterScreen(
+                        onRegisterSuccess = { username ->
+                            viewModel.updateUserName(username)
+                            viewModel.navigateTo(ScreenState.Home)
+                        },
+                        onBackToWelcome = {
+                            viewModel.navigateTo(ScreenState.Welcome)
+                        },
+                        onNavigateToLogin = {
+                            viewModel.navigateTo(ScreenState.Login)
                         }
                     )
                 }
@@ -181,7 +216,9 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                 is ScreenState.Home -> {
                     HomeScreen(
                         selectedLanguage = selectedLanguage,
+                        learningLanguages = learningLanguages,
                         onSelectLanguage = { viewModel.selectLanguage(it) },
+                        onAddLearningLanguage = { viewModel.addLearningLanguage(it) },
                         decks = decks,
                         allDecksList = allDecks,
                         starredCards = starredCards,

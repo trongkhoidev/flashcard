@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 
 sealed class ScreenState {
     object Welcome : ScreenState()
+    object Login : ScreenState()
+    object Register : ScreenState()
     object Onboarding : ScreenState()
     object Home : ScreenState()
     data class DeckDetail(val deck: DeckEntity, val cards: List<FlashCardEntity>) : ScreenState()
@@ -40,6 +42,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _selectedLanguage = MutableStateFlow(AppLanguage.ENGLISH)
     val selectedLanguage: StateFlow<AppLanguage> = _selectedLanguage.asStateFlow()
+
+    private val _learningLanguages = MutableStateFlow<List<AppLanguage>>(listOf(AppLanguage.ENGLISH))
+    val learningLanguages: StateFlow<List<AppLanguage>> = _learningLanguages.asStateFlow()
 
     private val _userName = MutableStateFlow("Bạn Học")
     val userName: StateFlow<String> = _userName.asStateFlow()
@@ -96,6 +101,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectLanguage(language: AppLanguage) {
+        _selectedLanguage.value = language
+        if (!_learningLanguages.value.contains(language)) {
+            _learningLanguages.value = _learningLanguages.value + language
+        }
+    }
+
+    fun addLearningLanguage(language: AppLanguage) {
+        if (!_learningLanguages.value.contains(language)) {
+            _learningLanguages.value = _learningLanguages.value + language
+        }
         _selectedLanguage.value = language
     }
 

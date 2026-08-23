@@ -34,7 +34,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -52,16 +60,21 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,6 +100,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.R
+import com.example.data.model.AppLanguage
 import com.example.data.model.DeckEntity
 import kotlin.math.cos
 import kotlin.math.sin
@@ -554,20 +568,301 @@ private fun QuickActionItem(
 }
 
 /**
- * "Tiếp tục học" Section:
- * Header + Card with Eiffel Tower thumbnail, "Tiếng Pháp cơ bản", "32/50 thẻ", progress bar, "Học tiếp" button
+ * 1. "KHỞI ĐỘNG BÀI HỌC ĐẦU TIÊN" - Dành cho người dùng mới / Lần đầu vào (0 progress)
+ * Hiển thị Banner chào mừng, bộ thẻ khởi động của ngôn ngữ vừa chọn,
+ * tiến độ 0%, nút CTA "Bắt đầu học ngay" và 3 bước khởi động nhanh.
+ */
+@Composable
+fun StarterWelcomeHeroCard(
+    userName: String = "bạn",
+    language: AppLanguage,
+    starterDeck: DeckEntity? = null,
+    onStartFirstLesson: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val deckTitle = starterDeck?.title ?: "${language.displayName} Khởi động"
+    val cardCount = starterDeck?.cardCount?.takeIf { it > 0 } ?: 20
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp)
+    ) {
+        // Main Hero Welcome Card
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 8.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    spotColor = Color(0x18000000)
+                )
+                .border(
+                    width = 1.5.dp,
+                    brush = Brush.linearGradient(
+                        listOf(Color(0xFFBAE6FD), Color(0xFFE0F2FE))
+                    ),
+                    shape = RoundedCornerShape(24.dp)
+                )
+                .testTag("starter_welcome_hero_card")
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFFF0F9FF), Color.White)
+                        )
+                    )
+                    .padding(18.dp)
+            ) {
+                // Top Welcome Row: Mascot + Greeting
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE0F2FE)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(R.drawable.img_squirtle_mascot_1787155903327)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Welcome Mascot",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Chào mừng $userName! 🎉",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Bắt đầu bài học đầu tiên với ${language.flagEmoji} ${language.displayName}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF0369A1)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Starter Deck Inner Banner
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE0F2FE)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = language.flagEmoji,
+                                fontSize = 24.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFDCFCE7),
+                                    modifier = Modifier.padding(end = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "🌱 Bài khởi động",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF15803D),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = deckTitle,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "0/$cardCount thẻ đã học (0%)",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Large Glowing CTA Button: "🚀 Bắt đầu học ngay"
+                Button(
+                    onClick = onStartFirstLesson,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF0284C7)
+                    ),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(6.dp, RoundedCornerShape(16.dp), spotColor = Color(0xFF0284C7))
+                        .testTag("btn_start_first_lesson")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "🚀 Bắt đầu học ngay",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Quick-Start 3 Step Roadmap
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    QuickStepItem(
+                        step = "1",
+                        icon = "🎴",
+                        title = "Học 5 thẻ từ vựng đầu tiên",
+                        desc = "Luyện phát âm chuẩn và ghi nhớ mặt chữ"
+                    )
+                    QuickStepItem(
+                        step = "2",
+                        icon = "⚡",
+                        title = "Làm bài Quiz 2 phút",
+                        desc = "Thử thách phản xạ nhớ nhanh"
+                    )
+                    QuickStepItem(
+                        step = "3",
+                        icon = "🔥",
+                        title = "Kích hoạt chuỗi Streak ngày 1",
+                        desc = "Duy trì thói quen học mỗi ngày"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickStepItem(
+    step: String,
+    icon: String,
+    title: String,
+    desc: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFE0F2FE)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = step,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0284C7)
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = icon, fontSize = 14.sp)
+        Spacer(modifier = Modifier.width(6.dp))
+        Column {
+            Text(
+                text = title,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1E293B)
+            )
+            Text(
+                text = desc,
+                fontSize = 10.sp,
+                color = Color(0xFF64748B)
+            )
+        }
+    }
+}
+
+/**
+ * 2. "TIẾP TỤC HỌC" - Dành cho người dùng ĐÃ CÓ TIẾN ĐỘ (in-progress / nửa chặng đường)
+ * Hiển thị chính xác tiến độ thực tế, số từ đã thuộc/tổng số, % và nút "Học tiếp".
  */
 @Composable
 fun ContinueLearningSection(
     title: String = "Tiếng Pháp cơ bản",
     studiedCount: Int = 32,
     totalCount: Int = 50,
+    languageEmoji: String = "🇫🇷",
+    levelBadge: String = "Sơ cấp",
+    language: AppLanguage? = null,
+    level: String? = null,
     onContinueClick: () -> Unit,
-    onViewAllClick: () -> Unit,
+    onViewAllClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val progress = (studiedCount.toFloat() / totalCount.toFloat()).coerceIn(0f, 1f)
+    val displayEmoji = language?.flagEmoji ?: languageEmoji
+    val displayLevel = level ?: levelBadge
+    val progress = if (totalCount > 0) (studiedCount.toFloat() / totalCount.toFloat()).coerceIn(0f, 1f) else 0f
+    val percent = (progress * 100).toInt()
 
     Column(
         modifier = modifier
@@ -580,12 +875,27 @@ fun ContinueLearningSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Tiếp tục học",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E1B4B)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Tiếp tục học",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E1B4B)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFEF3C7)
+                ) {
+                    Text(
+                        text = "🔥 Đang tiến bộ",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFB45309),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.clickable { onViewAllClick() },
                 verticalAlignment = Alignment.CenterVertically
@@ -607,7 +917,7 @@ fun ContinueLearningSection(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Main Card
+        // Main In-Progress Card
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Color.White,
@@ -629,46 +939,71 @@ fun ContinueLearningSection(
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Thumbnail image (Eiffel Tower)
+                // Thumbnail / Flag Badge
                 Box(
                     modifier = Modifier
-                        .size(68.dp)
+                        .size(64.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFE0F2FE)),
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFFE0F2FE), Color(0xFFBAE6FD))
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(R.drawable.french_eiffel)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "French Eiffel",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                    Text(
+                        text = displayEmoji,
+                        fontSize = 32.sp
                     )
                 }
 
                 Spacer(modifier = Modifier.width(14.dp))
 
-                // Middle Details: Title, count, progress bar
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B)
-                    )
+                // Middle Details: Title, level, count, animated progress bar
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFEEF2FF),
+                            modifier = Modifier.padding(end = 6.dp)
+                        ) {
+                            Text(
+                                text = displayLevel,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4F46E5),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                            )
+                        }
+                        Text(
+                            text = title,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "$studiedCount/$totalCount thẻ",
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Đã thuộc $studiedCount/$totalCount thẻ",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                        Text(
+                            text = "$percent%",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0284C7)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                    // Linear Progress Bar
+                    // Linear Progress Bar with smooth gradient
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -699,7 +1034,7 @@ fun ContinueLearningSection(
                         containerColor = Color(0xFF0284C7)
                     ),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 16.dp,
+                        horizontal = 14.dp,
                         vertical = 8.dp
                     ),
                     modifier = Modifier
@@ -708,7 +1043,7 @@ fun ContinueLearningSection(
                 ) {
                     Text(
                         text = "Học tiếp",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
@@ -719,25 +1054,119 @@ fun ContinueLearningSection(
 }
 
 /**
- * "Bộ thẻ của bạn" Section:
- * Header + Horizontal scrolling cards:
- * 1. Tiếng Nhật N5 (Mount Fuji art, Peach background)
- * 2. English Basics (US Flag art, Blue background)
- * 3. 한국어 초급 (South Korea flag art, Mint background)
- * 4. Tiếng Việt (Globe art, Lavender background)
+ * 3. SRS REVIEW WIDGET - CỦNG CỐ TRÍ NHỚ HÔM NAY
+ */
+@Composable
+fun SpacedRepetitionDueWidget(
+    dueCount: Int = 8,
+    onStartReview: () -> Unit = {},
+    onReviewDueCards: () -> Unit = onStartReview,
+    modifier: Modifier = Modifier
+) {
+    if (dueCount <= 0) return
+
+    val reviewAction = if (onReviewDueCards != onStartReview) onReviewDueCards else onStartReview
+
+    Surface(
+        onClick = reviewAction,
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFF5F3FF),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDD6FE)),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .testTag("srs_due_review_card")
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF7C3AED)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Psychology,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Ôn tập củng cố trí nhớ (SRS)",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF4C1D95)
+                )
+                Text(
+                    text = "Có $dueCount từ vựng cần ôn hôm nay để không quên!",
+                    fontSize = 11.sp,
+                    color = Color(0xFF6D28D9)
+                )
+            }
+
+            Button(
+                onClick = reviewAction,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF7C3AED)
+                ),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text(
+                    text = "Ôn ngay ⚡",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 4. "BỘ THẺ CỦA BẠN" - HỖ TRỢ ĐA NGÔN NGỮ (Multi-Language Tabs & Language Switcher)
+ * - Khi lần đầu vào: Có 1 ngôn ngữ đang chọn + Nút "➕ Thêm ngôn ngữ".
+ * - Khi người dùng học nhiều ngôn ngữ: Có thanh chuyển nhanh dạng Chips (🇯🇵 Tiếng Nhật, 🇬🇧 Tiếng Anh, 🇰🇷 Tiếng Hàn...).
+ * - Bấm vào ngôn ngữ nào sẽ lọc hiển thị ngay các bộ thẻ của ngôn ngữ đó.
+ * - Có nút "➕ Thêm ngôn ngữ" mở Modal BottomSheet chọn 10 ngôn ngữ phong phú.
+ * - Có nút "➕ Tạo bộ thẻ riêng" để thêm bộ thẻ tùy biến.
  */
 @Composable
 fun YourDecksSection(
-    onDeckClick: (String) -> Unit,
-    onViewAllClick: () -> Unit,
+    selectedLanguage: AppLanguage,
+    learningLanguages: List<AppLanguage> = listOf(selectedLanguage),
+    onSelectLanguage: (AppLanguage) -> Unit,
+    onAddLanguageClick: () -> Unit = {},
+    decks: List<DeckEntity> = emptyList(),
+    onDeckClick: (DeckEntity) -> Unit = {},
+    onOpenDeckDetail: (DeckEntity) -> Unit = onDeckClick,
+    onStudyDeck: (DeckEntity) -> Unit = {},
+    onQuizDeck: (DeckEntity) -> Unit = {},
+    onMatchDeck: (DeckEntity) -> Unit = {},
+    onCreateNewDeck: () -> Unit = {},
+    onCreateDeckClick: () -> Unit = onCreateNewDeck,
+    onViewAllClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var selectedCategoryFilter by remember { mutableStateOf("Tất cả") }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        // Section Header
+        // 1. Section Header: Title + "Xem tất cả"
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -745,12 +1174,27 @@ fun YourDecksSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Bộ thẻ của bạn",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E1B4B)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Bộ thẻ của bạn",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E1B4B)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFE0F2FE)
+                ) {
+                    Text(
+                        text = "${decks.size} bộ",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0284C7),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.clickable { onViewAllClick() },
                 verticalAlignment = Alignment.CenterVertically
@@ -772,7 +1216,121 @@ fun YourDecksSection(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Horizontal Row of 4 Decks
+        // 2. Language Switcher Chips Row (Đa ngôn ngữ & Nút ➕ Thêm ngôn ngữ)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Chips for user's active learning languages
+            learningLanguages.forEach { lang ->
+                val isSelected = lang == selectedLanguage
+                Surface(
+                    onClick = { onSelectLanguage(lang) },
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isSelected) Color(0xFF0284C7) else Color(0xFFF1F5F9),
+                    border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.testTag("lang_chip_${lang.code}")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = lang.flagEmoji, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = lang.displayName,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else Color(0xFF334155)
+                        )
+                        if (isSelected) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ➕ Add Language Button
+            Surface(
+                onClick = onAddLanguageClick,
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF0FDF4),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC)),
+                modifier = Modifier.testTag("btn_add_language_chip")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add language",
+                        tint = Color(0xFF16A34A),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Thêm ngôn ngữ",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF16A34A)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3. Category Filter Chips (Tất cả, Cơ bản, Giao tiếp, Tự tạo)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf("Tất cả", "Cơ bản", "Giao tiếp", "Tự tạo").forEach { filter ->
+                val isFilterSelected = filter == selectedCategoryFilter
+                Surface(
+                    onClick = { selectedCategoryFilter = filter },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isFilterSelected) Color(0xFF1E293B) else Color(0xFFF8FAFC),
+                    border = if (isFilterSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.testTag("deck_filter_$filter")
+                ) {
+                    Text(
+                        text = filter,
+                        fontSize = 11.sp,
+                        fontWeight = if (isFilterSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isFilterSelected) Color.White else Color(0xFF64748B),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 4. Horizontal Scrolling Deck Cards for the Active Language
+        val filteredDecks = remember(decks, selectedCategoryFilter) {
+            when (selectedCategoryFilter) {
+                "Cơ bản" -> decks.filter { it.level.contains("N5", true) || it.level.contains("Sơ cấp", true) || it.level.contains("A1", true) || it.title.contains("Basics", true) }
+                "Giao tiếp" -> decks.filter { it.title.contains("Giao tiếp", true) || it.title.contains("Conversation", true) || it.title.contains("Văn hóa", true) }
+                "Tự tạo" -> decks.filter { it.isCustom }
+                else -> decks
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -780,110 +1338,104 @@ fun YourDecksSection(
                 .padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Card 1: Tiếng Nhật N5
-            DeckThemeCard(
-                title = "Tiếng Nhật N5",
-                cardCountText = "128 thẻ",
-                bgColor = Color(0xFFFFF1F2),
-                illustration = { JapaneseFujiArt() },
-                onClick = { onDeckClick("ja") },
-                testTag = "deck_card_ja"
-            )
+            // Render Decks
+            filteredDecks.forEach { deck ->
+                DynamicDeckCard(
+                    deck = deck,
+                    language = selectedLanguage,
+                    onClick = { onDeckClick(deck) },
+                    onStudy = { onStudyDeck(deck) },
+                    onQuiz = { onQuizDeck(deck) },
+                    onMatch = { onMatchDeck(deck) }
+                )
+            }
 
-            // Card 2: English Basics
-            DeckThemeCard(
-                title = "English Basics",
-                cardCountText = "95 thẻ",
-                bgColor = Color(0xFFEEF2FF),
-                illustration = { UsFlagArt() },
-                onClick = { onDeckClick("en") },
-                testTag = "deck_card_en"
-            )
-
-            // Card 3: 한국어 초급
-            DeckThemeCard(
-                title = "한국어 초급",
-                cardCountText = "76 thẻ",
-                bgColor = Color(0xFFECFDF5),
-                illustration = { KoreaFlagArt() },
-                onClick = { onDeckClick("ko") },
-                testTag = "deck_card_ko"
-            )
-
-            // Card 4: Tiếng Việt
-            DeckThemeCard(
-                title = "Tiếng Việt",
-                cardCountText = "54 thẻ",
-                bgColor = Color(0xFFF5F3FF),
-                illustration = { GlobeArt() },
-                onClick = { onDeckClick("vi") },
-                testTag = "deck_card_vi"
+            // Create New Deck Action Card
+            CreateNewDeckCard(
+                onClick = onCreateNewDeck,
+                modifier = Modifier.testTag("card_create_new_deck")
             )
         }
     }
 }
 
+/**
+ * Thẻ bộ từ vựng động đầy đủ chi tiết và hành động nhanh (Học, Quiz, Ghép từ)
+ */
 @Composable
-private fun DeckThemeCard(
-    title: String,
-    cardCountText: String,
-    bgColor: Color,
-    illustration: @Composable () -> Unit,
+fun DynamicDeckCard(
+    deck: DeckEntity,
+    language: AppLanguage,
     onClick: () -> Unit,
-    testTag: String,
+    onStudy: () -> Unit,
+    onQuiz: () -> Unit,
+    onMatch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val cardCount = deck.cardCount
+    // Mock progress calculation for deck
+    val studiedWords = ((cardCount * 0.4f).toInt()).coerceAtLeast(0)
+    val progress = if (cardCount > 0) studiedWords.toFloat() / cardCount.toFloat() else 0f
+
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(22.dp),
-        color = bgColor,
+        color = Color.White,
         shadowElevation = 2.dp,
         modifier = modifier
-            .width(135.dp)
+            .width(185.dp)
             .shadow(
                 elevation = 4.dp,
                 shape = RoundedCornerShape(22.dp),
-                spotColor = Color(0x10000000)
+                spotColor = Color(0x12000000)
             )
-            .border(1.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(22.dp))
-            .testTag(testTag)
+            .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(22.dp))
+            .testTag("deck_item_card_${deck.id}")
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(14.dp)
         ) {
-            // Top row with options icon
+            // Top Row: Flag + Level Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.MoreHoriz,
-                    contentDescription = "Options",
-                    tint = Color(0xFF94A3B8),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF0F9FF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = language.flagEmoji,
+                        fontSize = 20.sp
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Center Illustration
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(68.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                illustration()
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color(0xFFEEF2FF)
+                ) {
+                    Text(
+                        text = deck.level,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4F46E5),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Title & Count
+            // Title & Description
             Text(
-                text = title,
-                fontSize = 13.sp,
+                text = deck.title,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E293B),
                 maxLines = 1,
@@ -891,26 +1443,297 @@ private fun DeckThemeCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = cardCountText,
+                text = "$cardCount thẻ từ vựng",
                 fontSize = 11.sp,
                 color = Color(0xFF64748B)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Mini Progress Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(Color(0xFFE2E8F0), RoundedCornerShape(2.dp))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .height(4.dp)
+                        .background(Color(0xFF0284C7), RoundedCornerShape(2.dp))
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Quick Action Buttons Row: [🎴 Học] [⚡ Quiz] [🧩 Ghép]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Surface(
+                    onClick = onStudy,
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFE0F2FE),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 5.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "🎴", fontSize = 10.sp)
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(text = "Học", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
+                    }
+                }
+
+                Surface(
+                    onClick = onQuiz,
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFEF3C7),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 5.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "⚡", fontSize = 10.sp)
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(text = "Quiz", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
+                    }
+                }
+
+                Surface(
+                    onClick = onMatch,
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFF3E8FF),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 5.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "🧩", fontSize = 10.sp)
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(text = "Ghép", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9333EA))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Thẻ bấm để tạo bộ thẻ riêng mới
+ */
+@Composable
+fun CreateNewDeckCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFFF8FAFC),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+        modifier = modifier
+            .width(140.dp)
+            .height(175.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFE0F2FE)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Create deck",
+                    tint = Color(0xFF0284C7),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Tạo bộ thẻ mới",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF334155),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Tự nhập từ vựng",
+                fontSize = 11.sp,
+                color = Color(0xFF94A3B8),
+                textAlign = TextAlign.Center
             )
         }
     }
 }
 
 /**
+ * 5. MODAL BOTTOM SHEET: THÊM NGÔN NGỮ HỌC MỚI (ADD LANGUAGE SHEET)
+ * Hiển thị toàn bộ 10 ngôn ngữ (Anh, Nhật, Hàn, Trung, Pháp, Đức, Tây Ban Nha, Ý, Bồ Đào Nha, Việt).
+ * Hiển thị nhãn [Đang học] cho các ngôn ngữ đã thêm.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddLanguageBottomSheet(
+    learningLanguages: List<AppLanguage>,
+    onSelectNewLanguage: (AppLanguage) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Chọn ngôn ngữ muốn học 🌐",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "Bạn có thể học song song nhiều ngôn ngữ cùng lúc",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // All Languages List
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AppLanguage.entries.forEach { lang ->
+                    val isAlreadyLearning = learningLanguages.contains(lang)
+
+                    Surface(
+                        onClick = {
+                            onSelectNewLanguage(lang)
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isAlreadyLearning) Color(0xFFF0FDF4) else Color(0xFFF8FAFC),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isAlreadyLearning) Color(0xFF86EFAC) else Color(0xFFE2E8F0)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("add_lang_item_${lang.code}")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = lang.flagEmoji, fontSize = 24.sp)
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = lang.displayName,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Text(
+                                    text = lang.nativeName,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+
+                            if (isAlreadyLearning) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFDCFCE7)
+                                ) {
+                                    Text(
+                                        text = "✓ Đang học",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF15803D),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            } else {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFE0F2FE)
+                                ) {
+                                    Text(
+                                        text = "+ Thêm",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0284C7),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
  * "Mục tiêu hôm nay" Card:
- * Circular 75% progress ring, "15 / 20 thẻ", cheer text, chevron
+ * Phản hồi linh hoạt:
+ * - 0% (Người mới): "0 / 10 thẻ - Dành 3 phút học 10 từ để tạo thói quen nhé! 🌱"
+ * - 1-99% (Đang học): "15 / 20 thẻ - Tuyệt vời! Cố lên nhé! 💪"
+ * - 100% (Hoàn thành): "20 / 20 thẻ - Xuất sắc! Bạn đã đạt mục tiêu hôm nay! 🎉"
  */
 @Composable
 fun DailyGoalCard(
-    currentCount: Int = 15,
+    currentCount: Int = 0,
     targetCount: Int = 20,
-    percentage: Int = 75,
+    percentage: Int = 0,
     onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val cheerMessage = when {
+        percentage == 0 -> "Chưa học từ nào hôm nay. Dành 3 phút học 10 từ để tạo thói quen nhé! 🌱"
+        percentage < 100 -> "Tuyệt vời! Bạn đã hoàn thành $percentage% mục tiêu hôm nay! Cố lên! 💪"
+        else -> "Xuất sắc! Bạn đã hoàn thành mục tiêu học hôm nay! 🎉"
+    }
+
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
@@ -951,14 +1774,14 @@ fun DailyGoalCard(
                         style = Stroke(width = strokeWidth)
                     )
 
-                    // Foreground Progress Arc
-                    val sweepAngle = 360f * (percentage / 100f)
+                    // Foreground Sweep
+                    val sweep = (percentage.coerceIn(0, 100) / 100f) * 360f
                     drawArc(
                         brush = Brush.sweepGradient(
-                            listOf(Color(0xFF0284C7), Color(0xFF0EA5E9), Color(0xFF38BDF8))
+                            listOf(Color(0xFF0284C7), Color(0xFF38BDF8), Color(0xFF0284C7))
                         ),
                         startAngle = -90f,
-                        sweepAngle = sweepAngle,
+                        sweepAngle = sweep,
                         useCenter = false,
                         topLeft = Offset(center.x - radius, center.y - radius),
                         size = Size(radius * 2, radius * 2),
@@ -968,56 +1791,43 @@ fun DailyGoalCard(
 
                 Text(
                     text = "$percentage%",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF0284C7)
                 )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Text column
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            // Details: "Mục tiêu hôm nay", "15 / 20 thẻ", Cheer text
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Mục tiêu hôm nay",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF64748B)
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "$currentCount",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0284C7)
-                    )
-                    Text(
-                        text = " / $targetCount thẻ",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B)
-                    )
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Cố lên! Bạn làm rất tốt! ",
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B)
-                    )
-                    Text(
-                        text = "💪",
-                        fontSize = 12.sp
-                    )
-                }
+                Text(
+                    text = "$currentCount / $targetCount thẻ",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF0284C7)
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = cheerMessage,
+                    fontSize = 11.sp,
+                    color = Color(0xFF64748B),
+                    lineHeight = 15.sp
+                )
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
 
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Details",
+                contentDescription = null,
                 tint = Color(0xFF94A3B8),
                 modifier = Modifier.size(20.dp)
             )

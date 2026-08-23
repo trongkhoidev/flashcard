@@ -106,9 +106,9 @@ enum class AppLanguage(
         code = "pt",
         displayName = "Tiếng Bồ Đào Nha",
         nativeName = "Português",
-        flagEmoji = "🇧🇷",
+        flagEmoji = "🇵🇹",
         bubbleColor = BubblePortuguese,
-        ttsLanguageTag = "pt-BR",
+        ttsLanguageTag = "pt-PT",
         description = "Giao tiếp cơ bản, Bồ Đào Nha & Brasil"
     );
 
