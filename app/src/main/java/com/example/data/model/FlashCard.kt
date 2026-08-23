@@ -32,7 +32,12 @@ data class FlashCardEntity(
     val isStarred: Boolean = false,
     val isMastered: Boolean = false,
     val reviewCount: Int = 0,
-    val lastReviewedTimestamp: Long = 0L
+    val lastReviewedTimestamp: Long = 0L,
+    // Spaced Repetition (SRS) & SuperMemo-2 Parameters
+    val srsInterval: Int = 1, // Interval in days before next review
+    val srsEaseFactor: Float = 2.5f, // Ease multiplier factor (SM-2 default 2.5)
+    val srsRepetitions: Int = 0, // Consecutive successful review count
+    val nextReviewTimestamp: Long = 0L // Epoch timestamp when card is due for review
 )
 
 data class DeckWithStats(

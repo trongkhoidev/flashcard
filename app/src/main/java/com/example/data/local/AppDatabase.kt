@@ -5,12 +5,14 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.data.model.AppLanguage
 import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
 import com.example.data.model.QuizRecordEntity
 import com.example.data.model.StudyScheduleEntity
 import com.example.data.model.StudySessionEntity
 import com.example.data.model.UserAccountEntity
+import com.example.data.model.UserLanguageEntity
 import com.example.data.model.UserProfileEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,9 +26,10 @@ import kotlinx.coroutines.launch
         QuizRecordEntity::class,
         UserProfileEntity::class,
         UserAccountEntity::class,
-        StudyScheduleEntity::class
+        StudyScheduleEntity::class,
+        UserLanguageEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,6 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
     abstract fun userAccountDao(): UserAccountDao
     abstract fun studyScheduleDao(): StudyScheduleDao
+    abstract fun userLanguageDao(): UserLanguageDao
 
     companion object {
         @Volatile
@@ -68,7 +72,8 @@ abstract class AppDatabase : RoomDatabase() {
                         populateInitialData(
                             deckDao = database.deckDao(),
                             flashCardDao = database.flashCardDao(),
-                            userProfileDao = database.userProfileDao()
+                            userProfileDao = database.userProfileDao(),
+                            userLanguageDao = database.userLanguageDao()
                         )
                     }
                 }
@@ -78,7 +83,8 @@ abstract class AppDatabase : RoomDatabase() {
         suspend fun populateInitialData(
             deckDao: DeckDao,
             flashCardDao: FlashCardDao,
-            userProfileDao: UserProfileDao
+            userProfileDao: UserProfileDao,
+            userLanguageDao: UserLanguageDao? = null
         ) {
             deckDao.insertDecks(DefaultVocabData.getDefaultDecks())
             flashCardDao.insertCards(DefaultVocabData.getDefaultFlashCards())
@@ -94,6 +100,56 @@ abstract class AppDatabase : RoomDatabase() {
                     totalPoints = 1500,
                     totalCardsLearned = 45,
                     lastActiveTimestamp = System.currentTimeMillis()
+                )
+            )
+
+            // Khởi tạo các ngôn ngữ học mặc định (Tiếng Anh, Tiếng Nhật, Tiếng Hàn, Tiếng Việt)
+            userLanguageDao?.insertLanguages(
+                listOf(
+                    UserLanguageEntity(
+                        languageCode = AppLanguage.ENGLISH.code,
+                        displayName = AppLanguage.ENGLISH.displayName,
+                        flagEmoji = AppLanguage.ENGLISH.flagEmoji,
+                        isCurrentActive = true,
+                        dailyGoalCards = 20,
+                        masteredCardsCount = 15,
+                        totalWordsEnrolled = 50,
+                        streakDays = 7,
+                        level = "Cơ bản"
+                    ),
+                    UserLanguageEntity(
+                        languageCode = AppLanguage.JAPANESE.code,
+                        displayName = AppLanguage.JAPANESE.displayName,
+                        flagEmoji = AppLanguage.JAPANESE.flagEmoji,
+                        isCurrentActive = false,
+                        dailyGoalCards = 15,
+                        masteredCardsCount = 10,
+                        totalWordsEnrolled = 50,
+                        streakDays = 3,
+                        level = "N5 Sơ cấp"
+                    ),
+                    UserLanguageEntity(
+                        languageCode = AppLanguage.KOREAN.code,
+                        displayName = AppLanguage.KOREAN.displayName,
+                        flagEmoji = AppLanguage.KOREAN.flagEmoji,
+                        isCurrentActive = false,
+                        dailyGoalCards = 15,
+                        masteredCardsCount = 5,
+                        totalWordsEnrolled = 50,
+                        streakDays = 2,
+                        level = "Sơ cấp 1"
+                    ),
+                    UserLanguageEntity(
+                        languageCode = AppLanguage.VIETNAMESE.code,
+                        displayName = AppLanguage.VIETNAMESE.displayName,
+                        flagEmoji = AppLanguage.VIETNAMESE.flagEmoji,
+                        isCurrentActive = false,
+                        dailyGoalCards = 20,
+                        masteredCardsCount = 20,
+                        totalWordsEnrolled = 50,
+                        streakDays = 5,
+                        level = "Giao tiếp"
+                    )
                 )
             )
         }

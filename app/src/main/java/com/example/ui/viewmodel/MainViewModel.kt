@@ -46,6 +46,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _learningLanguages = MutableStateFlow<List<AppLanguage>>(listOf(AppLanguage.ENGLISH))
     val learningLanguages: StateFlow<List<AppLanguage>> = _learningLanguages.asStateFlow()
 
+    val learningLanguagesFromDb: StateFlow<List<com.example.data.model.UserLanguageEntity>> = repository.getAllLearningLanguages()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val dueCardsForCurrentLanguage: StateFlow<List<FlashCardEntity>> = _selectedLanguage
+        .flatMapLatest { lang -> repository.getDueCardsForLanguage(lang.code) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val dueCountForCurrentLanguage: StateFlow<Int> = _selectedLanguage
+        .flatMapLatest { lang -> repository.getDueCountForLanguage(lang.code) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val starterCardsForCurrentLanguage: StateFlow<List<FlashCardEntity>> = _selectedLanguage
+        .flatMapLatest { lang -> repository.getStarterCardsForLanguage(lang.code) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val masteredCountForCurrentLanguage: StateFlow<Int> = _selectedLanguage
+        .flatMapLatest { lang -> repository.getMasteredCountByLanguage(lang.code) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     private val _userName = MutableStateFlow("Bạn Học")
     val userName: StateFlow<String> = _userName.asStateFlow()
 
@@ -105,6 +124,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!_learningLanguages.value.contains(language)) {
             _learningLanguages.value = _learningLanguages.value + language
         }
+        viewModelScope.launch {
+            repository.switchActiveLanguage(language.code)
+        }
     }
 
     fun addLearningLanguage(language: AppLanguage) {
@@ -112,6 +134,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _learningLanguages.value = _learningLanguages.value + language
         }
         _selectedLanguage.value = language
+        viewModelScope.launch {
+            repository.addLearningLanguage(language)
+            repository.switchActiveLanguage(language.code)
+        }
+    }
+
+    fun recordSrsReview(card: FlashCardEntity, rating: Int, isCorrect: Boolean) {
+        viewModelScope.launch {
+            repository.recordSrsReview(card, rating, isCorrect)
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
+        }
     }
 
     fun updateStudySchedule(reminderHour: Int, reminderMinute: Int = 0) {
