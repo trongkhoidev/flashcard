@@ -8,6 +8,7 @@ import com.example.data.local.AppDatabase
 import com.example.data.model.AppLanguage
 import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
+import com.example.data.model.StudyScheduleEntity
 import com.example.data.repository.FlashCardRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -79,6 +80,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _notificationPreview = MutableStateFlow<com.example.notification.NotificationPreviewEvent?>(null)
     val notificationPreview: StateFlow<com.example.notification.NotificationPreviewEvent?> = _notificationPreview.asStateFlow()
 
+    // Auth state
+    private val _authError = MutableStateFlow<String?>(null)
+    val authError: StateFlow<String?> = _authError.asStateFlow()
+
+    private val _authLoading = MutableStateFlow(false)
+    val authLoading: StateFlow<Boolean> = _authLoading.asStateFlow()
+
+    fun clearAuthError() { _authError.value = null }
+
     fun dismissNotificationPreview() {
         _notificationPreview.value = null
     }
@@ -107,11 +117,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.checkAndSeedDatabase()
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
             
-            // Khởi tạo lịch học AlarmManager thông minh
+            // Khởi tạo lịch học AlarmManager thông minh — đọc từ DB
+            val schedule = repository.getStudyScheduleDirect() ?: StudyScheduleEntity()
             com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
                 getApplication(),
-                com.example.data.model.StudySchedule()
+                schedule
             )
+        }
+    }
+
+    // ==========================================
+    // AUTH (OFFLINE)
+    // ==========================================
+    fun register(username: String, password: String) {
+        viewModelScope.launch {
+            _authLoading.value = true
+            _authError.value = null
+            val result = repository.registerAccount(username, password)
+            result.fold(
+                onSuccess = {
+                    _userName.value = username
+                    _currentScreen.value = ScreenState.Home
+                },
+                onFailure = { e ->
+                    _authError.value = e.message
+                }
+            )
+            _authLoading.value = false
+        }
+    }
+
+    fun login(username: String, password: String) {
+        viewModelScope.launch {
+            _authLoading.value = true
+            _authError.value = null
+            val result = repository.login(username, password)
+            result.fold(
+                onSuccess = { name ->
+                    _userName.value = name
+                    _currentScreen.value = ScreenState.Home
+                },
+                onFailure = { e ->
+                    _authError.value = e.message
+                }
+            )
+            _authLoading.value = false
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            repository.logout()
+            _currentScreen.value = ScreenState.Welcome
         }
     }
 
@@ -148,15 +205,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateStudySchedule(reminderHour: Int, reminderMinute: Int = 0) {
-        val schedule = com.example.data.model.StudySchedule(
-            isEnabled = true,
-            reminderHour = reminderHour,
-            reminderMinute = reminderMinute
-        )
-        com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
-            getApplication(),
-            schedule
-        )
+        viewModelScope.launch {
+            val schedule = StudyScheduleEntity(
+                id = 1,
+                isEnabled = true,
+                reminderHour = reminderHour,
+                reminderMinute = reminderMinute
+            )
+            repository.saveStudySchedule(schedule)
+            com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
+                getApplication(),
+                schedule
+            )
+        }
     }
 
     fun updateUserName(name: String) {
@@ -179,7 +240,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun recordReview(cardId: Long, difficulty: Int) {
         viewModelScope.launch {
-            repository.recordCardReview(cardId, difficulty)
+            // Lấy card từ DB, sử dụng SM-2 SRS thay recordCardReview đơn giản
+            val card = repository.getCardById(cardId)
+            if (card != null) {
+                val rating = when (difficulty) {
+                    1 -> 5 // Easy -> rating 5
+                    2 -> 3 // Medium -> rating 3
+                    3 -> 1 // Hard -> rating 1
+                    else -> 3
+                }
+                val isCorrect = difficulty <= 2
+                repository.recordSrsReview(card, rating, isCorrect)
+            } else {
+                // Fallback nếu không tìm thấy card
+                repository.recordCardReview(cardId, difficulty)
+            }
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
         }
     }

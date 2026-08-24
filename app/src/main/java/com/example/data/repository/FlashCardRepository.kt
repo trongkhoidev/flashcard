@@ -4,20 +4,26 @@ import com.example.data.local.AppDatabase
 import com.example.data.local.DeckDao
 import com.example.data.local.FlashCardDao
 import com.example.data.local.QuizRecordDao
+import com.example.data.local.StudyScheduleDao
 import com.example.data.local.StudySessionDao
+import com.example.data.local.UserAccountDao
 import com.example.data.local.UserLanguageDao
 import com.example.data.local.UserProfileDao
 import com.example.data.model.AppLanguage
 import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
 import com.example.data.model.QuizRecordEntity
+import com.example.data.model.StudyScheduleEntity
 import com.example.data.model.StudySessionEntity
+import com.example.data.model.UserAccountEntity
 import com.example.data.model.UserLanguageEntity
 import com.example.data.model.UserProfileEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
+import java.security.SecureRandom
 
 class FlashCardRepository(
     private val deckDao: DeckDao,
@@ -25,7 +31,9 @@ class FlashCardRepository(
     private val sessionDao: StudySessionDao,
     private val quizDao: QuizRecordDao,
     private val profileDao: UserProfileDao,
-    private val languageDao: UserLanguageDao
+    private val languageDao: UserLanguageDao,
+    private val accountDao: UserAccountDao,
+    private val scheduleDao: StudyScheduleDao
 ) {
 
     constructor(database: AppDatabase) : this(
@@ -34,14 +42,98 @@ class FlashCardRepository(
         sessionDao = database.studySessionDao(),
         quizDao = database.quizRecordDao(),
         profileDao = database.userProfileDao(),
-        languageDao = database.userLanguageDao()
+        languageDao = database.userLanguageDao(),
+        accountDao = database.userAccountDao(),
+        scheduleDao = database.studyScheduleDao()
     )
 
     suspend fun checkAndSeedDatabase() = withContext(Dispatchers.IO) {
         val count = cardDao.getTotalCardsCount().firstOrNull() ?: 0
         if (count == 0) {
-            AppDatabase.populateInitialData(deckDao, cardDao, profileDao, languageDao)
+            AppDatabase.populateInitialData(deckDao, cardDao, profileDao, languageDao, scheduleDao)
         }
+    }
+
+    // ==========================================
+    // 0. AUTH (OFFLINE — SHA-256 + Salt)
+    // ==========================================
+
+    /**
+     * Đăng ký tài khoản mới (offline).
+     * @return Result.success(userId) hoặc Result.failure(Exception) nếu trùng username.
+     */
+    suspend fun registerAccount(username: String, password: String): Result<Long> = withContext(Dispatchers.IO) {
+        val trimmed = username.trim()
+        val exists = accountDao.isUsernameExists(trimmed)
+        if (exists > 0) {
+            return@withContext Result.failure(Exception("Tên đăng nhập \"$trimmed\" đã tồn tại"))
+        }
+        val salt = generateSalt()
+        val hash = hashPassword(password, salt)
+        val user = UserAccountEntity(
+            username = trimmed,
+            passwordHash = "$salt:$hash"
+        )
+        try {
+            val id = accountDao.registerUser(user)
+            accountDao.setLoggedIn(id)
+            Result.success(id)
+        } catch (e: Exception) {
+            Result.failure(Exception("Không thể tạo tài khoản: ${e.message}"))
+        }
+    }
+
+    /**
+     * Đăng nhập (offline). Xác thực bằng SHA-256 + salt lưu trong DB.
+     * @return Result.success(username) hoặc Result.failure(Exception).
+     */
+    suspend fun login(username: String, password: String): Result<String> = withContext(Dispatchers.IO) {
+        val trimmed = username.trim()
+        val user = accountDao.getUserByUsername(trimmed)
+            ?: return@withContext Result.failure(Exception("Tài khoản \"$trimmed\" không tồn tại"))
+
+        val parts = user.passwordHash.split(":", limit = 2)
+        if (parts.size != 2) {
+            return@withContext Result.failure(Exception("Dữ liệu tài khoản bị lỗi"))
+        }
+        val (storedSalt, storedHash) = parts
+        val inputHash = hashPassword(password, storedSalt)
+        if (inputHash != storedHash) {
+            return@withContext Result.failure(Exception("Mật khẩu không chính xác"))
+        }
+        accountDao.logoutAllUsers()
+        accountDao.setLoggedIn(user.id)
+        Result.success(user.username)
+    }
+
+    /**
+     * Đăng xuất tất cả tài khoản.
+     */
+    suspend fun logout() = withContext(Dispatchers.IO) {
+        accountDao.logoutAllUsers()
+    }
+
+    /**
+     * Lấy tài khoản đang đăng nhập (nếu có).
+     */
+    fun getActiveUser(): Flow<UserAccountEntity?> = accountDao.getActiveLoggedInUser()
+
+    suspend fun getActiveUserDirect(): UserAccountEntity? = withContext(Dispatchers.IO) {
+        accountDao.getActiveLoggedInUserDirect()
+    }
+
+    /** Sinh salt 16-byte hex. */
+    private fun generateSalt(): String {
+        val bytes = ByteArray(16)
+        SecureRandom().nextBytes(bytes)
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /** Hash mật khẩu bằng SHA-256 thuần Java. */
+    private fun hashPassword(password: String, salt: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val hash = digest.digest("$salt$password".toByteArray(Charsets.UTF_8))
+        return hash.joinToString("") { "%02x".format(it) }
     }
 
     // ==========================================
@@ -367,5 +459,18 @@ class FlashCardRepository(
 
     suspend fun incrementCardsLearned(count: Int) = withContext(Dispatchers.IO) {
         profileDao.incrementCardsLearned(count)
+    }
+
+    // ==========================================
+    // 7. STUDY SCHEDULE (LỊCH HỌC — LƯU DB)
+    // ==========================================
+    fun getStudySchedule(): Flow<StudyScheduleEntity?> = scheduleDao.getSchedule()
+
+    suspend fun getStudyScheduleDirect(): StudyScheduleEntity? = withContext(Dispatchers.IO) {
+        scheduleDao.getScheduleDirect()
+    }
+
+    suspend fun saveStudySchedule(schedule: StudyScheduleEntity) = withContext(Dispatchers.IO) {
+        scheduleDao.saveSchedule(schedule)
     }
 }

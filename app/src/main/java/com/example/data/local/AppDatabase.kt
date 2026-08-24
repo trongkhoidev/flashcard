@@ -73,7 +73,8 @@ abstract class AppDatabase : RoomDatabase() {
                             deckDao = database.deckDao(),
                             flashCardDao = database.flashCardDao(),
                             userProfileDao = database.userProfileDao(),
-                            userLanguageDao = database.userLanguageDao()
+                            userLanguageDao = database.userLanguageDao(),
+                            studyScheduleDao = database.studyScheduleDao()
                         )
                     }
                 }
@@ -84,7 +85,8 @@ abstract class AppDatabase : RoomDatabase() {
             deckDao: DeckDao,
             flashCardDao: FlashCardDao,
             userProfileDao: UserProfileDao,
-            userLanguageDao: UserLanguageDao? = null
+            userLanguageDao: UserLanguageDao? = null,
+            studyScheduleDao: StudyScheduleDao? = null
         ) {
             deckDao.insertDecks(DefaultVocabData.getDefaultDecks())
             flashCardDao.insertCards(DefaultVocabData.getDefaultFlashCards())
@@ -149,7 +151,66 @@ abstract class AppDatabase : RoomDatabase() {
                         totalWordsEnrolled = 50,
                         streakDays = 5,
                         level = "Giao tiếp"
+                    ),
+                    UserLanguageEntity(
+                        languageCode = AppLanguage.SPANISH.code,
+                        displayName = AppLanguage.SPANISH.displayName,
+                        flagEmoji = AppLanguage.SPANISH.flagEmoji,
+                        isCurrentActive = false,
+                        dailyGoalCards = 15,
+                        masteredCardsCount = 0,
+                        totalWordsEnrolled = 40,
+                        streakDays = 0,
+                        level = "Cơ bản"
+                    ),
+                    UserLanguageEntity(
+                        languageCode = AppLanguage.GERMAN.code,
+                        displayName = AppLanguage.GERMAN.displayName,
+                        flagEmoji = AppLanguage.GERMAN.flagEmoji,
+                        isCurrentActive = false,
+                        dailyGoalCards = 15,
+                        masteredCardsCount = 0,
+                        totalWordsEnrolled = 40,
+                        streakDays = 0,
+                        level = "Cơ bản"
+                    ),
+                    UserLanguageEntity(
+                        languageCode = AppLanguage.ITALIAN.code,
+                        displayName = AppLanguage.ITALIAN.displayName,
+                        flagEmoji = AppLanguage.ITALIAN.flagEmoji,
+                        isCurrentActive = false,
+                        dailyGoalCards = 15,
+                        masteredCardsCount = 0,
+                        totalWordsEnrolled = 40,
+                        streakDays = 0,
+                        level = "Cơ bản"
+                    ),
+                    UserLanguageEntity(
+                        languageCode = AppLanguage.PORTUGUESE.code,
+                        displayName = AppLanguage.PORTUGUESE.displayName,
+                        flagEmoji = AppLanguage.PORTUGUESE.flagEmoji,
+                        isCurrentActive = false,
+                        dailyGoalCards = 15,
+                        masteredCardsCount = 0,
+                        totalWordsEnrolled = 40,
+                        streakDays = 0,
+                        level = "Cơ bản"
                     )
+                )
+            )
+
+            // Seed lịch học mặc định (id = 1, nhắc lúc 19:00)
+            studyScheduleDao?.saveSchedule(
+                StudyScheduleEntity(
+                    id = 1,
+                    isEnabled = true,
+                    reminderHour = 19,
+                    reminderMinute = 0,
+                    remindStreak = true,
+                    remindDueWords = true,
+                    minWordsThreshold = 1,
+                    targetLanguageCode = "en",
+                    updatedTimestamp = System.currentTimeMillis()
                 )
             )
         }

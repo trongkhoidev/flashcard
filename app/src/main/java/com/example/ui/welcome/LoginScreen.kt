@@ -1,6 +1,5 @@
 package com.example.ui.welcome
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,7 +29,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -49,16 +47,21 @@ import com.example.ui.theme.NTKTextSecondary
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (String) -> Unit,
+    onLogin: (username: String, password: String) -> Unit,
+    authError: String?,
+    isLoading: Boolean,
+    onClearError: () -> Unit,
     onBackToWelcome: () -> Unit,
     onNavigateToRegister: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(true) }
     var isPasswordVisible by remember { mutableStateOf(false) }
+
+    // Clear error when user types
+    LaunchedEffect(username, password) { onClearError() }
 
     Scaffold(
         modifier = modifier
@@ -179,6 +182,24 @@ fun LoginScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Error message
+                    if (authError != null) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFFFEF2F2),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFECACA))
+                        ) {
+                            Text(
+                                text = "⚠️ $authError",
+                                fontSize = 13.sp,
+                                color = Color(0xFFDC2626),
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
                     // FIELD 1: Tên đăng nhập
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
@@ -307,9 +328,7 @@ fun LoginScreen(
                             fontWeight = FontWeight.Bold,
                             color = NTKPrimary,
                             modifier = Modifier
-                                .clickable {
-                                    Toast.makeText(context, "Tính năng lấy lại mật khẩu qua Email đang được cập nhật", Toast.LENGTH_SHORT).show()
-                                }
+                                .clickable { /* Tính năng đang phát triển */ }
                                 .testTag("forgot_password_link")
                         )
                     }
@@ -319,10 +338,10 @@ fun LoginScreen(
                     // PRIMARY LOGIN BUTTON
                     Button(
                         onClick = {
-                            val userStr = username.ifBlank { "Học viên NTK" }
-                            Toast.makeText(context, "Đăng nhập thành công! Chào mừng $userStr", Toast.LENGTH_SHORT).show()
-                            onLoginSuccess(userStr)
+                            if (username.isBlank() || password.isBlank()) return@Button
+                            onLogin(username.trim(), password)
                         },
+                        enabled = username.isNotBlank() && password.isNotBlank() && !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
@@ -337,12 +356,20 @@ fun LoginScreen(
                             containerColor = NTKPrimary
                         )
                     ) {
-                        Text(
-                            text = "Đăng nhập",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Đăng nhập",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(2.dp))

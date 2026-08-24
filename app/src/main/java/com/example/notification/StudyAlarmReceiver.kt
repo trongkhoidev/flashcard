@@ -3,7 +3,8 @@ package com.example.notification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.example.data.model.StudySchedule
+import com.example.data.local.AppDatabase
+import com.example.data.model.StudyScheduleEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,7 +14,7 @@ import kotlinx.coroutines.launch
  * BroadcastReceiver nhận tín hiệu thức dậy từ Android AlarmManager khi đến giờ hẹn.
  *
  * Lưu ý kiến trúc quan trọng:
- * - StudySchedule là dữ liệu
+ * - StudyScheduleEntity là dữ liệu lưu trong Room DB
  * - AlarmManager là bộ hẹn giờ
  * - BroadcastReceiver CHỈ là nơi Android đánh thức app
  * - Toàn bộ logic kiểm tra thông minh được ủy nhiệm cho SmartNotificationEngine (tránh nhồi nhét business logic vào Receiver)
@@ -27,11 +28,15 @@ class StudyAlarmReceiver : BroadcastReceiver() {
 
         receiverScope.launch {
             try {
+                val database = AppDatabase.getDatabase(context.applicationContext)
+                val schedule = database.studyScheduleDao().getScheduleDirect()
+                    ?: StudyScheduleEntity()
+
                 val engine = SmartNotificationEngine(context)
-                engine.evaluateAndSendSmartNotification(StudySchedule())
+                engine.evaluateAndSendSmartNotification(schedule)
 
                 // Lên lịch lại cho ngày tiếp theo
-                StudyAlarmScheduler.scheduleStudyAlarm(context, StudySchedule())
+                StudyAlarmScheduler.scheduleStudyAlarm(context, schedule)
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {

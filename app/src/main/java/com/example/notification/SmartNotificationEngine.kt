@@ -2,7 +2,7 @@ package com.example.notification
 
 import android.content.Context
 import com.example.data.local.AppDatabase
-import com.example.data.model.StudySchedule
+import com.example.data.model.StudyScheduleEntity
 import kotlinx.coroutines.flow.firstOrNull
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -30,7 +30,7 @@ data class NotificationPreviewEvent(
 class SmartNotificationEngine(private val context: Context) {
 
     suspend fun evaluateAndSendSmartNotification(
-        schedule: StudySchedule = StudySchedule(),
+        schedule: StudyScheduleEntity = StudyScheduleEntity(),
         isForcedTest: Boolean = false,
         onPreviewGenerated: ((NotificationPreviewEvent) -> Unit)? = null
     ) {

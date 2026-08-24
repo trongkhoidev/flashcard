@@ -40,12 +40,3 @@ data class FlashCardEntity(
     val nextReviewTimestamp: Long = 0L // Epoch timestamp when card is due for review
 )
 
-data class DeckWithStats(
-    val deck: DeckEntity,
-    val totalCards: Int,
-    val masteredCards: Int,
-    val learningCards: Int
-) {
-    val progressPercent: Float
-        get() = if (totalCards > 0) masteredCards.toFloat() / totalCards.toFloat() else 0f
-}

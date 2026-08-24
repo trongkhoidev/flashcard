@@ -1,6 +1,5 @@
 package com.example.ui.welcome
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,20 +26,16 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.ui.theme.NTKPrimary
-import com.example.ui.theme.NTKPrimaryDark
-import com.example.ui.theme.NTKPrimaryLight
 import com.example.ui.theme.NTKTextPrimary
 import com.example.ui.theme.NTKTextSecondary
 import com.example.ui.theme.NTKTextMuted
@@ -48,18 +43,23 @@ import com.example.ui.theme.NTKTextMuted
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    onRegisterSuccess: (String) -> Unit,
+    onRegister: (username: String, password: String) -> Unit,
+    authError: String?,
+    isLoading: Boolean,
+    onClearError: () -> Unit,
     onBackToWelcome: () -> Unit,
     onNavigateToLogin: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     var isConfirmPasswordVisible by remember { mutableStateOf(false) }
+
+    // Clear error when user types
+    LaunchedEffect(username, password, confirmPassword) { onClearError() }
 
     // Dynamic validations
     val isUsernameValid = username.length in 4..20 && !username.contains(" ")
@@ -199,6 +199,24 @@ fun RegisterScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Error message from ViewModel
+                    if (authError != null) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFFFEF2F2),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFECACA))
+                        ) {
+                            Text(
+                                text = "⚠️ $authError",
+                                fontSize = 13.sp,
+                                color = Color(0xFFDC2626),
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
                     // FIELD 1: Tên đăng nhập
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
@@ -394,26 +412,38 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // LOCAL VALIDATION + Call ViewModel
+                    var localValidationError by remember { mutableStateOf<String?>(null) }
+
+                    if (localValidationError != null) {
+                        Text(
+                            text = "⚠️ $localValidationError",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+
                     // PRIMARY REGISTER BUTTON
                     Button(
                         onClick = {
+                            localValidationError = null
                             if (!isUsernameValid) {
-                                Toast.makeText(context, "Tên đăng nhập không hợp lệ!", Toast.LENGTH_SHORT).show()
+                                localValidationError = "Tên đăng nhập không hợp lệ!"
                                 return@Button
                             }
                             if (!isPasswordValid) {
-                                Toast.makeText(context, "Mật khẩu phải từ 8 ký tự trở lên!", Toast.LENGTH_SHORT).show()
+                                localValidationError = "Mật khẩu phải từ 8 ký tự trở lên!"
                                 return@Button
                             }
                             if (!isPasswordsMatch) {
-                                Toast.makeText(context, "Mật khẩu nhập lại không trùng khớp!", Toast.LENGTH_SHORT).show()
+                                localValidationError = "Mật khẩu nhập lại không trùng khớp!"
                                 return@Button
                             }
-
-                            // Toast success
-                            Toast.makeText(context, "Đăng ký tài khoản thành công!", Toast.LENGTH_LONG).show()
-                            onRegisterSuccess(username)
+                            onRegister(username.trim(), password)
                         },
+                        enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
@@ -428,12 +458,20 @@ fun RegisterScreen(
                             containerColor = NTKPrimary
                         )
                     ) {
-                        Text(
-                            text = "Đăng ký",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Đăng ký",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

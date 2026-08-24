@@ -123,6 +123,9 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     val userVipLevel by viewModel.userVipLevel.collectAsStateWithLifecycle()
     val notificationPreview by viewModel.notificationPreview.collectAsStateWithLifecycle()
 
+    val authError by viewModel.authError.collectAsStateWithLifecycle()
+    val authLoading by viewModel.authLoading.collectAsStateWithLifecycle()
+
     var showProfileDialog by remember { mutableStateOf(false) }
     var showCreateDeckDialog by remember { mutableStateOf(false) }
     var targetDeckForCardCreation by remember { mutableStateOf<DeckEntity?>(null) }
@@ -172,10 +175,12 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
 
                 is ScreenState.Login -> {
                     LoginScreen(
-                        onLoginSuccess = { username ->
-                            viewModel.updateUserName(username)
-                            viewModel.navigateTo(ScreenState.Home)
+                        onLogin = { username, password ->
+                            viewModel.login(username, password)
                         },
+                        authError = authError,
+                        isLoading = authLoading,
+                        onClearError = { viewModel.clearAuthError() },
                         onBackToWelcome = {
                             viewModel.navigateTo(ScreenState.Welcome)
                         },
@@ -187,10 +192,12 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
 
                 is ScreenState.Register -> {
                     RegisterScreen(
-                        onRegisterSuccess = { username ->
-                            viewModel.updateUserName(username)
-                            viewModel.navigateTo(ScreenState.Home)
+                        onRegister = { username, password ->
+                            viewModel.register(username, password)
                         },
+                        authError = authError,
+                        isLoading = authLoading,
+                        onClearError = { viewModel.clearAuthError() },
                         onBackToWelcome = {
                             viewModel.navigateTo(ScreenState.Welcome)
                         },
@@ -199,6 +206,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         }
                     )
                 }
+
 
                 is ScreenState.Onboarding -> {
                     OnboardingStepsScreen(

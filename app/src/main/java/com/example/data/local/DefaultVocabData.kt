@@ -2,6 +2,11 @@ package com.example.data.local
 
 import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
+import com.example.data.local.seed.DeVocabData
+import com.example.data.local.seed.EnVocabData
+import com.example.data.local.seed.EsVocabData
+import com.example.data.local.seed.ItVocabData
+import com.example.data.local.seed.PtVocabData
 
 object DefaultVocabData {
 
@@ -19,16 +24,6 @@ object DefaultVocabData {
                 cardCount = 95
             ),
             DeckEntity(
-                id = "en_daily",
-                languageCode = "en",
-                title = "Giao tiếp hàng ngày",
-                subtitle = "Các từ vựng và cụm từ thiết yếu mỗi ngày",
-                iconEmoji = "☕",
-                level = "Cơ bản A1-A2",
-                colorHex = "#5B67EA",
-                cardCount = 8
-            ),
-            DeckEntity(
                 id = "en_travel",
                 languageCode = "en",
                 title = "Du lịch & Khám phá",
@@ -36,7 +31,7 @@ object DefaultVocabData {
                 iconEmoji = "✈️",
                 level = "Thực chiến",
                 colorHex = "#3B82F6",
-                cardCount = 8
+                cardCount = 4
             ),
             DeckEntity(
                 id = "en_business",
@@ -47,6 +42,54 @@ object DefaultVocabData {
                 level = "Trung cấp B1-B2",
                 colorHex = "#8B5CF6",
                 cardCount = 8
+            ),
+
+            // Spanish Deck
+            DeckEntity(
+                id = "es_basics",
+                languageCode = "es",
+                title = "Tiếng Tây Ban Nha cơ bản",
+                subtitle = "Chào hỏi, giao tiếp cơ bản, từ vựng hàng ngày",
+                iconEmoji = "🇪🇸",
+                level = "DELE A1",
+                colorHex = "#F59E0B",
+                cardCount = 40
+            ),
+
+            // German Deck
+            DeckEntity(
+                id = "de_basics",
+                languageCode = "de",
+                title = "Tiếng Đức cơ bản",
+                subtitle = "Giao tiếp, từ vựng thiết yếu",
+                iconEmoji = "🇩🇪",
+                level = "Goethe A1",
+                colorHex = "#EF4444",
+                cardCount = 40
+            ),
+
+            // Italian Deck
+            DeckEntity(
+                id = "it_basics",
+                languageCode = "it",
+                title = "Tiếng Ý cơ bản",
+                subtitle = "Giao tiếp hàng ngày, du lịch",
+                iconEmoji = "🇮🇹",
+                level = "Cơ bản",
+                colorHex = "#10B981",
+                cardCount = 40
+            ),
+
+            // Portuguese Deck
+            DeckEntity(
+                id = "pt_basics",
+                languageCode = "pt",
+                title = "Tiếng Bồ Đào Nha cơ bản",
+                subtitle = "Chào hỏi, từ vựng thông dụng",
+                iconEmoji = "🇵🇹",
+                level = "Cơ bản",
+                colorHex = "#8B5CF6",
+                cardCount = 40
             ),
 
             // Korean Decks
@@ -132,143 +175,7 @@ object DefaultVocabData {
     }
 
     fun getDefaultFlashCards(): List<FlashCardEntity> {
-        return listOf(
-            // English - Daily
-            FlashCardEntity(
-                deckId = "en_daily",
-                languageCode = "en",
-                frontWord = "Perseverance",
-                phonetic = "/ˌpɜː.sɪˈvɪə.rəns/",
-                partOfSpeech = "noun",
-                frontExample = "Through hard work and perseverance, she succeeded.",
-                backMeaning = "Sự kiên trì, bền chí vượt qua khó khăn",
-                backExampleTranslation = "Nhờ làm việc chăm chỉ và kiên trì, cô ấy đã thành công.",
-                memoryTip = "Gợi ý: 'Severe' (khắc nghiệt) -> Người kiên trì đi xuyên qua nghịch cảnh."
-            ),
-            FlashCardEntity(
-                deckId = "en_daily",
-                languageCode = "en",
-                frontWord = "Serendipity",
-                phonetic = "/ˌser.ənˈdɪp.ə.ti/",
-                partOfSpeech = "noun",
-                frontExample = "Finding this wonderful cafe was pure serendipity.",
-                backMeaning = "Sự may mắn bất ngờ, tình cờ gặp điều tốt đẹp",
-                backExampleTranslation = "Tìm thấy quán cà phê tuyệt vời này hoàn toàn là sự tình cờ may mắn.",
-                memoryTip = "Mẹo: Từ ngữ đẹp nhất chỉ những cuộc gặp gỡ định mệnh."
-            ),
-            FlashCardEntity(
-                deckId = "en_daily",
-                languageCode = "en",
-                frontWord = "Enthusiastic",
-                phonetic = "/ɪnˈθjuː.zi.æs.tɪk/",
-                partOfSpeech = "adjective",
-                frontExample = "He is very enthusiastic about learning new languages.",
-                backMeaning = "Nhiệt huyết, hào hứng, đầy đam mê",
-                backExampleTranslation = "Anh ấy rất hào hứng với việc học các ngôn ngữ mới.",
-                memoryTip = "Gốc từ: 'En-theos' (năng lượng tràn đầy bên trong)."
-            ),
-            FlashCardEntity(
-                deckId = "en_daily",
-                languageCode = "en",
-                frontWord = "Resilient",
-                phonetic = "/rɪˈzɪl.jənt/",
-                partOfSpeech = "adjective",
-                frontExample = "Children are often remarkably resilient to change.",
-                backMeaning = "Kiên cường, có khả năng phục hồi nhanh chóng",
-                backExampleTranslation = "Trẻ em thường kiên cường và thích nghi rất nhanh với sự thay đổi.",
-                memoryTip = "Hình dung: Một cành tre uốn cong theo gió rồi bật thẳng trở lại."
-            ),
-            FlashCardEntity(
-                deckId = "en_daily",
-                languageCode = "en",
-                frontWord = "Accomplish",
-                phonetic = "/əˈkʌm.plɪʃ/",
-                partOfSpeech = "verb",
-                frontExample = "You can accomplish anything with consistent effort.",
-                backMeaning = "Hoàn thành, đạt được mục tiêu xuất sắc",
-                backExampleTranslation = "Bạn có thể đạt được bất kỳ điều gì bằng nỗ lực kiên định.",
-                memoryTip = "Đồng nghĩa với: Achieve, complete successfully."
-            ),
-            FlashCardEntity(
-                deckId = "en_daily",
-                languageCode = "en",
-                frontWord = "Ingenious",
-                phonetic = "/ɪnˈdʒiː.ni.əs/",
-                partOfSpeech = "adjective",
-                frontExample = "It was an ingenious solution to a complex problem.",
-                backMeaning = "Khéo léo, tài tình, thông minh xuất chúng",
-                backExampleTranslation = "Đó là một giải pháp tài tình cho một vấn đề phức tạp.",
-                memoryTip = "Gần với từ 'Genius' (thiên tài)."
-            ),
-            FlashCardEntity(
-                deckId = "en_daily",
-                languageCode = "en",
-                frontWord = "Eloquent",
-                phonetic = "/ˈel.ə.kwənt/",
-                partOfSpeech = "adjective",
-                frontExample = "She gave an eloquent speech at the conference.",
-                backMeaning = "Hùng biện, lưu loát, truyền cảm",
-                backExampleTranslation = "Cô ấy đã có một bài phát biểu đầy hùng biện tại hội nghị.",
-                memoryTip = "Liên quan đến lời nói mượt mà, thu hút người nghe."
-            ),
-            FlashCardEntity(
-                deckId = "en_daily",
-                languageCode = "en",
-                frontWord = "Grateful",
-                phonetic = "/ˈɡreɪt.fəl/",
-                partOfSpeech = "adjective",
-                frontExample = "I am grateful for all the support I received.",
-                backMeaning = "Biết ơn, trân trọng",
-                backExampleTranslation = "Tôi vô cùng biết ơn mọi sự giúp đỡ mà tôi nhận được.",
-                memoryTip = "Từ gốc: Gratitude (Lòng biết ơn)."
-            ),
-
-            // English - Travel
-            FlashCardEntity(
-                deckId = "en_travel",
-                languageCode = "en",
-                frontWord = "Itinerary",
-                phonetic = "/aɪˈtɪn.ər.ər.i/",
-                partOfSpeech = "noun",
-                frontExample = "We planned an exciting 7-day travel itinerary.",
-                backMeaning = "Lịch trình chuyến đi, kế hoạch tham quan",
-                backExampleTranslation = "Chúng tôi đã lên lịch trình du lịch 7 ngày đầy thú vị.",
-                memoryTip = "Nhớ: Bản đồ các điểm dừng chân trong chuyến đi."
-            ),
-            FlashCardEntity(
-                deckId = "en_travel",
-                languageCode = "en",
-                frontWord = "Boarding Pass",
-                phonetic = "/ˈbɔː.dɪŋ ˌpɑːs/",
-                partOfSpeech = "noun",
-                frontExample = "Please have your boarding pass ready at the gate.",
-                backMeaning = "Thẻ lên máy bay / vé lên tàu",
-                backExampleTranslation = "Vui lòng chuẩn bị sẵn thẻ lên máy bay tại cửa khởi hành.",
-                memoryTip = "Board = lên tàu/máy bay, Pass = thẻ thông hành."
-            ),
-            FlashCardEntity(
-                deckId = "en_travel",
-                languageCode = "en",
-                frontWord = "Baggage Claim",
-                phonetic = "/ˈbæɡ.ɪdʒ ˌkleɪm/",
-                partOfSpeech = "noun",
-                frontExample = "Proceed to the baggage claim area on the ground floor.",
-                backMeaning = "Khu vực nhận lại hành lý ký gửi tại sân bay",
-                backExampleTranslation = "Hãy di chuyển đến khu vực nhận hành lý ở tầng trệt.",
-                memoryTip = "Claim = nhận quyền sở hữu hành lý của mình."
-            ),
-            FlashCardEntity(
-                deckId = "en_travel",
-                languageCode = "en",
-                frontWord = "Currency Exchange",
-                phonetic = "/ˈkʌr.ən.si ɪksˈtʃeɪndʒ/",
-                partOfSpeech = "noun",
-                frontExample = "Where is the nearest currency exchange booth?",
-                backMeaning = "Quầy đổi tiền ngoại tệ",
-                backExampleTranslation = "Quầy đổi ngoại tệ gần nhất ở đâu vậy?",
-                memoryTip = "Currency = tiền tệ, Exchange = trao đổi."
-            ),
-
+        val existingLegacyCards = listOf(
             // Korean - Daily
             FlashCardEntity(
                 deckId = "ko_daily",
@@ -486,30 +393,6 @@ object DefaultVocabData {
                 memoryTip = "Gốc từ: Enchant (Mê hoặc, đầy vinh dự)."
             ),
 
-            // English Basics
-            FlashCardEntity(
-                deckId = "en_basics",
-                languageCode = "en",
-                frontWord = "Welcome",
-                phonetic = "/ˈwel.kəm/",
-                partOfSpeech = "phrase",
-                frontExample = "Welcome to our English learning community!",
-                backMeaning = "Chào mừng bạn đến với chúng tôi",
-                backExampleTranslation = "Chào mừng bạn đến với cộng đồng học tiếng Anh!",
-                memoryTip = "Well + Come: Lời chào thân ái."
-            ),
-            FlashCardEntity(
-                deckId = "en_basics",
-                languageCode = "en",
-                frontWord = "Opportunity",
-                phonetic = "/ˌɒp.əˈtʃuː.nə.ti/",
-                partOfSpeech = "noun",
-                frontExample = "Every mistake is an opportunity to learn.",
-                backMeaning = "Cơ hội, thời cơ quý giá",
-                backExampleTranslation = "Mỗi sai lầm đều là một cơ hội quý báu để học hỏi.",
-                memoryTip = "Cánh cửa mở ra thành công."
-            ),
-
             // Korean Beginner
             FlashCardEntity(
                 deckId = "ko_beginner",
@@ -558,5 +441,12 @@ object DefaultVocabData {
                 memoryTip = "Cảm (Cảm xúc) + Ơn (Ân huệ)."
             )
         )
+
+        return existingLegacyCards +
+                EnVocabData.getCards() +
+                EsVocabData.getCards() +
+                DeVocabData.getCards() +
+                ItVocabData.getCards() +
+                PtVocabData.getCards()
     }
 }

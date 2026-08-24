@@ -5,7 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import com.example.data.model.StudySchedule
+import com.example.data.model.StudyScheduleEntity
 import java.util.Calendar
 
 /**
@@ -16,9 +16,9 @@ object StudyAlarmScheduler {
     private const val ALARM_REQUEST_CODE = 8888
 
     /**
-     * Lên lịch hẹn giờ hàng ngày dựa trên StudySchedule
+     * Lên lịch hẹn giờ hàng ngày dựa trên StudyScheduleEntity
      */
-    fun scheduleStudyAlarm(context: Context, schedule: StudySchedule) {
+    fun scheduleStudyAlarm(context: Context, schedule: StudyScheduleEntity) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
 
         val intent = Intent(context, StudyAlarmReceiver::class.java)
