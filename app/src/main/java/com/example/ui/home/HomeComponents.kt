@@ -276,7 +276,7 @@ fun StreakMascotBanner(
 ) {
     val context = LocalContext.current
     val infiniteTransition = rememberInfiniteTransition(label = "sparkle_anim")
-    val sparkleAlpha by infiniteTransition.animateFloat(
+    val sparkleAlpha = infiniteTransition.animateFloat(
         initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -343,79 +343,21 @@ fun StreakMascotBanner(
                         letterSpacing = (-0.5).sp
                     )
                     Spacer(modifier = Modifier.height(3.dp))
+                    val todayName = remember { StreakTimeHelper.getTodayFullName() }
                     Text(
-                        text = "Bơi nhanh tiến bước cùng từ vựng!",
+                        text = "Hôm nay là $todayName • Tiến bước cùng từ vựng!",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
-                        color = Color.White.copy(alpha = 0.9f)
+                        color = Color.White.copy(alpha = 0.95f)
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Days of Week Tracker: T2, T3, T4, T5, T6, T7, CN
-                    val days = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        days.forEachIndexed { index, day ->
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = day,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White.copy(alpha = 0.85f)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                when {
-                                    index < 5 -> {
-                                        // Checked days (T2-T6): White circle with ocean blue checkmark
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .background(Color.White, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color(0xFF0284C7),
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                        }
-                                    }
-                                    index == 5 -> {
-                                        // T7: Yellow Star badge
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .background(Color.White, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Star,
-                                                contentDescription = null,
-                                                tint = Color(0xFFF59E0B),
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    }
-                                    else -> {
-                                        // CN: Outline circle (Upcoming/today)
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Days of Week Tracker: T2, T3, T4, T5, T6, T7, CN (Dynamic according to real calendar)
+                    WeeklyStreakTrackerBar(
+                        streakDays = streakDays,
+                        isTodayStudied = streakDays > 0
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(6.dp))
@@ -429,9 +371,10 @@ fun StreakMascotBanner(
                 ) {
                     // Magical Sparkles in background
                     Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawSparkle(Offset(size.width * 0.15f, size.height * 0.2f), 8f * sparkleAlpha, Color.White)
-                        drawSparkle(Offset(size.width * 0.85f, size.height * 0.15f), 10f * sparkleAlpha, Color(0xFFBAE6FD))
-                        drawSparkle(Offset(size.width * 0.9f, size.height * 0.75f), 6f * sparkleAlpha, Color.White)
+                        val currentAlpha = sparkleAlpha.value
+                        drawSparkle(Offset(size.width * 0.15f, size.height * 0.2f), 8f * currentAlpha, Color.White)
+                        drawSparkle(Offset(size.width * 0.85f, size.height * 0.15f), 10f * currentAlpha, Color(0xFFBAE6FD))
+                        drawSparkle(Offset(size.width * 0.9f, size.height * 0.75f), 6f * currentAlpha, Color.White)
                     }
 
                     // Squirtle Turtle Mascot Image

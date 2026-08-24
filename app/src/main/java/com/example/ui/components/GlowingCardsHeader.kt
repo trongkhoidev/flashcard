@@ -33,7 +33,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 @Composable
 fun GlowingCardsHeader(modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "cards_float")
-    val floatY by infiniteTransition.animateFloat(
+    val floatY = infiniteTransition.animateFloat(
         initialValue = -3f,
         targetValue = 3f,
         animationSpec = infiniteRepeatable(
@@ -47,7 +47,7 @@ fun GlowingCardsHeader(modifier: Modifier = Modifier) {
         modifier = modifier
             .size(100.dp, 84.dp)
             .graphicsLayer {
-                translationY = floatY.dp.toPx()
+                translationY = floatY.value.dp.toPx()
             },
         contentAlignment = Alignment.Center
     ) {

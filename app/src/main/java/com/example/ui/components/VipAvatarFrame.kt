@@ -163,20 +163,20 @@ fun VipAvatarFrame(
     val infiniteTransition = rememberInfiniteTransition(label = "vip_frame_anim")
 
     // 1. Continuous Rotation Angle (0 -> 360 deg)
-    val rotationAngle by infiniteTransition.animateFloat(
+    val rotationAngle = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
             animation = tween(
                 durationMillis = when (vipLevel) {
-                    VipLevel.VIP1 -> 4200 // Metallic Bronze
-                    VipLevel.VIP2 -> 3500 // Metallic Silver
-                    VipLevel.VIP3 -> 2800 // Platinum Cyan
-                    VipLevel.VIP4 -> 2200 // Imperial Gold Sparkle
-                    VipLevel.VIP5 -> 1700 // Cyber Neon Diamond
-                    VipLevel.VIP6 -> 1200 // Mythic Flame Fire
-                    VipLevel.VIP7 -> 800  // Supreme Rainbow Aurora
-                    VipLevel.NONE -> 10000
+                    VipLevel.VIP1 -> 10000 // Metallic Bronze
+                    VipLevel.VIP2 -> 9000  // Metallic Silver
+                    VipLevel.VIP3 -> 8000  // Platinum Cyan
+                    VipLevel.VIP4 -> 7000  // Imperial Gold Sparkle
+                    VipLevel.VIP5 -> 6000  // Cyber Neon Diamond
+                    VipLevel.VIP6 -> 5000  // Mythic Flame Fire
+                    VipLevel.VIP7 -> 4000  // Supreme Rainbow Aurora (Smooth & majestic)
+                    VipLevel.NONE -> 12000
                 },
                 easing = LinearEasing
             ),
@@ -186,20 +186,20 @@ fun VipAvatarFrame(
     )
 
     // 2. Pulse Alpha for Glow Ring
-    val pulseAlpha by infiniteTransition.animateFloat(
+    val pulseAlpha = infiniteTransition.animateFloat(
         initialValue = 0.35f,
         targetValue = 0.90f,
         animationSpec = infiniteRepeatable(
             animation = tween(
                 durationMillis = when (vipLevel) {
-                    VipLevel.VIP1 -> 900
-                    VipLevel.VIP2 -> 850
-                    VipLevel.VIP3 -> 750
-                    VipLevel.VIP4 -> 650
-                    VipLevel.VIP5 -> 550
-                    VipLevel.VIP6 -> 450
-                    VipLevel.VIP7 -> 350
-                    VipLevel.NONE -> 1000
+                    VipLevel.VIP1 -> 2200
+                    VipLevel.VIP2 -> 2000
+                    VipLevel.VIP3 -> 1800
+                    VipLevel.VIP4 -> 1600
+                    VipLevel.VIP5 -> 1500
+                    VipLevel.VIP6 -> 1400
+                    VipLevel.VIP7 -> 1300
+                    VipLevel.NONE -> 2400
                 },
                 easing = FastOutSlowInEasing
             ),
@@ -209,7 +209,7 @@ fun VipAvatarFrame(
     )
 
     // 3. Pulse Scale for Aura
-    val pulseScale by infiniteTransition.animateFloat(
+    val pulseScale = infiniteTransition.animateFloat(
         initialValue = 1.0f,
         targetValue = when (vipLevel) {
             VipLevel.VIP1 -> 1.03f
@@ -224,14 +224,14 @@ fun VipAvatarFrame(
         animationSpec = infiniteRepeatable(
             animation = tween(
                 durationMillis = when (vipLevel) {
-                    VipLevel.VIP1 -> 900
-                    VipLevel.VIP2 -> 800
-                    VipLevel.VIP3 -> 700
-                    VipLevel.VIP4 -> 600
-                    VipLevel.VIP5 -> 500
-                    VipLevel.VIP6 -> 450
-                    VipLevel.VIP7 -> 350
-                    VipLevel.NONE -> 1000
+                    VipLevel.VIP1 -> 2200
+                    VipLevel.VIP2 -> 2000
+                    VipLevel.VIP3 -> 1800
+                    VipLevel.VIP4 -> 1600
+                    VipLevel.VIP5 -> 1500
+                    VipLevel.VIP6 -> 1400
+                    VipLevel.VIP7 -> 1300
+                    VipLevel.NONE -> 2400
                 },
                 easing = FastOutSlowInEasing
             ),
@@ -302,9 +302,10 @@ fun VipAvatarFrame(
                 modifier = Modifier
                     .size(avatarSize + (borderWidth * 2) + 12.dp)
                     .graphicsLayer {
-                        this.scaleX = pulseScale
-                        this.scaleY = pulseScale
-                        this.alpha = pulseAlpha
+                        val currentScale = pulseScale.value
+                        this.scaleX = currentScale
+                        this.scaleY = currentScale
+                        this.alpha = pulseAlpha.value
                     }
                     .background(
                         brush = glowBrush,
@@ -319,7 +320,7 @@ fun VipAvatarFrame(
                 .size(avatarSize + (borderWidth * 2) + 4.dp)
                 .shadow(shadowElevation, CircleShape, ambientColor = vipLevel.badgeBgColor, spotColor = vipLevel.badgeBgColor)
                 .graphicsLayer {
-                    this.rotationZ = if (vipLevel != VipLevel.NONE) rotationAngle else 0f
+                    this.rotationZ = if (vipLevel != VipLevel.NONE) rotationAngle.value else 0f
                 }
                 .background(
                     brush = sweepBrush,
@@ -545,20 +546,20 @@ fun VipCardFrame(
 
     val infiniteTransition = rememberInfiniteTransition(label = "vip_card_border_anim")
 
-    val borderProgress by infiniteTransition.animateFloat(
+    val borderProgress = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(
                 durationMillis = when (vipLevel) {
-                    VipLevel.VIP1 -> 4000
-                    VipLevel.VIP2 -> 3400
-                    VipLevel.VIP3 -> 2800
-                    VipLevel.VIP4 -> 2200
-                    VipLevel.VIP5 -> 1700
-                    VipLevel.VIP6 -> 1200
-                    VipLevel.VIP7 -> 800
-                    VipLevel.NONE -> 10000
+                    VipLevel.VIP1 -> 10000
+                    VipLevel.VIP2 -> 9000
+                    VipLevel.VIP3 -> 8000
+                    VipLevel.VIP4 -> 7000
+                    VipLevel.VIP5 -> 6000
+                    VipLevel.VIP6 -> 5000
+                    VipLevel.VIP7 -> 4000
+                    VipLevel.NONE -> 12000
                 },
                 easing = LinearEasing
             ),
@@ -567,20 +568,20 @@ fun VipCardFrame(
         label = "card_border_progress"
     )
 
-    val pulseAlpha by infiniteTransition.animateFloat(
+    val pulseAlpha = infiniteTransition.animateFloat(
         initialValue = 0.35f,
         targetValue = 0.85f,
         animationSpec = infiniteRepeatable(
             animation = tween(
                 durationMillis = when (vipLevel) {
-                    VipLevel.VIP1 -> 900
-                    VipLevel.VIP2 -> 800
-                    VipLevel.VIP3 -> 700
-                    VipLevel.VIP4 -> 600
-                    VipLevel.VIP5 -> 500
-                    VipLevel.VIP6 -> 400
-                    VipLevel.VIP7 -> 300
-                    else -> 600
+                    VipLevel.VIP1 -> 2200
+                    VipLevel.VIP2 -> 2000
+                    VipLevel.VIP3 -> 1800
+                    VipLevel.VIP4 -> 1600
+                    VipLevel.VIP5 -> 1500
+                    VipLevel.VIP6 -> 1400
+                    VipLevel.VIP7 -> 1300
+                    else -> 2000
                 },
                 easing = FastOutSlowInEasing
             ),
@@ -589,7 +590,7 @@ fun VipCardFrame(
         label = "card_pulseAlpha"
     )
 
-    val pulseScale by infiniteTransition.animateFloat(
+    val pulseScale = infiniteTransition.animateFloat(
         initialValue = 1.0f,
         targetValue = when (vipLevel) {
             VipLevel.VIP1 -> 1.02f
@@ -604,14 +605,14 @@ fun VipCardFrame(
         animationSpec = infiniteRepeatable(
             animation = tween(
                 durationMillis = when (vipLevel) {
-                    VipLevel.VIP1 -> 900
-                    VipLevel.VIP2 -> 800
-                    VipLevel.VIP3 -> 700
-                    VipLevel.VIP4 -> 600
-                    VipLevel.VIP5 -> 500
-                    VipLevel.VIP6 -> 400
-                    VipLevel.VIP7 -> 300
-                    else -> 600
+                    VipLevel.VIP1 -> 2200
+                    VipLevel.VIP2 -> 2000
+                    VipLevel.VIP3 -> 1800
+                    VipLevel.VIP4 -> 1600
+                    VipLevel.VIP5 -> 1500
+                    VipLevel.VIP6 -> 1400
+                    VipLevel.VIP7 -> 1300
+                    else -> 2000
                 },
                 easing = FastOutSlowInEasing
             ),
@@ -703,9 +704,9 @@ fun VipCardFrame(
             modifier = Modifier
                 .matchParentSize()
                 .graphicsLayer {
-                    this.scaleX = pulseScale
-                    this.scaleY = pulseScale
-                    this.alpha = pulseAlpha
+                    this.scaleX = pulseScale.value
+                    this.scaleY = pulseScale.value
+                    this.alpha = pulseAlpha.value
                 }
                 .background(
                     brush = cardGlowBrush,
@@ -747,13 +748,14 @@ fun VipCardFrame(
                     val totalLength = pathMeasure.length
 
                     if (totalLength > 0f) {
+                        val currentProgress = borderProgress.value
                         val beamLength = totalLength * beamLengthRatio
                         val beamStrokeWidth = strokeWidthPx + 2.dp.toPx()
                         val sparkRadius = strokeWidthPx * 2.8f
 
                         for (i in 0 until beamCount) {
                             val offsetFraction = i.toFloat() / beamCount
-                            val startDist = (borderProgress * totalLength + offsetFraction * totalLength) % totalLength
+                            val startDist = (currentProgress * totalLength + offsetFraction * totalLength) % totalLength
                             val endDist = startDist + beamLength
 
                             beamSegmentPath.reset()

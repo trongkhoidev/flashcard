@@ -1,8 +1,11 @@
 package com.example.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,6 +37,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Quiz
@@ -53,17 +58,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -112,16 +121,18 @@ fun HomeScreen(
     onStartStudySaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
     onStartQuizSaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
     onStartMatchSaved: (List<FlashCardEntity>, String, String) -> Unit = { _, _, _ -> },
-    onCreateDeckDirect: (String, String, String, String, List<FlashCardEntity>) -> Unit = { _, _, _, _, _ -> },
+    onCreateDeckDirect: (DeckEntity, List<FlashCardEntity>) -> Unit = { _, _ -> },
     onImportCardsDirect: (String, List<FlashCardEntity>) -> Unit = { _, _ -> },
     onStudyByLang: (String) -> Unit = {},
     onTestSmartNotification: () -> Unit = {},
     onTestMilestoneNotification: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var searchQuery by remember { mutableStateOf("") }
     var selectedBottomTab by remember { mutableIntStateOf(0) }
     var showReviewOverlay by remember { mutableStateOf(false) }
+
+    val homeScrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
     // Dialog & Sheet States
     var showStatsDialog by remember { mutableStateOf(false) }
@@ -137,19 +148,6 @@ fun HomeScreen(
 
     val effectiveDecks = remember(allDecksList, decks) {
         if (allDecksList.isNotEmpty()) allDecksList else decks
-    }
-
-    // Filtered decks for search
-    val filteredDecks = remember(searchQuery, decks, effectiveDecks) {
-        if (searchQuery.isBlank()) {
-            decks
-        } else {
-            effectiveDecks.filter {
-                it.title.contains(searchQuery, ignoreCase = true) ||
-                it.subtitle.contains(searchQuery, ignoreCase = true) ||
-                it.level.contains(searchQuery, ignoreCase = true)
-            }
-        }
     }
 
     Box(
@@ -174,6 +172,8 @@ fun HomeScreen(
             if (showReviewOverlay) {
                 ReviewHistoryTab(
                     decks = effectiveDecks,
+                    learningLanguages = learningLanguages,
+                    selectedLanguage = selectedLanguage,
                     onOpenDeckDetail = onOpenDeckDetail,
                     onStudyDeck = onStudyDeck,
                     onQuizDeck = onQuizDeck,
@@ -189,7 +189,7 @@ fun HomeScreen(
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(homeScrollState)
                                 .padding(bottom = 12.dp)
                         ) {
                             Spacer(modifier = Modifier.height(6.dp))
@@ -201,74 +201,60 @@ fun HomeScreen(
                                 onStreakClick = { showStatsDialog = true }
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                            // 2. SEARCH BAR: "Tìm kiếm bộ thẻ, chủ đề..." with Tune/Filter icon
-                            HomeSearchBar(
-                                query = searchQuery,
-                                onQueryChange = { searchQuery = it },
-                                onFilterClick = { showLanguageFilterSheet = true }
-                            )
-
-                            // If user is searching, show immediate search results
-                            if (searchQuery.isNotBlank()) {
-                                SearchResultsView(
-                                    query = searchQuery,
-                                    results = filteredDecks,
-                                    onOpenDeckDetail = onOpenDeckDetail,
-                                    onStudyDeck = onStudyDeck,
-                                    onQuizDeck = onQuizDeck,
-                                    onMatchDeck = onMatchDeck
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                // Dynamic First-Time vs Returning User State
-                                val isFirstTimeUser = masteredWordsCount == 0 && streakDays <= 1
-                                val currentActiveDeck = decks.firstOrNull()
+                            // Dynamic First-Time vs Returning User State
+                            val isFirstTimeUser = masteredWordsCount == 0 && streakDays <= 1
+                            val currentActiveDeck = remember(decks, effectiveDecks, selectedLanguage.code) {
+                                decks.firstOrNull()
                                     ?: effectiveDecks.firstOrNull { it.languageCode == selectedLanguage.code }
                                     ?: effectiveDecks.firstOrNull()
+                            }
 
-                                if (isFirstTimeUser) {
-                                    // 3a. First-time Starter Welcome Hero Card
-                                    StarterWelcomeHeroCard(
-                                        userName = userName,
-                                        language = selectedLanguage,
-                                        onStartFirstLesson = {
-                                            if (currentActiveDeck != null) {
-                                                onStudyDeck(currentActiveDeck)
-                                            } else {
-                                                onStudyByLang(selectedLanguage.code)
-                                            }
+                            if (isFirstTimeUser) {
+                                // 2a. First-time Starter Welcome Hero Card
+                                StarterWelcomeHeroCard(
+                                    userName = userName,
+                                    language = selectedLanguage,
+                                    onStartFirstLesson = {
+                                        if (currentActiveDeck != null) {
+                                            onStudyDeck(currentActiveDeck)
+                                        } else {
+                                            onStudyByLang(selectedLanguage.code)
                                         }
-                                    )
-                                } else {
-                                    // 3b. Returning user Mascot Banner
-                                    StreakMascotBanner(
-                                        streakDays = streakDays,
-                                        onBannerClick = { showStatsDialog = true }
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                // 4. QUICK ACTION GRID: "Tạo bộ thẻ", "Ôn tập", "Thống kê", "Đã lưu"
-                                QuickActionGrid(
-                                    onCreateDeck = { showCreateDeckDialog = true },
-                                    onReviewCards = { showReviewOverlay = true },
-                                    onViewStats = { showStatsDialog = true },
-                                    onViewSaved = { showSavedCardsDialog = true }
+                                    }
                                 )
+                            } else {
+                                // 2b. Returning user Mascot Banner
+                                StreakMascotBanner(
+                                    streakDays = streakDays,
+                                    onBannerClick = { showStatsDialog = true }
+                                )
+                            }
 
-                                Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // 3. QUICK ACTION GRID: "Tạo bộ thẻ", "Ôn tập", "Thống kê", "Đã lưu"
+                            QuickActionGrid(
+                                onCreateDeck = { showCreateDeckDialog = true },
+                                onReviewCards = { showReviewOverlay = true },
+                                onViewStats = { showStatsDialog = true },
+                                onViewSaved = { showSavedCardsDialog = true }
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
 
                                 // 5. "Tiếp tục học" SECTION: Dynamic active language/deck
-                                val studiedCount = if (masteredWordsCount > 0) {
-                                    masteredWordsCount
-                                } else {
-                                    ((currentActiveDeck?.cardCount ?: 50) * 0.45f).toInt().coerceAtLeast(1)
+                                val studiedCount = remember(masteredWordsCount, currentActiveDeck) {
+                                    if (masteredWordsCount > 0) {
+                                        masteredWordsCount
+                                    } else {
+                                        ((currentActiveDeck?.cardCount ?: 50) * 0.45f).toInt().coerceAtLeast(1)
+                                    }
                                 }
-                                val totalCount = currentActiveDeck?.cardCount?.takeIf { it > 0 } ?: totalWordsCount.takeIf { it > 0 } ?: 50
+                                val totalCount = remember(currentActiveDeck, totalWordsCount) {
+                                    currentActiveDeck?.cardCount?.takeIf { it > 0 } ?: totalWordsCount.takeIf { it > 0 } ?: 50
+                                }
 
                                 ContinueLearningSection(
                                     title = currentActiveDeck?.title ?: "${selectedLanguage.displayName} cơ bản",
@@ -298,8 +284,11 @@ fun HomeScreen(
                                 }
 
                                 // 6. "Bộ thẻ của bạn" SECTION: Multi-language chips + Add Language + Deck Cards
+                                val yourDecks = remember(decks, effectiveDecks, selectedLanguage.code) {
+                                    decks.ifEmpty { effectiveDecks.filter { it.languageCode == selectedLanguage.code } }
+                                }
                                 YourDecksSection(
-                                    decks = decks.ifEmpty { effectiveDecks.filter { it.languageCode == selectedLanguage.code } },
+                                    decks = yourDecks,
                                     learningLanguages = learningLanguages,
                                     selectedLanguage = selectedLanguage,
                                     onSelectLanguage = onSelectLanguage,
@@ -327,7 +316,6 @@ fun HomeScreen(
                                 )
 
                                 Spacer(modifier = Modifier.height(10.dp))
-                            }
                         }
                     }
 
@@ -385,6 +373,71 @@ fun HomeScreen(
                 }
             )
         }
+
+        // FLOATING SCROLL BUTTON: Mũi tên dạng thẳng (<-) góc phải chuyển đổi linh hoạt (Xuống dưới / Lên đầu trang)
+        val isScrollable by remember { derivedStateOf { homeScrollState.maxValue > 80 } }
+        val isNearBottom by remember { derivedStateOf { homeScrollState.maxValue > 0 && homeScrollState.value >= (homeScrollState.maxValue * 0.6f) } }
+        val showScrollButton by remember { derivedStateOf { selectedBottomTab == 0 && !showReviewOverlay && isScrollable } }
+        val arrowRotation by animateFloatAsState(
+            targetValue = if (isNearBottom) 90f else -90f,
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+            ),
+            label = "arrow_rotation"
+        )
+
+        AnimatedVisibility(
+            visible = showScrollButton,
+            enter = fadeIn(androidx.compose.animation.core.tween(200)) + scaleIn(androidx.compose.animation.core.tween(200)),
+            exit = fadeOut(androidx.compose.animation.core.tween(150)) + scaleOut(androidx.compose.animation.core.tween(150)),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 80.dp)
+        ) {
+            Surface(
+                onClick = {
+                    coroutineScope.launch {
+                        if (isNearBottom) {
+                            // Khi đang ở phía dưới cùng -> cuộn mượt lên đầu trang
+                            homeScrollState.animateScrollTo(
+                                0,
+                                animationSpec = androidx.compose.animation.core.tween(450, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                            )
+                        } else {
+                            // Khi đang ở phía trên -> cuộn mượt xuống cuối trang
+                            homeScrollState.animateScrollTo(
+                                homeScrollState.maxValue,
+                                animationSpec = androidx.compose.animation.core.tween(450, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                            )
+                        }
+                    }
+                },
+                shape = CircleShape,
+                color = Color(0xFF0284C7),
+                shadowElevation = 8.dp,
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color.White),
+                modifier = Modifier
+                    .size(48.dp)
+                    .testTag("btn_scroll_navigation")
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = if (isNearBottom) "Cuộn lên đầu trang" else "Cuộn xuống cuối trang",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(26.dp)
+                            .graphicsLayer {
+                                rotationZ = arrowRotation
+                            }
+                    )
+                }
+            }
+        }
     }
 
     // ----------------------------------------------------
@@ -422,7 +475,7 @@ fun HomeScreen(
             allCards = allCardsList,
             onDismiss = { showCreateDeckDialog = false },
             onSave = { deck, selectedCards ->
-                onCreateDeckDirect(deck.title, deck.subtitle, deck.languageCode, deck.level, selectedCards)
+                onCreateDeckDirect(deck, selectedCards)
                 showCreateDeckDialog = false
             }
         )
@@ -523,11 +576,19 @@ fun HomeScreen(
     // View All Decks / Continue Learning by Languages Bottom Sheet
     if (showAllDecksSheet) {
         var sheetLangFilter by remember { mutableStateOf<String?>(null) }
-        val distinctLangCodes = remember(effectiveDecks) {
-            effectiveDecks.map { it.languageCode }.distinct()
+        val learningLangCodes = remember(learningLanguages) {
+            learningLanguages.map { it.code }.toSet()
         }
-        val displayedDecks = remember(sheetLangFilter, effectiveDecks) {
-            if (sheetLangFilter == null) effectiveDecks else effectiveDecks.filter { it.languageCode == sheetLangFilter }
+        val userLearningDecks = remember(effectiveDecks, learningLangCodes) {
+            effectiveDecks.filter { it.languageCode in learningLangCodes }
+        }
+        val distinctLangCodes = remember(userLearningDecks, learningLanguages) {
+            learningLanguages.map { it.code }.filter { code ->
+                userLearningDecks.any { it.languageCode == code }
+            }
+        }
+        val displayedDecks = remember(sheetLangFilter, userLearningDecks) {
+            if (sheetLangFilter == null) userLearningDecks else userLearningDecks.filter { it.languageCode == sheetLangFilter }
         }
         val decksByLanguage = remember(displayedDecks) {
             displayedDecks.groupBy { it.languageCode }
@@ -566,7 +627,7 @@ fun HomeScreen(
                                 val lang = distinctLangCodes.firstOrNull()?.let { AppLanguage.fromCode(it) } ?: selectedLanguage
                                 "Đang học ${lang.displayName} (${displayedDecks.size} bộ thẻ)"
                             } else {
-                                "Đang học ${distinctLangCodes.size} ngôn ngữ (${effectiveDecks.size} bộ thẻ)"
+                                "Đang học ${distinctLangCodes.size} ngôn ngữ (${userLearningDecks.size} bộ thẻ)"
                             },
                             fontSize = 13.sp,
                             color = Color(0xFF64748B)
@@ -599,7 +660,8 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         // "Tất cả" chip
                         val isAllSelected = sheetLangFilter == null
@@ -614,7 +676,7 @@ fun HomeScreen(
                             shadowElevation = if (isAllSelected) 2.dp else 0.dp
                         ) {
                             Text(
-                                text = "🌐 Tất cả (${effectiveDecks.size})",
+                                text = "🌐 Tất cả (${userLearningDecks.size})",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isAllSelected) Color.White else Color(0xFF475569),
@@ -626,7 +688,7 @@ fun HomeScreen(
                         distinctLangCodes.forEach { langCode ->
                             val lang = AppLanguage.fromCode(langCode)
                             val isSelected = sheetLangFilter == langCode
-                            val count = effectiveDecks.count { it.languageCode == langCode }
+                            val count = userLearningDecks.count { it.languageCode == langCode }
 
                             Surface(
                                 onClick = { sheetLangFilter = langCode },
@@ -644,6 +706,36 @@ fun HomeScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) Color.White else Color(0xFF475569),
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+
+                        // ➕ Add Language button in sheet
+                        Surface(
+                            onClick = {
+                                showAllDecksSheet = false
+                                showAddLanguageSheet = true
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFF0FDF4),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Thêm ngôn ngữ",
+                                    tint = Color(0xFF16A34A),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Thêm ngôn ngữ",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF16A34A)
                                 )
                             }
                         }
@@ -905,7 +997,7 @@ private fun DeckListCard(
 }
 
 /**
- * Tab 1: Khám phá
+ * Tab 1: Khám phá & Tìm kiếm chủ đề
  */
 @Composable
 private fun ExploreDecksTab(
@@ -918,6 +1010,52 @@ private fun ExploreDecksTab(
     onMatchDeck: (DeckEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var exploreSearchQuery by remember { mutableStateOf("") }
+    var selectedTopicCategory by remember { mutableStateOf("Tất cả") }
+
+    val topicCategories = listOf(
+        "Tất cả",
+        "Giao tiếp",
+        "Du lịch",
+        "Công việc & Kinh doanh",
+        "Học thuật & Thi cử",
+        "Ẩm thực",
+        "Đời sống & Hàng ngày"
+    )
+
+    // Filter decks by language first, then search query and topic category
+    val languageDecks = remember(decks, selectedLanguage.code) {
+        decks.filter { it.languageCode == selectedLanguage.code }
+    }
+
+    val displayedDecks = remember(languageDecks, exploreSearchQuery, selectedTopicCategory) {
+        languageDecks.filter { deck ->
+            val matchesQuery = if (exploreSearchQuery.isBlank()) {
+                true
+            } else {
+                deck.title.contains(exploreSearchQuery, ignoreCase = true) ||
+                deck.subtitle.contains(exploreSearchQuery, ignoreCase = true) ||
+                deck.level.contains(exploreSearchQuery, ignoreCase = true)
+            }
+
+            val matchesTopic = if (selectedTopicCategory == "Tất cả") {
+                true
+            } else {
+                when (selectedTopicCategory) {
+                    "Giao tiếp" -> deck.title.contains("giao tiếp", ignoreCase = true) || deck.subtitle.contains("giao tiếp", ignoreCase = true) || deck.title.contains("chào hỏi", ignoreCase = true)
+                    "Du lịch" -> deck.title.contains("du lịch", ignoreCase = true) || deck.subtitle.contains("du lịch", ignoreCase = true) || deck.title.contains("sân bay", ignoreCase = true) || deck.title.contains("khách sạn", ignoreCase = true)
+                    "Công việc & Kinh doanh" -> deck.title.contains("công việc", ignoreCase = true) || deck.title.contains("kinh doanh", ignoreCase = true) || deck.title.contains("văn phòng", ignoreCase = true) || deck.title.contains("business", ignoreCase = true)
+                    "Học thuật & Thi cử" -> deck.title.contains("ielts", ignoreCase = true) || deck.title.contains("toeic", ignoreCase = true) || deck.title.contains("hsk", ignoreCase = true) || deck.title.contains("jlpt", ignoreCase = true) || deck.title.contains("topik", ignoreCase = true) || deck.level.contains("Nâng cao", ignoreCase = true)
+                    "Ẩm thực" -> deck.title.contains("ăn", ignoreCase = true) || deck.title.contains("uống", ignoreCase = true) || deck.title.contains("ẩm thực", ignoreCase = true) || deck.title.contains("món", ignoreCase = true)
+                    "Đời sống & Hàng ngày" -> deck.title.contains("hàng ngày", ignoreCase = true) || deck.title.contains("cơ bản", ignoreCase = true) || deck.title.contains("đời sống", ignoreCase = true)
+                    else -> true
+                }
+            }
+
+            matchesQuery && matchesTopic
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -931,14 +1069,31 @@ private fun ExploreDecksTab(
             color = Color(0xFF0F172A)
         )
         Text(
-            text = "Chọn ngôn ngữ để học các bộ thẻ chuyên sâu",
+            text = "Tìm kiếm chủ đề và bộ thẻ theo ngôn ngữ",
             fontSize = 13.sp,
             color = Color(0xFF64748B)
         )
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Horizontal Language selector chips
+        // 1. SEARCH BAR: "Tìm kiếm bộ thẻ, chủ đề..."
+        HomeSearchBar(
+            query = exploreSearchQuery,
+            onQueryChange = { exploreSearchQuery = it },
+            onFilterClick = { /* Clear or focus */ },
+            modifier = Modifier.padding(horizontal = 0.dp)
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 2. Horizontal Language selector chips
+        Text(
+            text = "Ngôn ngữ học tập",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF475569)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -975,27 +1130,108 @@ private fun ExploreDecksTab(
             }
         }
 
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 3. Topic Category Filter Chips
+        Text(
+            text = "Chủ đề thẻ từ vựng",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF475569)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            topicCategories.forEach { category ->
+                val isSelected = selectedTopicCategory == category
+                Surface(
+                    onClick = { selectedTopicCategory = category },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected) Color(0xFFE0F2FE) else Color.White,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isSelected) Color(0xFF0284C7) else Color(0xFFE2E8F0)
+                    )
+                ) {
+                    Text(
+                        text = category,
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) Color(0xFF0284C7) else Color(0xFF64748B),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        decks.forEach { deck ->
-            DeckListCard(
-                deck = deck,
-                onClickDetail = { onOpenDeckDetail(deck) },
-                onStudy = { onStudyDeck(deck) },
-                onQuiz = { onQuizDeck(deck) },
-                onMatch = { onMatchDeck(deck) }
-            )
+        // 4. Deck list or search results
+        if (displayedDecks.isEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("🔍", fontSize = 36.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (exploreSearchQuery.isNotBlank()) "Không tìm thấy bộ thẻ phù hợp với \"$exploreSearchQuery\"" else "Chưa có bộ thẻ cho chủ đề này",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF64748B),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Danh sách bộ thẻ (${displayedDecks.size})",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+            }
             Spacer(modifier = Modifier.height(10.dp))
+
+            displayedDecks.forEach { deck ->
+                DeckListCard(
+                    deck = deck,
+                    onClickDetail = { onOpenDeckDetail(deck) },
+                    onStudy = { onStudyDeck(deck) },
+                    onQuiz = { onQuizDeck(deck) },
+                    onMatch = { onMatchDeck(deck) }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
         }
     }
 }
 
 /**
- * Tab 2: Ôn tập
+ * Tab 2: Ôn tập & Rèn luyện
  */
 @Composable
 private fun ReviewHistoryTab(
     decks: List<DeckEntity>,
+    learningLanguages: List<AppLanguage> = listOf(AppLanguage.ENGLISH),
+    selectedLanguage: AppLanguage = AppLanguage.ENGLISH,
     onOpenDeckDetail: (DeckEntity) -> Unit = {},
     onStudyDeck: (DeckEntity) -> Unit,
     onQuizDeck: (DeckEntity) -> Unit,
@@ -1004,6 +1240,22 @@ private fun ReviewHistoryTab(
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    var selectedLangFilter by remember { mutableStateOf<String?>(null) }
+    val learningLangCodes = remember(learningLanguages) {
+        learningLanguages.map { it.code }.toSet()
+    }
+    val userLearningDecks = remember(decks, learningLangCodes) {
+        decks.filter { it.languageCode in learningLangCodes }
+    }
+    val distinctLangCodes = remember(userLearningDecks, learningLanguages) {
+        learningLanguages.map { it.code }.filter { code ->
+            userLearningDecks.any { it.languageCode == code }
+        }
+    }
+    val displayedDecks = remember(selectedLangFilter, userLearningDecks) {
+        if (selectedLangFilter == null) userLearningDecks else userLearningDecks.filter { it.languageCode == selectedLangFilter }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -1034,14 +1286,79 @@ private fun ReviewHistoryTab(
                     color = Color(0xFF1E1B4B)
                 )
                 Text(
-                    text = "Ôn lại các từ cần củng cố theo thuật toán lặp lại ngắt quãng",
+                    text = if (distinctLangCodes.size <= 1) {
+                        val lang = distinctLangCodes.firstOrNull()?.let { AppLanguage.fromCode(it) } ?: selectedLanguage
+                        "Đang ôn tập ${lang.displayName} (${displayedDecks.size} bộ thẻ)"
+                    } else {
+                        "Đang ôn tập ${distinctLangCodes.size} ngôn ngữ (${userLearningDecks.size} bộ thẻ)"
+                    },
                     fontSize = 13.sp,
                     color = Color(0xFF64748B)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Language Filter Chips (Synchronized with Homepage learning languages)
+        if (distinctLangCodes.size > 1) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // "Tất cả" chip
+                val isAllSelected = selectedLangFilter == null
+                Surface(
+                    onClick = { selectedLangFilter = null },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isAllSelected) Color(0xFF0284C7) else Color.White,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isAllSelected) Color(0xFF0284C7) else Color(0xFFE2E8F0)
+                    ),
+                    shadowElevation = if (isAllSelected) 2.dp else 0.dp
+                ) {
+                    Text(
+                        text = "🌐 Tất cả (${userLearningDecks.size})",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isAllSelected) Color.White else Color(0xFF475569),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
+                }
+
+                // Each language chip
+                distinctLangCodes.forEach { langCode ->
+                    val lang = AppLanguage.fromCode(langCode)
+                    val isSelected = selectedLangFilter == langCode
+                    val count = userLearningDecks.count { it.languageCode == langCode }
+
+                    Surface(
+                        onClick = { selectedLangFilter = langCode },
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isSelected) Color(0xFF0284C7) else Color.White,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isSelected) Color(0xFF0284C7) else Color(0xFFE2E8F0)
+                        ),
+                        shadowElevation = if (isSelected) 2.dp else 0.dp
+                    ) {
+                        Text(
+                            text = "${lang.flagEmoji} ${lang.displayName} ($count)",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color.White else Color(0xFF475569),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+        }
 
         // Saved Starred Vocabulary Banner
         Surface(
@@ -1092,15 +1409,45 @@ private fun ReviewHistoryTab(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        decks.take(3).forEach { deck ->
-            DeckListCard(
-                deck = deck,
-                onClickDetail = { onOpenDeckDetail(deck) },
-                onStudy = { onStudyDeck(deck) },
-                onQuiz = { onQuizDeck(deck) },
-                onMatch = { onMatchDeck(deck) }
-            )
-            Spacer(modifier = Modifier.height(10.dp))
+        if (displayedDecks.isEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("📚", fontSize = 32.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Chưa có bộ thẻ nào cần ôn",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color(0xFF1E1B4B)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Hãy thêm ngôn ngữ mới hoặc học thêm các bài để bắt đầu ôn tập.",
+                        fontSize = 13.sp,
+                        color = Color(0xFF64748B),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            displayedDecks.forEach { deck ->
+                DeckListCard(
+                    deck = deck,
+                    onClickDetail = { onOpenDeckDetail(deck) },
+                    onStudy = { onStudyDeck(deck) },
+                    onQuiz = { onQuizDeck(deck) },
+                    onMatch = { onMatchDeck(deck) }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
         }
     }
 }

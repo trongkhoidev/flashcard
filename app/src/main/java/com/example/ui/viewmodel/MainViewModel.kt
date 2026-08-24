@@ -29,6 +29,8 @@ sealed class ScreenState {
     data class Quiz(val deck: DeckEntity, val cards: List<FlashCardEntity>) : ScreenState()
     data class Match(val deck: DeckEntity, val cards: List<FlashCardEntity>) : ScreenState()
     data class Starred(val cards: List<FlashCardEntity>) : ScreenState()
+    data class OnboardingTrialStudy(val language: AppLanguage, val cards: List<FlashCardEntity>) : ScreenState()
+    data class OnboardingTrialQuiz(val language: AppLanguage, val cards: List<FlashCardEntity>) : ScreenState()
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -117,6 +119,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun navigateTo(screen: ScreenState) {
         _currentScreen.value = screen
+    }
+
+    fun setInitialLearningLanguage(language: AppLanguage) {
+        _selectedLanguage.value = language
+        _learningLanguages.value = listOf(language)
+        viewModelScope.launch {
+            repository.addLearningLanguage(language)
+            repository.switchActiveLanguage(language.code)
+        }
     }
 
     fun selectLanguage(language: AppLanguage) {
@@ -464,6 +475,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             cardCount = cards.size
         )
         _currentScreen.value = ScreenState.Match(customDeck, cards)
+    }
+
+    fun startOnboardingTrial(language: AppLanguage, reminderHour: Int) {
+        _selectedLanguage.value = language
+        _learningLanguages.value = listOf(language)
+        updateStudySchedule(reminderHour)
+        val trialCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(language)
+        _currentScreen.value = ScreenState.OnboardingTrialStudy(language, trialCards)
+    }
+
+    fun startOnboardingTrialQuiz(language: AppLanguage, cards: List<FlashCardEntity>) {
+        _currentScreen.value = ScreenState.OnboardingTrialQuiz(language, cards)
+    }
+
+    fun finishOnboardingTrialAndGoToAuth() {
+        _currentScreen.value = ScreenState.Register
+    }
+
+    fun completeTrialRegistration(username: String) {
+        updateUserName(username)
+        viewModelScope.launch {
+            val currentLang = _selectedLanguage.value
+            val starterCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(currentLang)
+            repository.addLearningLanguage(currentLang)
+            repository.switchActiveLanguage(currentLang.code)
+            starterCards.forEach { card ->
+                repository.insertCard(card.copy(id = 0L))
+            }
+        }
+        _streakDays.value = 1
+        _currentScreen.value = ScreenState.Home
     }
 
     override fun onCleared() {

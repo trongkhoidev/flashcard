@@ -82,7 +82,7 @@ class SmartNotificationEngine(private val context: Context) {
             message = "Chào $userName, hệ thống ghi nhận bạn đã học $dueWordsCount từ hôm nay và giữ vững chuỗi $streakDays ngày!"
         } else if (dueWordsCount >= schedule.minWordsThreshold && streakDays > 0) {
             // Case A: Có từ cần ôn VÀ có streak -> Gộp thông báo thông minh
-            title = "🔥 Giữ chuỗi $streakDays ngày cùng NTK FlashCard!"
+            title = "🔥 Giữ vững chuỗi $streakDays ngày!"
             message = "Chào $userName, bạn có $dueWordsCount từ cần ôn hôm nay. Hãy hoàn thành 1 bài học ngắn để giữ vững streak nhé!"
         } else if (dueWordsCount >= schedule.minWordsThreshold) {
             // Case B: Có từ cần ôn, chưa có streak
@@ -95,7 +95,7 @@ class SmartNotificationEngine(private val context: Context) {
         } else {
             // Case D: Nhắc nhở chung nếu được cấu hình
             title = "📖 Thời gian học từ vựng lý tưởng"
-            message = "Dành một vài phút khám phá các chủ đề từ vựng mới hôm nay cùng NTK FlashCard!"
+            message = "Dành một vài phút khám phá các chủ đề từ vựng mới cùng bài học hôm nay!"
         }
 
         // 6. Gửi Notification hệ thống

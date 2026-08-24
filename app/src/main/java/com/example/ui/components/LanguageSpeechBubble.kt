@@ -47,7 +47,7 @@ fun LanguageSpeechBubble(
     onClick: () -> Unit = {}
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "bubble_float_$text")
-    val floatY by infiniteTransition.animateFloat(
+    val floatY = infiniteTransition.animateFloat(
         initialValue = -floatOffset,
         targetValue = floatOffset,
         animationSpec = infiniteRepeatable(
@@ -60,7 +60,7 @@ fun LanguageSpeechBubble(
     Box(
         modifier = modifier
             .graphicsLayer {
-                translationY = floatY.dp.toPx()
+                translationY = floatY.value.dp.toPx()
             }
             .clickable { onClick() }
             .testTag("bubble_$text")

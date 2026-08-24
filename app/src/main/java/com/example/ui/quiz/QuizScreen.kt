@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -113,6 +114,8 @@ fun QuizScreen(
     deckTitle: String,
     languageTag: String,
     cards: List<FlashCardEntity>,
+    allowBack: Boolean = true,
+    isOnboardingTrial: Boolean = false,
     onBack: () -> Unit,
     onSpeak: (String, String) -> Unit,
     onFinishQuiz: (score: Int, total: Int, wrongCards: List<FlashCardEntity>) -> Unit,
@@ -120,6 +123,7 @@ fun QuizScreen(
     onAnswerWrong: ((FlashCardEntity) -> Unit)? = null,
     onStudyWrongCards: ((List<FlashCardEntity>) -> Unit)? = null,
     onStudyNext: (() -> Unit)? = null,
+    onCompleteTrial: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (cards.size < 2) {
@@ -260,14 +264,19 @@ fun QuizScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color.White, CircleShape)
-                            .shadow(2.dp, CircleShape)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                    if (allowBack) {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color.White, CircleShape)
+                                .shadow(2.dp, CircleShape)
+                                .testTag("btn_back_quiz")
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.size(40.dp))
                     }
 
                     Text(
@@ -818,154 +827,192 @@ fun QuizScreen(
                         }
                     }
 
-                    // 1. UNMASTERED / WRONG CARDS REVIEW SECTION (TỰ ĐỘNG TẠO BỘ CARD CHƯA THUỘC ĐỂ HỌC LẠI)
-                    if (wrongCards.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Surface(
+                    if (isOnboardingTrial) {
+                        // In first-time trial mode: ONLY ONE "Tiếp tục" button as requested
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Button(
+                            onClick = {
+                                onCompleteTrial?.invoke()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp)
+                                .shadow(8.dp, RoundedCornerShape(16.dp), spotColor = NTKPrimary.copy(alpha = 0.5f))
+                                .testTag("btn_trial_quiz_continue"),
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFFEF2F2),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFEF4444)),
-                            modifier = Modifier.fillMaxWidth()
+                            colors = ButtonDefaults.buttonColors(containerColor = NTKPrimary)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("⚠️", fontSize = 18.sp)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Có ${wrongCards.size} từ chưa thuộc",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFB91C1C)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Đã tự động tạo bộ thẻ \"⚠️ Cần ôn: $deckTitle\" để bạn rèn luyện.",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF7F1D1D),
-                                    textAlign = TextAlign.Center
+                                    text = "Tiếp tục",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
-                                // Preview wrong words
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 4.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        // 1. UNMASTERED / WRONG CARDS REVIEW SECTION (TỰ ĐỘNG TẠO BỘ CARD CHƯA THUỘC ĐỂ HỌC LẠI)
+                        if (wrongCards.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFFFEF2F2),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFEF4444)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("⚠️", fontSize = 18.sp)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Có ${wrongCards.size} từ chưa thuộc",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFB91C1C)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = wrongCards.take(4).joinToString(", ") { it.frontWord } + if (wrongCards.size > 4) " (+${wrongCards.size - 4})" else "",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFFDC2626),
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        text = "Đã tự động tạo bộ thẻ \"⚠️ Cần ôn: $deckTitle\" để bạn rèn luyện.",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF7F1D1D),
+                                        textAlign = TextAlign.Center
                                     )
-                                }
-                                
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Button(
-                                    onClick = {
-                                        onStudyWrongCards?.invoke(wrongCards.toList())
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(46.dp)
-                                        .testTag("btn_study_wrong_cards"),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
-                                ) {
-                                    Text("🔥 Học lại ${wrongCards.size} từ chưa thuộc ngay", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                    // Preview wrong words
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 4.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = wrongCards.take(4).joinToString(", ") { it.frontWord } + if (wrongCards.size > 4) " (+${wrongCards.size - 4})" else "",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFFDC2626),
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Button(
+                                        onClick = {
+                                            onStudyWrongCards?.invoke(wrongCards.toList())
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(46.dp)
+                                            .testTag("btn_study_wrong_cards"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                                    ) {
+                                        Text("🔥 Học lại ${wrongCards.size} từ chưa thuộc ngay", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // 2. PASS >= 50% SUGGESTION CARD (Nếu đã đạt điểm tốt)
-                    if (accuracy >= 50 && wrongCards.isEmpty()) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFF0F9FF),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF0284C7)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                        // 2. PASS >= 50% SUGGESTION CARD (Nếu đã đạt điểm tốt)
+                        if (accuracy >= 50 && wrongCards.isEmpty()) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFFF0F9FF),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF0284C7)),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("🎉", fontSize = 18.sp)
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("🎉", fontSize = 18.sp)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Bạn có muốn học card tiếp theo không?",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0369A1)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Bạn có muốn học card tiếp theo không?",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0369A1)
+                                        text = "Đạt $accuracy% - Kết quả xuất sắc! Giữ đà học tập để làm chủ toàn bộ từ vựng.",
+                                        fontSize = 12.sp,
+                                        color = NTKTextSecondary,
+                                        textAlign = TextAlign.Center
                                     )
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Đạt $accuracy% - Kết quả xuất sắc! Giữ đà học tập để làm chủ toàn bộ từ vựng.",
-                                    fontSize = 12.sp,
-                                    color = NTKTextSecondary,
-                                    textAlign = TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Button(
-                                    onClick = {
-                                        onStudyNext?.invoke()
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(46.dp)
-                                        .testTag("btn_study_next_card"),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
-                                ) {
-                                    Text("🎴 Học card tiếp theo ngay", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Button(
+                                        onClick = {
+                                            onStudyNext?.invoke()
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(46.dp)
+                                            .testTag("btn_study_next_card"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                                    ) {
+                                        Text("🎴 Học card tiếp theo ngay", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    Button(
-                        onClick = {
-                            currentIndex = 0
-                            score = 0
-                            totalPoints = 0
-                            currentStreak = 0
-                            maxStreak = 0
-                            selectedOption = null
-                            isAnswerSubmitted = false
-                            isQuizCompleted = false
-                            popupTrigger = 0
-                            wrongCards.clear()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = if (accuracy >= 50 && wrongCards.isEmpty()) ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9), contentColor = NTKTextPrimary) else ButtonDefaults.buttonColors(containerColor = NTKPrimary)
-                    ) {
-                        Text("Làm lại bài kiểm tra", fontWeight = FontWeight.Bold)
-                    }
+                        Button(
+                            onClick = {
+                                currentIndex = 0
+                                score = 0
+                                totalPoints = 0
+                                currentStreak = 0
+                                maxStreak = 0
+                                selectedOption = null
+                                isAnswerSubmitted = false
+                                isQuizCompleted = false
+                                popupTrigger = 0
+                                wrongCards.clear()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = if (accuracy >= 50 && wrongCards.isEmpty()) ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9), contentColor = NTKTextPrimary) else ButtonDefaults.buttonColors(containerColor = NTKPrimary)
+                        ) {
+                            Text("Làm lại bài kiểm tra", fontWeight = FontWeight.Bold)
+                        }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    TextButton(onClick = onBack) {
-                        Text("Trở về danh sách bài học", color = NTKTextSecondary)
+                        TextButton(onClick = onBack) {
+                            Text("Trở về danh sách bài học", color = NTKTextSecondary)
+                        }
                     }
                 }
             }

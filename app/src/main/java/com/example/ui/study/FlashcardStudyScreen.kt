@@ -86,6 +86,8 @@ fun FlashcardStudyScreen(
     languageTag: String,
     cards: List<FlashCardEntity>,
     userVipLevel: Int = 0,
+    allowBack: Boolean = true,
+    isOnboardingTrial: Boolean = false,
     onBack: () -> Unit,
     onSpeak: (String, String) -> Unit,
     onToggleStar: (Long, Boolean) -> Unit,
@@ -113,6 +115,17 @@ fun FlashcardStudyScreen(
         if (toastMessage != null) {
             delay(1500)
             toastMessage = null
+        }
+    }
+
+    // Auto-pronounce word when card appears initially or on navigation (when not in auto-play mode)
+    LaunchedEffect(currentIndex, cardList) {
+        if (!isAutoPlay && !isCompleted && cardList.isNotEmpty()) {
+            val currentCard = cardList.getOrNull(currentIndex)
+            if (currentCard != null) {
+                delay(300)
+                onSpeak(currentCard.frontWord, languageTag)
+            }
         }
     }
 
@@ -188,19 +201,23 @@ fun FlashcardStudyScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .background(Color.White, CircleShape)
-                            .shadow(2.dp, CircleShape)
-                            .testTag("btn_back_study")
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Quay lại",
-                            tint = NTKTextPrimary
-                        )
+                    if (allowBack) {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .size(42.dp)
+                                .background(Color.White, CircleShape)
+                                .shadow(2.dp, CircleShape)
+                                .testTag("btn_back_study")
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Quay lại",
+                                tint = NTKTextPrimary
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.size(42.dp))
                     }
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -262,12 +279,12 @@ fun FlashcardStudyScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    // 1. VIBRANT ACTION BUTTONS (Situated directly above the card: Trộn thẻ | Lưu từ điển | Mặt trước/sau)
+                    // 1. VIBRANT ACTION BUTTONS (Situated directly above the card: Trộn thẻ | Lưu từ điển)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // VIBRANT SHUFFLE BUTTON (Warm Golden Amber Theme)
@@ -286,7 +303,7 @@ fun FlashcardStudyScreen(
                                 .testTag("btn_shuffle_cards")
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
@@ -294,12 +311,12 @@ fun FlashcardStudyScreen(
                                     imageVector = Icons.Default.Shuffle,
                                     contentDescription = "Trộn thẻ",
                                     tint = Color(0xFFEA580C),
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Trộn thẻ",
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFC2410C)
                                 )
@@ -317,11 +334,11 @@ fun FlashcardStudyScreen(
                                 if (currentCard.isStarred) Color(0xFFC084FC) else Color(0xFFE9D5FF)
                             ),
                             modifier = Modifier
-                                .weight(1.15f)
+                                .weight(1.2f)
                                 .testTag("btn_save_dictionary")
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
@@ -329,49 +346,14 @@ fun FlashcardStudyScreen(
                                     imageVector = if (currentCard.isStarred) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                                     contentDescription = "Thêm vào Từ điển",
                                     tint = if (currentCard.isStarred) Color(0xFF7E22CE) else Color(0xFF9333EA),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(17.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = if (currentCard.isStarred) "Đã lưu từ" else "+ Lưu từ điển",
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (currentCard.isStarred) Color(0xFF6B21A8) else Color(0xFF7E22CE)
-                                )
-                            }
-                        }
-
-                        // VIBRANT FACE TOGGLE BUTTON (Sky Blue for Front / Emerald for Back)
-                        Surface(
-                            onClick = { isFlipped = !isFlipped },
-                            shape = RoundedCornerShape(18.dp),
-                            color = if (isFlipped) Color(0xFFECFDF5) else Color(0xFFEFF6FF),
-                            shadowElevation = 2.dp,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.2.dp,
-                                if (isFlipped) Color(0xFF86EFAC) else Color(0xFF93C5FD)
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("btn_flip_indicator")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Lật mặt thẻ",
-                                    tint = if (isFlipped) Color(0xFF16A34A) else Color(0xFF2563EB),
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (isFlipped) "Mặt sau" else "Mặt trước",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isFlipped) Color(0xFF15803D) else Color(0xFF1D4ED8)
                                 )
                             }
                         }
@@ -390,39 +372,45 @@ fun FlashcardStudyScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // 3. QUICK STUDY UTILITY ACTIONS (Flip Card, Pronounce, Star)
+                    // 3. QUICK STUDY UTILITY ACTIONS (Face Toggle: Mặt trước | Mặt sau & Phát âm)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Flip Hint & Button
+                        // Face Toggle Button (Mặt trước / Mặt sau)
                         Surface(
                             onClick = { isFlipped = !isFlipped },
                             shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFFF1F5F9),
+                            color = if (isFlipped) Color(0xFFECFDF5) else Color(0xFFEFF6FF),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.2.dp,
+                                if (isFlipped) Color(0xFF86EFAC) else Color(0xFF93C5FD)
+                            ),
                             modifier = Modifier
+                                .weight(1f)
                                 .height(44.dp)
                                 .testTag("btn_flip_card")
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
                                     contentDescription = "Lật thẻ",
-                                    tint = NTKPrimary,
+                                    tint = if (isFlipped) Color(0xFF16A34A) else Color(0xFF2563EB),
                                     modifier = Modifier.size(18.dp)
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (isFlipped) "Xem từ vựng" else "Xem nghĩa & ví dụ",
+                                    text = if (isFlipped) "Mặt sau" else "Mặt trước",
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = NTKTextPrimary
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isFlipped) Color(0xFF15803D) else Color(0xFF1D4ED8)
                                 )
                             }
                         }
@@ -435,14 +423,16 @@ fun FlashcardStudyScreen(
                             },
                             shape = RoundedCornerShape(14.dp),
                             color = NTKPrimary.copy(alpha = 0.1f),
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, NTKPrimary.copy(alpha = 0.3f)),
                             modifier = Modifier
+                                .weight(1f)
                                 .height(44.dp)
                                 .testTag("btn_speak_word")
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.VolumeUp,
@@ -450,10 +440,11 @@ fun FlashcardStudyScreen(
                                     tint = NTKPrimary,
                                     modifier = Modifier.size(18.dp)
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Phát âm",
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Bold,
                                     color = NTKPrimary
                                 )
                             }
@@ -506,15 +497,21 @@ fun FlashcardStudyScreen(
                             )
                         }
 
-                        // Next Card / Complete Button
+                        // Next Card / Flip / Complete Button
                         val isLastCard = currentIndex >= cardList.size - 1
                         Button(
                             onClick = {
-                                if (!isLastCard) {
-                                    currentIndex++
-                                    isFlipped = false
+                                if (!isFlipped) {
+                                    // Phải lật thẻ xem nghĩa trước khi sang thẻ khác
+                                    isFlipped = true
                                 } else {
-                                    isCompleted = true
+                                    // Khi đã lật xem nghĩa rồi mới chuyển sang thẻ tiếp theo
+                                    if (!isLastCard) {
+                                        currentIndex++
+                                        isFlipped = false
+                                    } else {
+                                        isCompleted = true
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -523,24 +520,37 @@ fun FlashcardStudyScreen(
                                 .shadow(
                                     elevation = 4.dp,
                                     shape = RoundedCornerShape(18.dp),
-                                    spotColor = if (isLastCard) Color(0x3310B981) else Color(0x336366F1)
+                                    spotColor = if (isFlipped && isLastCard) Color(0x3310B981) else Color(0x336366F1)
                                 )
                                 .testTag("btn_next_card"),
                             shape = RoundedCornerShape(18.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isLastCard) Color(0xFF10B981) else NTKPrimary
+                                containerColor = when {
+                                    isFlipped && isLastCard -> Color(0xFF10B981)
+                                    !isFlipped -> Color(0xFF2563EB)
+                                    else -> NTKPrimary
+                                }
                             )
                         ) {
+                            val buttonText = when {
+                                !isFlipped -> "Lật xem nghĩa"
+                                isLastCard -> "Hoàn thành ✓"
+                                else -> "Thẻ tiếp theo"
+                            }
                             Text(
-                                text = if (isLastCard) "Hoàn thành ✓" else "Thẻ tiếp",
+                                text = buttonText,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
-                                imageVector = if (isLastCard) Icons.Default.CheckCircle else Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = if (isLastCard) "Hoàn thành" else "Thẻ tiếp",
+                                imageVector = when {
+                                    !isFlipped -> Icons.Default.Refresh
+                                    isLastCard -> Icons.Default.CheckCircle
+                                    else -> Icons.AutoMirrored.Filled.ArrowForward
+                                },
+                                contentDescription = buttonText,
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -584,16 +594,21 @@ fun FlashcardStudyScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = "Xuất sắc! Đã hoàn thành!",
-                        fontSize = 20.sp,
+                        text = if (isOnboardingTrial) "Xuất sắc! Đã học xong 5 thẻ đầu tiên 🎉" else "Xuất sắc! Đã hoàn thành!",
+                        fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
-                        color = NTKTextPrimary
+                        color = NTKTextPrimary,
+                        textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "Bạn vừa hoàn thành ôn luyện ${cardList.size} thẻ ghi nhớ trong bộ \"$deckTitle\".",
+                        text = if (isOnboardingTrial) {
+                            "Bạn đã ghi nhớ trọn vẹn 5 từ vựng cơ bản của $deckTitle. Hãy làm bài kiểm tra trắc nghiệm nhanh ngay bây giờ!"
+                        } else {
+                            "Bạn vừa hoàn thành ôn luyện ${cardList.size} thẻ ghi nhớ trong bộ \"$deckTitle\"."
+                        },
                         fontSize = 14.sp,
                         color = NTKTextSecondary,
                         textAlign = TextAlign.Center
@@ -605,33 +620,40 @@ fun FlashcardStudyScreen(
                         onClick = onStartQuiz,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(14.dp),
+                            .height(52.dp)
+                            .shadow(6.dp, RoundedCornerShape(16.dp), spotColor = NTKPrimary.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = NTKPrimary)
                     ) {
-                        Text("⚡ Thử thách Trắc nghiệm ngay", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (isOnboardingTrial) "⚡ Tiếp tục làm bài kiểm tra" else "⚡ Thử thách Trắc nghiệm ngay",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (!isOnboardingTrial) {
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    OutlinedButton(
-                        onClick = {
-                            currentIndex = 0
-                            isFlipped = false
-                            isCompleted = false
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text("Ôn tập lại từ đầu", color = NTKPrimary)
-                    }
+                        OutlinedButton(
+                            onClick = {
+                                currentIndex = 0
+                                isFlipped = false
+                                isCompleted = false
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Ôn tập lại từ đầu", color = NTKPrimary)
+                        }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                    TextButton(onClick = onBack) {
-                        Text("Về trang chủ", color = NTKTextSecondary)
+                        TextButton(onClick = onBack) {
+                            Text("Về trang chủ", color = NTKTextSecondary)
+                        }
                     }
                 }
             }
