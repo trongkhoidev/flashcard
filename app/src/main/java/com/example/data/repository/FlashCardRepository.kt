@@ -165,70 +165,39 @@ class FlashCardRepository(
         cardDao.deleteCardById(id)
     }
 
+    suspend fun deleteCardsByDeckId(deckId: String) = withContext(Dispatchers.IO) {
+        cardDao.deleteCardsByDeckId(deckId)
+    }
+
     suspend fun toggleStar(id: Long, currentStarred: Boolean) = withContext(Dispatchers.IO) {
         cardDao.toggleStar(id, !currentStarred)
     }
 
     /**
-     * Thuật toán Ghi nhớ ngắt quãng (SuperMemo SM-2 Spaced Repetition)
-     * @param rating 1 (Khó/Chưa nhớ) -> 5 (Dễ/Nhớ ngay)
-     * @param isCorrect Đúng hay Sai
+     * Đánh dấu từ vựng ĐÃ THUỘC (Hoàn thành) khi người dùng trả lời đúng trong Quiz
      */
-    suspend fun recordSrsReview(
-        card: FlashCardEntity,
-        rating: Int,
-        isCorrect: Boolean
-    ) = withContext(Dispatchers.IO) {
+    suspend fun markCardMastered(id: Long, langCode: String) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        val dayMs = 24 * 60 * 60 * 1000L
-
-        var newInterval: Int
-        var newEaseFactor: Float = card.srsEaseFactor
-        var newRepetitions: Int = card.srsRepetitions
-        var nextReview: Long
-        var isMastered: Boolean
-
-        if (isCorrect && rating >= 3) {
-            when (newRepetitions) {
-                0 -> newInterval = 1
-                1 -> newInterval = 3
-                2 -> newInterval = 6
-                else -> newInterval = (card.srsInterval * newEaseFactor).toInt().coerceAtLeast(1)
-            }
-            // SM-2 Formula: EF' = EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
-            val q = rating.coerceIn(0, 5)
-            newEaseFactor = (newEaseFactor + (0.1f - (5 - q) * (0.08f + (5 - q) * 0.02f))).coerceAtLeast(1.3f)
-            newRepetitions += 1
-            nextReview = now + (newInterval * dayMs)
-            isMastered = newRepetitions >= 3
-        } else {
-            newRepetitions = 0
-            newInterval = 1
-            nextReview = now + (15 * 60 * 1000L) // Ôn lại sau 15 phút
-            isMastered = false
-        }
-
-        val difficulty = when (rating) {
-            5 -> 1 // Dễ
-            4, 3 -> 2 // Vừa
-            else -> 3 // Khó
-        }
-
-        cardDao.updateSrsReview(
-            id = card.id,
-            isMastered = isMastered,
-            difficulty = difficulty,
-            timestamp = now,
-            nextReviewTimestamp = nextReview,
-            srsInterval = newInterval,
-            srsEaseFactor = newEaseFactor,
-            srsRepetitions = newRepetitions
+        cardDao.recordReview(
+            id = id,
+            mastered = true,
+            difficulty = 1,
+            timestamp = now
         )
+        languageDao.incrementMasteredCount(langCode, increment = 1, timestamp = now)
+    }
 
-        // Cập nhật thống kê ngôn ngữ
-        if (isMastered) {
-            languageDao.incrementMasteredCount(card.languageCode, increment = 1, timestamp = now)
-        }
+    /**
+     * Đánh dấu từ vựng CHƯA THUỘC khi người dùng trả lời sai trong Quiz
+     */
+    suspend fun markCardUnmastered(id: Long) = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        cardDao.recordReview(
+            id = id,
+            mastered = false,
+            difficulty = 3,
+            timestamp = now
+        )
     }
 
     suspend fun recordCardReview(id: Long, difficulty: Int) = withContext(Dispatchers.IO) {

@@ -161,7 +161,6 @@ object NotificationHelper {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_STUDY_REMINDER)
             .setSmallIcon(R.drawable.ic_notification_card)
-            .setSubText("$appName • now 🔔")
             .setShowWhen(true)
             .setWhen(currentTime)
             .setContentTitle(title)
@@ -169,7 +168,6 @@ object NotificationHelper {
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .bigText("$message\n\n🔥 Streak hiện tại: $streakDays ngày  •  📚 Cần ôn: $dueWordsCount từ")
-                    .setSummaryText("NTK FlashCard")
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
@@ -242,12 +240,11 @@ object NotificationHelper {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ACHIEVEMENTS)
             .setSmallIcon(R.drawable.ic_notification_card)
-            .setSubText(appName)
             .setShowWhen(true)
             .setWhen(currentTime)
             .setContentTitle(title)
             .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message).setSummaryText(appName))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)

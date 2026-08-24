@@ -29,6 +29,8 @@ sealed class ScreenState {
     data class Quiz(val deck: DeckEntity, val cards: List<FlashCardEntity>) : ScreenState()
     data class Match(val deck: DeckEntity, val cards: List<FlashCardEntity>) : ScreenState()
     data class Starred(val cards: List<FlashCardEntity>) : ScreenState()
+    data class OnboardingTrialStudy(val language: AppLanguage, val cards: List<FlashCardEntity>) : ScreenState()
+    data class OnboardingTrialQuiz(val language: AppLanguage, val cards: List<FlashCardEntity>) : ScreenState()
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -119,6 +121,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentScreen.value = screen
     }
 
+    fun setInitialLearningLanguage(language: AppLanguage) {
+        _selectedLanguage.value = language
+        _learningLanguages.value = listOf(language)
+        viewModelScope.launch {
+            repository.addLearningLanguage(language)
+            repository.switchActiveLanguage(language.code)
+        }
+    }
+
     fun selectLanguage(language: AppLanguage) {
         _selectedLanguage.value = language
         if (!_learningLanguages.value.contains(language)) {
@@ -137,13 +148,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.addLearningLanguage(language)
             repository.switchActiveLanguage(language.code)
-        }
-    }
-
-    fun recordSrsReview(card: FlashCardEntity, rating: Int, isCorrect: Boolean) {
-        viewModelScope.launch {
-            repository.recordSrsReview(card, rating, isCorrect)
-            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
         }
     }
 
@@ -198,6 +202,122 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
         }
+    }
+
+    fun markCardMastered(cardId: Long, langCode: String) {
+        viewModelScope.launch {
+            repository.markCardMastered(cardId, langCode)
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
+        }
+    }
+
+    fun markCardUnmastered(cardId: Long) {
+        viewModelScope.launch {
+            repository.markCardUnmastered(cardId)
+        }
+    }
+
+    /**
+     * Xử lý hoàn tất bài Quiz:
+     * 1. Đánh dấu các từ trả lời SAI là "Chưa thuộc" (isMastered = false)
+     * 2. Tự động tạo/cập nhật 1 bộ thẻ "Từ chưa thuộc" cho bộ từ vựng đó để người dùng học lại
+     * 3. Lưu lịch sử Quiz và phiên học
+     */
+    fun processQuizResult(
+        deck: DeckEntity,
+        score: Int,
+        total: Int,
+        wrongCards: List<FlashCardEntity>,
+        durationSecs: Int = 90
+    ) {
+        viewModelScope.launch {
+            // 1. Lưu phiên học
+            repository.recordStudySession(
+                com.example.data.model.StudySessionEntity(
+                    deckId = deck.id,
+                    deckTitle = deck.title,
+                    languageCode = deck.languageCode,
+                    cardsStudied = total,
+                    masteredCount = score,
+                    durationSeconds = durationSecs,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+
+            // 2. Lưu kết quả Quiz vào lịch sử
+            val accuracy = if (total > 0) (score.toFloat() / total.toFloat()) * 100f else 0f
+            repository.recordQuizResult(
+                com.example.data.model.QuizRecordEntity(
+                    deckId = deck.id,
+                    deckTitle = deck.title,
+                    mode = "QUIZ",
+                    score = score,
+                    totalQuestions = total,
+                    pointsEarned = score * 100,
+                    maxStreak = score,
+                    accuracyPercent = accuracy,
+                    timeSpentSeconds = durationSecs,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+
+            // 3. Đánh dấu các từ SAI là chưa thuộc trong database
+            wrongCards.forEach { card ->
+                repository.markCardUnmastered(card.id)
+            }
+
+            // 4. Nếu có từ sai, tự động tạo / cập nhật bộ thẻ "Từ chưa thuộc" trong CSDL
+            if (wrongCards.isNotEmpty()) {
+                val unmasteredDeckId = "unmastered_${deck.languageCode}_${deck.id}"
+                val unmasteredDeckTitle = "⚠️ Cần ôn: ${deck.title}"
+                val unmasteredDeck = DeckEntity(
+                    id = unmasteredDeckId,
+                    languageCode = deck.languageCode,
+                    title = unmasteredDeckTitle,
+                    subtitle = "Bộ ôn tập gồm ${wrongCards.size} từ làm sai trong bài kiểm tra",
+                    iconEmoji = "⚠️",
+                    level = "Chưa thuộc",
+                    colorHex = "#EF4444",
+                    cardCount = wrongCards.size,
+                    isCustom = true
+                )
+                repository.insertDeck(unmasteredDeck)
+
+                // Làm mới danh sách thẻ của bộ chưa thuộc
+                repository.deleteCardsByDeckId(unmasteredDeckId)
+                val newCardsForUnmasteredDeck = wrongCards.map { card ->
+                    card.copy(
+                        id = 0L,
+                        deckId = unmasteredDeckId,
+                        isMastered = false,
+                        difficulty = 3,
+                        srsRepetitions = 0,
+                        srsInterval = 1,
+                        nextReviewTimestamp = System.currentTimeMillis()
+                    )
+                }
+                repository.insertCards(newCardsForUnmasteredDeck)
+            }
+
+            // 5. Cập nhật điểm & Widget
+            repository.addPoints(score * 100)
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
+        }
+    }
+
+    fun startStudyUnmasteredDeck(deck: DeckEntity, wrongCards: List<FlashCardEntity>) {
+        val unmasteredDeck = DeckEntity(
+            id = "unmastered_${deck.languageCode}_${deck.id}",
+            languageCode = deck.languageCode,
+            title = "⚠️ Cần ôn: ${deck.title}",
+            subtitle = "Bộ ôn tập gồm ${wrongCards.size} từ chưa thuộc",
+            iconEmoji = "⚠️",
+            level = "Chưa thuộc",
+            colorHex = "#EF4444",
+            cardCount = wrongCards.size,
+            isCustom = true
+        )
+        _currentScreen.value = ScreenState.Study(unmasteredDeck, wrongCards)
     }
 
     fun triggerSmartNotificationTest() {
@@ -355,6 +475,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             cardCount = cards.size
         )
         _currentScreen.value = ScreenState.Match(customDeck, cards)
+    }
+
+    fun startOnboardingTrial(language: AppLanguage, reminderHour: Int) {
+        _selectedLanguage.value = language
+        _learningLanguages.value = listOf(language)
+        updateStudySchedule(reminderHour)
+        val trialCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(language)
+        _currentScreen.value = ScreenState.OnboardingTrialStudy(language, trialCards)
+    }
+
+    fun startOnboardingTrialQuiz(language: AppLanguage, cards: List<FlashCardEntity>) {
+        _currentScreen.value = ScreenState.OnboardingTrialQuiz(language, cards)
+    }
+
+    fun finishOnboardingTrialAndGoToAuth() {
+        _currentScreen.value = ScreenState.Register
+    }
+
+    fun completeTrialRegistration(username: String) {
+        updateUserName(username)
+        viewModelScope.launch {
+            val currentLang = _selectedLanguage.value
+            val starterCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(currentLang)
+            repository.addLearningLanguage(currentLang)
+            repository.switchActiveLanguage(currentLang.code)
+            starterCards.forEach { card ->
+                repository.insertCard(card.copy(id = 0L))
+            }
+        }
+        _streakDays.value = 1
+        _currentScreen.value = ScreenState.Home
     }
 
     override fun onCleared() {

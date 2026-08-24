@@ -141,7 +141,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     }
 
     // Android System Back Button Handler
-    BackHandler(enabled = currentScreen !is ScreenState.Welcome) {
+    val isTrialMode = currentScreen is ScreenState.OnboardingTrialStudy || currentScreen is ScreenState.OnboardingTrialQuiz
+    BackHandler(enabled = currentScreen !is ScreenState.Welcome && !isTrialMode) {
         when (currentScreen) {
             is ScreenState.Login -> viewModel.navigateTo(ScreenState.Welcome)
             is ScreenState.Register -> viewModel.navigateTo(ScreenState.Welcome)
@@ -164,7 +165,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         },
                         onSelectLanguage = { code ->
                             val lang = AppLanguage.fromCode(code)
-                            viewModel.selectLanguage(lang)
+                            viewModel.setInitialLearningLanguage(lang)
                             viewModel.navigateTo(ScreenState.Onboarding)
                         }
                     )
@@ -173,8 +174,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                 is ScreenState.Login -> {
                     LoginScreen(
                         onLoginSuccess = { username ->
-                            viewModel.updateUserName(username)
-                            viewModel.navigateTo(ScreenState.Home)
+                            viewModel.completeTrialRegistration(username)
                         },
                         onBackToWelcome = {
                             viewModel.navigateTo(ScreenState.Welcome)
@@ -188,8 +188,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                 is ScreenState.Register -> {
                     RegisterScreen(
                         onRegisterSuccess = { username ->
-                            viewModel.updateUserName(username)
-                            viewModel.navigateTo(ScreenState.Home)
+                            viewModel.completeTrialRegistration(username)
                         },
                         onBackToWelcome = {
                             viewModel.navigateTo(ScreenState.Welcome)
@@ -203,12 +202,60 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                 is ScreenState.Onboarding -> {
                     OnboardingStepsScreen(
                         onCompleteOnboarding = { chosenLang, reminderHour ->
-                            viewModel.selectLanguage(chosenLang)
-                            viewModel.updateStudySchedule(reminderHour)
-                            viewModel.navigateTo(ScreenState.Home)
+                            viewModel.startOnboardingTrial(chosenLang, reminderHour)
                         },
                         onBackToWelcome = {
                             viewModel.navigateTo(ScreenState.Welcome)
+                        }
+                    )
+                }
+
+                is ScreenState.OnboardingTrialStudy -> {
+                    FlashcardStudyScreen(
+                        deckTitle = "Khởi đầu: ${screen.language.displayName}",
+                        languageTag = screen.language.code,
+                        cards = screen.cards,
+                        userVipLevel = userVipLevel,
+                        allowBack = false,
+                        isOnboardingTrial = true,
+                        onBack = { },
+                        onSpeak = { text, tag -> viewModel.speak(text, tag) },
+                        onToggleStar = { id, starred -> viewModel.toggleStar(id, starred) },
+                        onRecordReview = { id, diff -> viewModel.recordReview(id, diff) },
+                        onStartQuiz = {
+                            viewModel.startOnboardingTrialQuiz(screen.language, screen.cards)
+                        },
+                        onSessionFinished = { count, mastered ->
+                            viewModel.completeStudySession(
+                                deckId = "trial_starter_${screen.language.code}",
+                                deckTitle = "Khởi đầu: ${screen.language.displayName}",
+                                langCode = screen.language.code,
+                                cardsStudied = count,
+                                masteredCount = mastered,
+                                durationSecs = 60
+                            )
+                        }
+                    )
+                }
+
+                is ScreenState.OnboardingTrialQuiz -> {
+                    QuizScreen(
+                        deckTitle = "Kiểm tra: ${screen.language.displayName}",
+                        languageTag = screen.language.code,
+                        cards = screen.cards,
+                        allowBack = false,
+                        isOnboardingTrial = true,
+                        onBack = { },
+                        onSpeak = { text, tag -> viewModel.speak(text, tag) },
+                        onAnswerCorrect = { correctCard ->
+                            viewModel.markCardMastered(correctCard.id, screen.language.code)
+                        },
+                        onAnswerWrong = { wrongCard ->
+                            viewModel.markCardUnmastered(wrongCard.id)
+                        },
+                        onFinishQuiz = { score, total, wrongCards -> },
+                        onCompleteTrial = {
+                            viewModel.finishOnboardingTrialAndGoToAuth()
                         }
                     )
                 }
@@ -235,6 +282,14 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         onMatchDeck = { deck -> viewModel.startMatchDeck(deck) },
                         onAddCardToDeck = { deck -> targetDeckForCardCreation = deck },
                         onCreateNewDeck = { showCreateDeckDialog = true },
+                        onCreateDeckDirect = { newDeck, selectedCards ->
+                            viewModel.createNewDeckWithCards(newDeck, selectedCards)
+                            android.widget.Toast.makeText(
+                                context,
+                                "✨ Đã tạo thành công bộ thẻ: ${newDeck.title}",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        },
                         onOpenProfile = { showProfileDialog = true },
                         onOpenStarred = { viewModel.openStarredCards() },
                         onSpeak = { text, tag -> viewModel.speak(text, tag) },
@@ -313,15 +368,23 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         cards = screen.cards,
                         onBack = { viewModel.navigateTo(ScreenState.Home) },
                         onSpeak = { text, tag -> viewModel.speak(text, tag) },
-                        onFinishQuiz = { score, total ->
-                            viewModel.completeStudySession(
-                                deckId = screen.deck.id,
-                                deckTitle = screen.deck.title,
-                                langCode = screen.deck.languageCode,
-                                cardsStudied = total,
-                                masteredCount = score,
+                        onAnswerCorrect = { correctCard ->
+                            viewModel.markCardMastered(correctCard.id, screen.deck.languageCode)
+                        },
+                        onAnswerWrong = { wrongCard ->
+                            viewModel.markCardUnmastered(wrongCard.id)
+                        },
+                        onFinishQuiz = { score, total, wrongCards ->
+                            viewModel.processQuizResult(
+                                deck = screen.deck,
+                                score = score,
+                                total = total,
+                                wrongCards = wrongCards,
                                 durationSecs = 90
                             )
+                        },
+                        onStudyWrongCards = { wrongCards ->
+                            viewModel.startStudyUnmasteredDeck(screen.deck, wrongCards)
                         },
                         onStudyNext = { viewModel.startStudyDeck(screen.deck) }
                     )
@@ -435,7 +498,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = " • now 🔔",
+                                        text = " • ${preview.formattedTime}",
                                         color = if (preview.isAchievement) Color(0xFF94A3B8) else Color(0xFF6B7280),
                                         fontSize = 11.sp
                                     )
@@ -666,6 +729,11 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
             onDismiss = { showCreateDeckDialog = false },
             onSave = { newDeck, selectedCards ->
                 viewModel.createNewDeckWithCards(newDeck, selectedCards)
+                android.widget.Toast.makeText(
+                    context,
+                    "✨ Đã tạo thành công bộ thẻ: ${newDeck.title}",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
                 showCreateDeckDialog = false
             }
         )
