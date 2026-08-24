@@ -1,382 +1,275 @@
-# DOC_PROJECT_OVERVIEW — Tổng quan toàn bộ dự án NTK FlashCard
+# DOC_PROJECT_OVERVIEW — Tổng quan dự án NTK FlashCard
 
-> **Mục đích:** Tài liệu tham chiếu gốc mô tả **luồng hoạt động (flow)**, **toàn bộ chức năng** và **kiến trúc dự án** để mọi thành viên có thể giải thích, chỉnh sửa và mở rộng ứng dụng chính xác. Đọc tài liệu này trước khi đọc các tài liệu cá nhân (`DOC_KHOI_UI`, `DOC_NAM_DATA`, `DOC_TUAN_LOGIC`).
-
----
-
-## Mục lục
-
-1. [Tổng quan sản phẩm](#1-tổng-quan-sản-phẩm)
-2. [Công nghệ & thư viện](#2-công-nghệ--thư-viện)
-3. [Kiến trúc hệ thống](#3-kiến-trúc-hệ-thống)
-4. [Cấu trúc thư mục chi tiết](#4-cấu-trúc-thư-mục-chi-tiết)
-5. [Mô hình dữ liệu (8 bảng)](#5-mô-hình-dữ-liệu-8-bảng)
-6. [Cơ sở dữ liệu & DAO](#6-cơ-sở-dữ-liệu--dao)
-7. [Điều hướng (Navigation Flow)](#7-điều-hướng-navigation-flow)
-8. [Luồng dữ liệu end-to-end](#8-luồng-dữ-liệu-end-to-end)
-9. [Mô tả toàn bộ chức năng](#9-mô-tả-toàn-bộ-chức-năng)
-10. [Thuật toán SRS (SuperMemo-2)](#10-thuật-toán-srs-supermemo-2)
-11. [Hệ thống thông báo thông minh](#11-hệ-thống-thông-báo-thông-minh)
-12. [Widget từ vựng](#12-widget-từ-vựng)
-13. [Quản lý trạng thái](#13-quản-lý-trạng-thái)
-14. [Phát âm Text-To-Speech](#14-phát-âm-text-to-speech)
-15. [Kiểm thử](#15-kiểm-thử)
-16. [Cẩm nang thay đổi tính năng](#16-cẩm-nang-thay-đổi-tính-năng)
-17. [Bảng thuật ngữ](#17-bảng-thuật-ngữ)
+> **Mục đích:** Tài liệu tổng quan toàn diện nhất về kiến trúc, luồng dữ liệu, mô hình CSDL, thuật toán SRS, hệ thống thông báo, widget và guide thay đổi — phục vụ giám khảo và thành viên mới.
 
 ---
 
-## 1. Tổng quan sản phẩm
+## 1. Tổng quan ứng dụng
 
-- **Tên:** NTK FlashCard
-- **Package:** `com.example` · **Application ID:** `com.aistudio.ntkflashcard.xkqwlp`
-- **minSdk 24 · targetSdk/compileSdk 36**
-- **Ngôn ngữ hỗ trợ:** 10 (en, ko, ja, vi, zh, fr, es, de, it, pt)
-- **Hoạt động offline** cho học & phát âm; thông báo/hẹn giờ chạy bằng `AlarmManager`.
+**NTK FlashCard** — Ứng dụng học từ vựng đa ngôn ngữ trên Android, xây dựng bằng Kotlin + Jetpack Compose, kiến trúc MVVM + Repository.
 
-> ⚠️ **Lưu ý quan trọng về dữ liệu:** từ vựng mẫu được **nhúng sẵn trong mã nguồn** (`DefaultVocabData.kt`), **không** nạp từ JSON. File `database/databaseflashcard.sql` chỉ là lược đồ SQL **tham khảo/trình bày** (có vài khác biệt nhỏ so với entity Room thật).
-
----
-
-## 2. Công nghệ & thư viện
-
-| Thành phần | Công nghệ | Phiên bản |
-| --- | --- | --- |
-| Ngôn ngữ | Kotlin | 2.2.10 |
-| UI | Jetpack Compose (BOM) / Material 3 / Icons | 2024.09.00 |
-| Lưu trữ | Room (runtime/ktx/compiler) | 2.7.0 |
-| Bất đồng bộ | Kotlin Coroutines + Flow | 1.10.2 |
-| Lifecycle | ViewModel Compose / Runtime Compose | 2.8.7 |
-| Activity | Activity Compose | 1.10.1 |
-| Hình ảnh | Coil | 2.7.0 |
-| Thông báo | NotificationCompat, AlarmManager, AppWidget | SDK |
-| Test | JUnit4, Robolectric, Roborazzi, Espresso | — |
-| Dự phòng | Firebase BOM (App Check, Firebase AI), Moshi, Retrofit, OkHttp | 34.17.0 / 1.15.2 / 2.12.0 |
-
-> Firebase, Moshi, Retrofit, OkHttp hiện **chỉ khai báo dependency, chưa có logic sử dụng** trong mã nguồn (dự phòng cho tính năng mạng/đăng nhập Google sau này). `navigation-compose`, `camera`, `datastore`, `firestore`, `firebase-auth` vẫn bị comment.
+- **Package:** `com.example`, applicationId: `com.aistudio.ntkflashcard.xkqwlp`
+- **Min SDK:** 26 (Android 8.0), **Target SDK:** 35
+- **Ngôn ngữ hỗ trợ:** 10 (EN, KO, JA, ZH, FR, ES, DE, IT, PT, VI)
+- **Database:** Room SQLite, version 4, 8 entities, 8 DAOs, `fallbackToDestructiveMigration()`
+- **Dữ liệu seed:** Hardcoded trong `DefaultVocabData.kt` (12 deck, hàng trăm thẻ) + `StarterVocabData.kt` (50 thẻ starter)
 
 ---
 
-## 3. Kiến trúc hệ thống
-
-**MVVM + Repository**, luồng dữ liệu một chiều (Unidirectional Data Flow):
+## 2. Kiến trúc tổng thể
 
 ```
-                        ┌───────────────────────────────────────┐
-                        │              VIEW (Compose)           │
-                        │  collectAsStateWithLifecycle()        │
-                        └───────────────┬───────────────────────┘
-                                        │ (1) sự kiện → gọi VM
-                                        │ (4) StateFlow → recompose
-                        ┌───────────────▼───────────────────────┐
-                        │         MainViewModel                 │
-                        │  StateFlow · ScreenState · TTS        │
-                        │  SmartNotificationEngine · Widget     │
-                        └───────────────┬───────────────────────┘
-                                        │ (2) suspend / Flow
-                        ┌───────────────▼───────────────────────┐
-                        │      FlashCardRepository (8 DAO)      │
-                        └───────────────┬───────────────────────┘
-                                        │ (3)
-                        ┌───────────────▼───────────────────────┐
-                        │  Room DB — 8 bảng (AppDatabase, 8 DAO)│
-                        └───────────────────────────────────────┘
-```
-
-**Nguyên tắc:** UI không chạm DAO/DB; ViewModel giữ trạng thái; Repository là Single Source of Truth; mọi ghi chạy trên `Dispatchers.IO`.
-
----
-
-## 4. Cấu trúc thư mục chi tiết
-
-```
-app/src/main/java/com/example/
-├── MainActivity.kt                 # Entry + điều hướng + banner thông báo in-app + dialog toàn cục
-├── audio/TTSManager.kt             # TextToSpeech wrapper (map Locale, speak, shutdown)
-├── data/
-│   ├── model/
-│   │   ├── FlashCard.kt            # DeckEntity, FlashCardEntity (có SRS), DeckWithStats
-│   │   ├── Language.kt             # enum AppLanguage (10 ngôn ngữ) + fromCode()
-│   │   ├── QuizRecordEntity.kt     # bảng quiz_records
-│   │   ├── StudySchedule.kt        # data class cấu hình lịch (không phải bảng)
-│   │   ├── StudyScheduleEntity.kt  # bảng study_schedules
-│   │   ├── StudySessionEntity.kt   # bảng study_sessions
-│   │   ├── UserAccountEntity.kt    # bảng user_accounts
-│   │   ├── UserLanguageEntity.kt   # bảng user_languages
-│   │   └── UserProfileEntity.kt    # bảng user_profile
-│   ├── local/
-│   │   ├── AppDatabase.kt          # @Database version 4, 8 entity, Singleton, Callback seed
-│   │   ├── DeckDao.kt / FlashCardDao.kt / QuizRecordDao.kt / StudyScheduleDao.kt
-│   │   ├── StudySessionDao.kt / UserAccountDao.kt / UserLanguageDao.kt / UserProfileDao.kt
-│   │   └── DefaultVocabData.kt     # dữ liệu mẫu
-│   └── repository/FlashCardRepository.kt
-├── notification/
-│   ├── SmartNotificationEngine.kt  # quyết định thông minh + NotificationPreviewEvent
-│   ├── NotificationHelper.kt       # channel, custom notification, snooze (SharedPreferences)
-│   ├── StudyAlarmScheduler.kt      # AlarmManager hẹn giờ
-│   ├── StudyAlarmReceiver.kt       # BroadcastReceiver khi tới giờ
-│   └── NotificationActionReceiver.kt # xử lý nút "Để sau"
-├── widget/VocabularyStreakWidgetProvider.kt
-└── ui/
-    ├── viewmodel/MainViewModel.kt  # ScreenState + StateFlow + nghiệp vụ
-    ├── theme/  (Color, Type, Theme)
-    ├── components/ (VipAvatarFrame, Flashcard3DView, OwlMascotView, ...)
-    ├── welcome/ (Welcome, Login, Register, OnboardingSteps)
-    ├── home/ (HomeScreen, HomeComponents)
-    ├── detail/ (DeckDetailScreen)
-    ├── study/ quiz/ match/
-    ├── leaderboard/ (LeaderboardTab)
-    └── dialogs/ (HomeDialogs, UserProfileDialog, CreateDeckAndCardDialogs)
+┌─────────────────────────────────────────────────────┐
+│                    UI Layer                          │
+│  MainActivity (754 dòng)                            │
+│  ├── NTKFlashCardApp (Crossfade 12 screens)         │
+│  ├── Banner thông báo in-app (AnimatedVisibility)    │
+│  └── 3 Dialog (Profile, CreateDeck, CreateCard)     │
+│                                                     │
+│  ui/                                                │
+│  ├── theme/ (Color, Type, Theme)                    │
+│  ├── components/ (VipAvatarFrame, Flashcard3DView,  │
+│  │   OwlMascot, LanguageSpeechBubble,               │
+│  │   GlowingCardsHeader, LaurelWreathHeader)        │
+│  ├── welcome/ (Welcome, Login, Register, Onboarding)│
+│  ├── home/ (HomeScreen 1867, HomeComponents 2037,   │
+│  │   StreakWeeklyTracker 291)                       │
+│  ├── detail/ (DeckDetailScreen)                     │
+│  ├── study/ (FlashcardStudyScreen 711)              │
+│  ├── quiz/ (QuizScreen 1197)                        │
+│  ├── match/ (WordMatchScreen 314)                   │
+│  ├── leaderboard/ (LeaderboardTab)                  │
+│  └── dialogs/ (HomeDialogs, UserProfileDialog,      │
+│      CreateDeckAndCardDialogs)                      │
+└────────────────────┬────────────────────────────────┘
+                     │ Lambda callbacks
+┌────────────────────▼────────────────────────────────┐
+│               ViewModel Layer                        │
+│  MainViewModel (AndroidViewModel, 37 hàm, 18 StateFlow)│
+│  ├── ScreenState sealed class (12 states)            │
+│  ├── Language management (flatMapLatest)              │
+│  ├── Study/Quiz/Match navigation                     │
+│  ├── Onboarding trial flow                           │
+│  └── Notification orchestration                      │
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────┐
+│               Data Layer                             │
+│  FlashCardRepository (340 dòng, 60+ hàm)            │
+│  ├── Deck operations (12)                            │
+│  ├── Flashcard & SRS (30+)                           │
+│  ├── Multi-language learning (9)                     │
+│  ├── Study sessions (7)                              │
+│  ├── Quiz records (9)                                │
+│  └── User profile & streak (9)                       │
+│                                                     │
+│  AppDatabase (version=4, 8 entities, 8 DAOs)         │
+│  ├── DefaultVocabData (12 deck seed)                 │
+│  └── StarterVocabData (50 thẻ starter onboarding)   │
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────┐
+│            Notification Layer                        │
+│  SmartNotificationEngine (context-aware decisions)   │
+│  NotificationHelper (channels, snooze, rich notif)   │
+│  StudyAlarmScheduler (AlarmManager exact)            │
+│  StudyAlarmReceiver (goAsync coroutine)              │
+│  NotificationActionReceiver (snooze action)          │
+│                                                     │
+│  Widget                                              │
+│  VocabularyStreakWidgetProvider (auto-refresh 8s)    │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Mô hình dữ liệu (8 bảng)
+## 3. Mô hình CSDL (8 bảng)
 
-| Bảng | Entity | Khoá chính | Ý nghĩa |
-| --- | --- | --- | --- |
-| `decks` | `DeckEntity` | `id: String` | Bộ thẻ |
-| `flashcards` | `FlashCardEntity` | `id: Long` auto | Thẻ từ vựng + thông số SRS |
-| `study_sessions` | `StudySessionEntity` | `id: Long` auto | Nhật ký phiên học |
-| `quiz_records` | `QuizRecordEntity` | `id: Long` auto | Kết quả quiz/match |
-| `user_profile` | `UserProfileEntity` | `id: Int = 1` | Hồ sơ, VIP, streak, điểm |
-| `user_accounts` | `UserAccountEntity` | `id: Long` auto (unique username) | Tài khoản đăng ký/đăng nhập |
-| `study_schedules` | `StudyScheduleEntity` | `id: Int = 1` | Cài đặt nhắc nhở |
-| `user_languages` | `UserLanguageEntity` | `languageCode: String` | Tiến trình đa ngôn ngữ |
+| Bảng | Khoá chính | Mô tả |
+|------|-----------|-------|
+| `decks` | `id: String` | Bộ thẻ (EN/KO/JA/...), 12 deck seed + custom |
+| `flashcards` | `id: Long (auto)` | Từ vựng, SRS fields, mastered/starred flags |
+| `study_sessions` | `id: Long (auto)` | Phiên học (deckId, cardsStudied, masteredCount, duration) |
+| `quiz_records` | `id: Long (auto)` | Kết quả quiz (score, points, maxStreak, accuracy) |
+| `user_profile` | `id=1` | Profile user (name, vip, streak, points, cardsLearned) |
+| `user_accounts` | `id: Long (auto)` | Tài khoản (username, passwordHash, isLoggedIn) |
+| `study_schedules` | `id=1` | Lịch nhắc (hour, minute, enabled) |
+| `user_languages` | `languageCode: String PK` | Ngôn ngữ đang học (dailyGoal, masteredCount, level) |
 
-### 5.1 `DeckEntity`
-
-`id, languageCode, title, subtitle, iconEmoji, level, colorHex, cardCount(=0), isCustom(=false)`.
-
-### 5.2 `FlashCardEntity` (đã thêm thông số SRS)
-
-`id, deckId, languageCode, frontWord, phonetic, partOfSpeech, frontExample, backMeaning, backExampleTranslation, memoryTip, difficulty(0-3), isStarred, isMastered, reviewCount, lastReviewedTimestamp` **+** `srsInterval(=1), srsEaseFactor(=2.5f), srsRepetitions(=0), nextReviewTimestamp(=0L)`.
-
-### 5.3 Các entity còn lại
-
-- **`StudySessionEntity`:** `deckId, deckTitle, languageCode, cardsStudied, masteredCount, durationSeconds, timestamp`.
-- **`QuizRecordEntity`:** `deckId, deckTitle, mode("QUIZ"/"MATCH"), score, totalQuestions, pointsEarned, maxStreak, accuracyPercent, timeSpentSeconds, timestamp`.
-- **`UserProfileEntity`:** `userName, avatarEmoji, avatarBgColorHex, vipLevel(1), streakDays(7), maxStreakDays, totalPoints(1500), totalCardsLearned, lastActiveTimestamp`.
-- **`UserAccountEntity`:** `username(unique), passwordHash, createdAt, lastLoginAt, isLoggedIn`.
-- **`StudyScheduleEntity`:** `isEnabled, reminderHour(19), reminderMinute, remindStreak, remindDueWords, minWordsThreshold, targetLanguageCode("ja"), updatedTimestamp`.
-- **`UserLanguageEntity`:** `languageCode, displayName, flagEmoji, isCurrentActive, dailyGoalCards(20), masteredCardsCount, totalWordsEnrolled(50), streakDays, level, enrolledTimestamp, lastStudiedTimestamp`.
-
-> Ngoài ra có 2 class **không phải bảng**: `DeckWithStats` (tính `progressPercent`) và `StudySchedule` (data class cấu hình lịch dùng cho AlarmManager/notification).
+**Liên kết logic:** `flashcards.deckId` → `decks.id`; `study_sessions.deckId` → `decks.id`. Room không khai báo FK cứng — cascade ở mức logic.
 
 ---
 
-## 6. Cơ sở dữ liệu & DAO
-
-- **Tên DB:** `ntk_flashcard_db` · **`@Database(version = 4, exportSchema = false)`** · **`.fallbackToDestructiveMigration()`** (xoá & tạo lại khi đổi version — chấp nhận mất dữ liệu khi nâng cấp).
-- **Singleton** (`@Volatile` + `synchronized`).
-- **Seed:** `RoomDatabase.Callback.onCreate()` → `populateInitialData(deckDao, flashCardDao, userProfileDao, userLanguageDao)`; đồng thời `Repository.checkAndSeedDatabase()` seed lại nếu `COUNT(*) == 0` (cơ chế kép).
-- 8 DAO được khai báo trong `AppDatabase`: `deckDao()`, `flashCardDao()`, `studySessionDao()`, `quizRecordDao()`, `userProfileDao()`, `userAccountDao()`, `studyScheduleDao()`, `userLanguageDao()`.
-
-### Nhóm truy vấn tiêu biểu
-
-- **DeckDao:** `getDecksByLanguage`, `getAllDecks`, `getDeckById(Flow)`, `getCustomDecks`, `getDecksByLevel`, `searchDecks`, `getTotalDecksCount`, `insertDeck(s)`, `updateDeck`, `updateCardCount`, `deleteDeck(ById)`.
-- **FlashCardDao:** đọc theo deck/ngôn ngữ/trạng thái; **SRS due** (`getDueCardsForLanguage`, `getAllDueCards`, `getDueCardsForDeck`), **ngẫu nhiên** (`getRandomCardsForDeck/Language/Starred`), tìm kiếm `searchCards`, thống kê `getMasteredCount`, `getDueCount...`, `getCardsStudiedTodayCount`; ghi `insert/update/delete`; cập nhật SRS `recordReview` và `updateSrsReview`, `resetDeckProgress`.
-- **QuizRecordDao / StudySessionDao:** lấy theo mode/deck/thời gian, đếm tổng, `insert/delete/clear`.
-- **UserProfileDao:** `getUserProfile`, `updateName`, `updateVipLevel`, `updateAvatar`, `updateStreak` (giữ `maxStreakDays`), `addPoints`, `incrementCardsLearned`.
-- **UserAccountDao:** `getUserByUsername`, `authenticate(username, passwordHash)`, `isUsernameExists`, `registerUser`, `setLoggedIn`, `logoutAllUsers`, `updatePassword`, `deleteAccount`.
-- **UserLanguageDao:** `getAllLearningLanguages`, `getActiveLearningLanguage`, `switchActiveLanguage` (`@Transaction`: clear flag + mark active), `updateDailyGoal`, `incrementMasteredCount`, `updateLanguageStreak/Level`, `deleteLanguage`.
-- **StudyScheduleDao:** `getSchedule`, `saveSchedule`, `setReminderEnabled`, `updateReminderTime`, `updateTargetLanguage`.
-
-### Repository (`FlashCardRepository`)
-
-Constructor nhận 6 DAO (deck, card, session, quiz, profile, language) hoặc `AppDatabase`. Phân nhóm: Deck / Flashcard+SRS / Multi-Language / Study Sessions / Quiz Records / Profile. Các hàm ghi bọc `withContext(Dispatchers.IO)`.
-
----
-
-## 7. Điều hướng (Navigation Flow)
-
-Điều hướng bằng **sealed class `ScreenState`** lưu trong `StateFlow`, `MainActivity` dùng `Crossfade`:
-
-```kotlin
-sealed class ScreenState {
-    object Welcome, Login, Register, Onboarding, Home
-    data class DeckDetail(deck, cards)
-    data class Study(deck, cards)
-    data class Quiz(deck, cards)
-    data class Match(deck, cards)
-    data class Starred(cards)
-}
-```
+## 4. Thuật toán SRS (SuperMemo-2)
 
 ```
-Welcome ──onStartLearning──► Onboarding ──onComplete(lang, hour)──► Home
-   │                            (7 bước)
-   ├──onLoginClick──► Login ──onLoginSuccess──► Home
-   │                   └──onNavigateToRegister──► Register ──onRegisterSuccess──► Home
-   └──onSelectLanguage──► Onboarding (chọn bubble ngôn ngữ)
+Nếu ĐÚNG và rating ≥ 3:
+  interval: repetitions 0→1, 1→3, 2→6, ≥3 → interval × easeFactor
+  EF' = EF + (0.1 - (5-q) × (0.08 + (5-q) × 0.02)), q=rating, min 1.3
+  isMastered = repetitions ≥ 3
+  nextReview = now + interval × 24h
 
-Home ──► DeckDetail ──► Study / Quiz / Match
-Home ──► onStudyDeck/onQuizDeck/onMatchDeck ──► Study/Quiz/Match
-Home ──► onOpenStarred ──► Starred (dùng lại FlashcardStudyScreen)
-
-BackHandler: Login/Register/Onboarding/Home → Welcome ; các màn còn lại → Home.
+Nếu SAI:
+  repetitions=0, interval=1
+  nextReview = now + 15 phút
+  isMastered = false
 ```
 
-**Các hàm điều hướng trong ViewModel** (`navigateTo`, `openDeckDetail`, `startStudyDeck`, `startQuizDeck`, `startMatchDeck`, `openStarredCards`, `startStudyByLanguage`, `startStudySavedCards`, `startQuizSavedCards`, `startMatchSavedCards`). Mỗi hàm `start*` dùng `.first()` để lấy danh sách thẻ rồi gán `_currentScreen`.
+**Lưu ý:** `recordSrsReview` đã implement trong Repository nhưng **chưa nối UI**. Study screen hiện dùng `recordCardReview` (đơn giản: difficulty=1 → mastered, else → unmastered).
 
 ---
 
-## 8. Luồng dữ liệu end-to-end
+## 5. Onboarding Trial Flow
 
-### Ví dụ 1 — Học một bộ thẻ
-1. Bấm "Học ngay" → `onStudyDeck(deck)` → `viewModel.startStudyDeck(deck)`.
-2. ViewModel `repository.getCardsForDeck(deck.id).first()` → `_currentScreen = ScreenState.Study(deck, cards)`.
-3. `MainActivity` quan sát `currentScreen` → `Crossfade` hiển thị `FlashcardStudyScreen`.
-4. Bấm "Đã thuộc" → `onRecordReview(id, 1)` → `viewModel.recordReview` → `repository.recordCardReview` → DAO `recordReview` (`isMastered = (difficulty==1)`), sau đó cập nhật widget.
-5. Hoàn thành → `onSessionFinished(count, mastered)` → `viewModel.completeStudySession` ghi `study_sessions`.
-
-### Ví dụ 2 — Đổi ngôn ngữ
-`selectLanguage(lang)` → cập nhật `_selectedLanguage` → các `flatMapLatest` (`decksForCurrentLanguage`, `dueCardsForCurrentLanguage`, `starterCardsForCurrentLanguage`, `masteredCountForCurrentLanguage`) tự query lại → đồng thời `repository.switchActiveLanguage(code)`.
-
-### Ví dụ 3 — Thông báo hẹn giờ
-`StudyAlarmScheduler` đặt `AlarmManager` → tới giờ `StudyAlarmReceiver.onReceive` (dùng `goAsync`) → `SmartNotificationEngine.evaluateAndSendSmartNotification` → `NotificationHelper.showStudyReminderNotification` → bấm vào mở `MainActivity` (extra `EXTRA_NAV_TARGET=HOME_STUDY`).
-
----
-
-## 9. Mô tả toàn bộ chức năng
-
-### 9.1 Welcome → Onboarding (lần đầu)
-- **WelcomeScreen:** logo, linh vật cú + bubble ngôn ngữ, carousel 3 trang, nút "Bắt đầu học ngay"/"Đăng nhập".
-- **OnboardingStepsScreen (7 bước):** (1) chọn ngôn ngữ, (2) cấp độ, (3) chủ đề yêu thích, (4) khung giờ học, (5) xin quyền thông báo, (6) thêm widget, (7) mascot "đang chuẩn bị thẻ" → `onCompleteOnboarding(lang, reminderHour)`.
-- **Login/Register:** xác thực form cục bộ (Register kiểm tra username 4-20 ký tự, mật khẩu ≥8 + độ mạnh, khớp xác nhận); Login dùng fallback `"Học viên NTK"` (chưa nối DB thật).
-
-### 9.2 HomeScreen (4 tab dưới + overlay Ôn tập)
-- **Tab 0 Trang chủ:** header + streak pill, search, banner streak (hoặc hero "bắt đầu" cho user mới), quick actions (Tạo bộ thẻ / Ôn tập / Thống kê / Đã lưu), "Tiếp tục học", widget SRS due, "Bộ thẻ của bạn", "Mục tiêu hôm nay".
-- **Tab 1 Khám phá:** chip ngôn ngữ + danh sách bộ thẻ.
-- **Tab 2 BXH:** `LeaderboardTab` (bảng xếp hạng tĩnh, đổi theo Tổng điểm/Chuỗi ngày/Số thẻ, top-3 podium, rank 4-10, thưởng).
-- **Tab 3 Tài khoản:** hồ sơ + `VipAvatarFrame`, tổng kết, card cài đặt thông báo (2 nút test notification), banner widget.
-- **Overlay Ôn tập** (`showReviewOverlay`): từ đã lưu + luyện nhanh.
-
-### 9.3 DeckDetailScreen (2 tab)
-Hero (ảnh bìa, tag ngôn ngữ, rating 4.9, số thẻ, avatar), nút "Học ngay", 2 tab: **Nội dung** (chủ đề mở rộng + sample + chế độ luyện tập) & **Thống kê** (tỉ lệ thành thạo, đã thuộc/đang học).
-
-### 9.4 FlashcardStudyScreen (học thẻ + SRS)
-Thẻ 3D (khung VIP), nút phát âm/sao, 3 nút hành động (Trộn thẻ / Lưu từ điển / đổi mặt), 2 nút đánh giá **"Chưa thuộc"(3)** & **"Đã thuộc"(1)**, auto-play, prev/next, overlay hoàn thành → quiz, `onSessionFinished`.
-
-### 9.5 QuizScreen (trắc nghiệm có điểm & chuỗi)
-- 4 đáp án (1 đúng + 3 nhiễu từ `backMeaning` các thẻ khác).
-- **Điểm & streak multiplier:** đúng → `score++`, `currentStreak++`, `totalPoints += 100 * multiplier` (multiplier 1.0→5.0 theo chuỗi, `getStreakMultiplierInfo`); sai → reset streak.
-- Popup điểm nổi, pháo hoa `FireworksCanvas`, overlay kết quả (điểm, độ chính xác, chuỗi dài nhất, xếp hạng).
-- `onFinishQuiz(score, total)` + `onStudyNext`.
-
-### 9.6 WordMatchScreen (ghép từ)
-Lấy 6 thẻ đầu, tạo cặp từ↔nghĩa (xáo trộn), lưới 2 cột, đếm lượt thử, thắng khi ghép đủ.
-
-### 9.7 Starred mode & từ đã lưu
-`openStarredCards()` → `ScreenState.Starred`; `SavedCardsDialog` có lọc theo ngôn ngữ/chủ đề/tìm kiếm, phát âm, bỏ sao. ViewModel có `startStudySavedCards`/`startQuizSavedCards`/`startMatchSavedCards` tạo deck tạm.
-
-### 9.8 VIP (8 cấp)
-`VipAvatarFrame` (khung avatar động), `VipCardFrame` (viền thẻ động), `VipLevelSelectorCard` (chọn cấp). `VipLevel` enum 0-7 với gradient/badge/animation riêng.
+```
+WelcomeScreen
+  → [Bắt đầu học ngay]
+  → OnboardingStepsScreen (7 bước: ngôn ngữ → cấp độ → chủ đề → giờ → quyền → widget → loading)
+  → startOnboardingTrial(lang, hour)
+  → OnboardingTrialStudy (FlashcardStudyScreen, isOnboardingTrial=true, allowBack=false)
+    → 5 starter cards từ StarterVocabData (5 từ/ngôn ngữ)
+    → [Hoàn thành học] → startOnboardingTrialQuiz
+  → OnboardingTrialQuiz (QuizScreen, isOnboardingTrial=true)
+    → [Hoàn thành quiz] → finishOnboardingTrialAndGoToAuth
+  → RegisterScreen
+  → [Đăng ký] → completeTrialRegistration(username)
+    → Insert starter cards vào DB, set streak=1
+  → HomeScreen
+```
 
 ---
 
-## 10. Thuật toán SRS (SuperMemo-2)
+## 6. Hệ thống thông báo
 
-`FlashCardRepository.recordSrsReview(card, rating, isCorrect)`:
+### Chuỗi thông báo
+```
+StudyAlarmScheduler (AlarmManager.setExactAndAllowWhileIdle)
+  → StudyAlarmReceiver.onReceive (goAsync)
+  → SmartNotificationEngine.evaluateAndSendSmartNotification
+    → Kiểm tra snooze/đã học/dueWords/streak
+    → Sinh message 4 kịch bản
+  → NotificationHelper.showStudyReminderNotification
+    → PendingIntent study (mở app)
+    → PendingIntent snooze (broadcast)
+    → 2 action buttons
+```
 
-- **Đúng & rating ≥ 3:** interval theo số lần đúng liên tiếp (`repetitions` 0→1, 1→3, 2→6, else `interval * easeFactor`); cập nhật ease factor theo công thức SM-2 `EF' = EF + (0.1 - (5-q)*(0.08 + (5-q)*0.02))`, tối thiểu 1.3; `isMastered = repetitions >= 3`.
-- **Sai:** reset repetitions=0, interval=1, ôn lại sau 15 phút, không mastered.
-- `difficulty` quy đổi: rating 5→1, 4/3→2, còn lại→3.
-- Ghi qua `cardDao.updateSrsReview(...)`; nếu mastered thì `languageDao.incrementMasteredCount`.
+### Snooze mechanism
+```
+Bấm "Để sau" → NotificationActionReceiver.onReceive
+  → clearAllNotifications
+  → setSnoozedToday (SharedPreferences)
+  → isSnoozedToday → true → skip notification hôm nay
+```
 
-> **Lưu ý:** `recordSrsReview` (SM-2 đầy đủ) hiện **chưa được gọi từ UI**. Nút bấm trong `FlashcardStudyScreen` gọi `recordReview` (đơn giản hơn) qua `onRecordReview → viewModel.recordReview → repository.recordCardReview`. Nếu cần kích hoạt SRS thật, đổi `recordReview` sang `recordSrsReview` trong ViewModel.
-
----
-
-## 11. Hệ thống thông báo thông minh
-
-| File | Vai trò |
-| --- | --- |
-| `SmartNotificationEngine` | Quyết định: bỏ qua nếu `isSnoozedToday` hoặc đã học hôm nay (trừ test); đếm từ due + streak; sinh title/message theo 4 kịch bản; gửi notification + preview. |
-| `NotificationHelper` | Tạo 2 channel (`channel_study_reminder`, `channel_achievements`), custom notification (large icon mascot, action "Học ngay"/"Để sau"), snooze qua `SharedPreferences` ("ntk_flashcard_prefs"), `clearAllNotifications`. |
-| `StudyAlarmScheduler` | `AlarmManager.setExactAndAllowWhileIdle` hẹn giờ (code 8888), tự chuyển sang ngày mai nếu đã qua giờ; `cancelStudyAlarm`. |
-| `StudyAlarmReceiver` | `BroadcastReceiver` (dùng `goAsync()`), gọi engine + lên lịch lại. |
-| `NotificationActionReceiver` | Xử lý `ACTION_SNOOZE_TODAY`: tắt notification + đánh dấu snooze + Toast. |
-
-`NotificationPreviewEvent(title, message, isAchievement, formattedTime)` được ViewModel giữ trong `notificationPreview` để hiển thị **banner in-app** (tự ẩn sau 6 giây). `MainActivity.onResume` tự xoá notification hệ thống.
-
----
-
-## 12. Widget từ vựng
-
-`VocabularyStreakWidgetProvider` (AppWidgetProvider) + layout `widget_vocabulary_streak.xml` + `xml/vocabulary_streak_widget_info.xml`:
-- Hiển thị streak (`app_widget_prefs`) + một từ chưa thuộc ngẫu nhiên (đọc từ Room).
-- Nút refresh (`ACTION_REFRESH_WORD`) và tự làm mới mỗi **8 giây** (`startAutoScroll`).
-- Bấm vào widget mở `MainActivity`.
-- Được cập nhật từ ViewModel sau mỗi lần review (`VocabularyStreakWidgetProvider.updateAllWidgets`).
+### Banner in-app (MainActivity)
+```
+notificationPreview != null → AnimatedVisibility overlay
+  → Rich card (mascot, streak tracker, expand/collapse)
+  → Auto-dismiss 6s (LaunchedEffect)
+  → Phân biệt achievement (dark) vs study reminder (light)
+```
 
 ---
 
-## 13. Quản lý trạng thái
+## 7. Widget
 
-`MainViewModel` (AndroidViewModel) giữ toàn bộ `StateFlow`:
-
-| StateFlow | Khởi tạo | Ý nghĩa |
-| --- | --- | --- |
-| `currentScreen` | `Welcome` | Màn hình hiện tại |
-| `selectedLanguage` | `ENGLISH` | Ngôn ngữ đang chọn |
-| `learningLanguages` | `[ENGLISH]` | Danh sách ngôn ngữ đang học (in-memory) |
-| `learningLanguagesFromDb` | `getAllLearningLanguages()` | Từ bảng `user_languages` |
-| `dueCardsForCurrentLanguage` / `dueCountForCurrentLanguage` | `flatMapLatest` theo ngôn ngữ | Thẻ đến hạn ôn |
-| `starterCardsForCurrentLanguage` | `flatMapLatest` | Từ mới (reviewCount=0) |
-| `masteredCountForCurrentLanguage` | `flatMapLatest` | Từ đã thuộc theo ngôn ngữ |
-| `userName` / `userVipLevel` / `streakDays` | MutableStateFlow | `"Bạn Học"` / `1` / `7` |
-| `notificationPreview` | `null` | Banner in-app |
-| `decksForCurrentLanguage`, `allDecks`, `starredCardsList`, `allCardsList`, `masteredCount`, `totalCardsCount` | `stateIn` | Dữ liệu chính |
-
-`init{}` chạy `checkAndSeedDatabase()` + cập nhật widget + `StudyAlarmScheduler.scheduleStudyAlarm`. `onCleared()` gọi `ttsManager.shutdown()`.
+`VocabularyStreakWidgetProvider`:
+- `updateAllWidgets(context, streakDays?)` — lưu streak vào prefs + broadcast.
+- `updateAppWidget(context, manager, widgetId)` — RemoteViews, đọc streak + từ chưa thuộc ngẫu nhiên.
+- Auto-refresh mỗi 8s qua coroutine + broadcast.
 
 ---
 
-## 14. Phát âm Text-To-Speech
+## 8. Navigation (ScreenState)
 
-`TTSManager` khởi tạo TTS, map `languageTag` → `Locale` (ko/ja/zh/fr/de/es/vi, mặc định US), gọi `tts.speak(..., QUEUE_FLUSH, ..., "NTK_SPEECH_...")`. **Hoạt động offline.** Lưu ý: enum có thêm `it`/`pt` nhưng `TTSManager` chưa map 2 ngôn ngữ này (rơi vào `else → Locale.US`) — điểm cần bổ sung nếu giám khảo hỏi.
+12 trạng thái điều hướng, quản lý bởi `MainViewModel.currentScreen` (StateFlow):
 
----
+```
+Welcome → Login / Register / Onboarding
+Onboarding → OnboardingTrialStudy → OnboardingTrialQuiz → Register → Home
+Home → DeckDetail / Study / Quiz / Match / Starred
+DeckDetail → Study / Quiz / Match
+Study → Quiz (callback)
+```
 
-## 15. Kiểm thử
-
-- Unit/Robolectric/Roborazzi (screenshot), coroutines-test; Instrumentation Espresso + Compose UI test.
-- Nhiều composable có `testTag` (ví dụ `btn_memorized`, `btn_not_memorized`, `quiz_option_...`, `streak_badge`, `tab_leaderboard`, `onboarding_next_button`, `saved_cards_search_input`, ...) để test UI.
-
----
-
-## 16. Cẩm nang thay đổi tính năng
-
-| Yêu cầu giám khảo | Nơi sửa |
-| --- | --- |
-| Thêm/bớt ngôn ngữ | `data/model/Language.kt` (enum) + màu bubble `ui/theme/Color.kt` + `TTSManager.kt` (map Locale) + seed `DefaultVocabData.kt`/`AppDatabase` |
-| Đổi màu thương hiệu | `ui/theme/Color.kt` (NTKPrimary...) |
-| Thêm bảng / cột | entity trong `data/model/` + `AppDatabase` (entities, version) + DAO tương ứng |
-| Thêm truy vấn | DAO tương ứng trong `data/local/` |
-| Thêm màn hình | composable mới + case `ScreenState` + `when(screen)` trong `MainActivity` + hàm điều hướng trong `MainViewModel` |
-| Kích hoạt SRS SM-2 thật | `MainViewModel.recordReview` → dùng `recordSrsReview(card, rating, isCorrect)` |
-| Sửa logic quiz (điểm/nhiễu) | `ui/quiz/QuizScreen.kt` |
-| Sửa logic ghép từ | `ui/match/WordMatchScreen.kt` |
-| Sửa thông báo | `notification/*` (engine/helper/scheduler/receiver) |
-| Sửa widget | `widget/VocabularyStreakWidgetProvider.kt` + `res/layout/widget_*` |
-| Nối đăng nhập với DB thật | `UserAccountDao` đã sẵn; nối `LoginScreen`/`RegisterScreen` với ViewModel + Repository (hash mật khẩu) |
-| Thêm tính năng mạng | bỏ comment Retrofit/Moshi + tạo service, gọi qua Repository |
+Back handling (BackHandler):
+- Welcome/OnboardingTrialStudy/OnboardingTrialQuiz: không enable.
+- Login/Register/Onboarding/Home: về Welcome.
+- Còn lại: về Home.
 
 ---
 
-## 17. Bảng thuật ngữ
+## 9. Phân công thành viên
 
-| Thuật ngữ | Giải thích |
-| --- | --- |
-| SRS / SM-2 | Spaced Repetition / thuật toán SuperMemo-2 (interval, ease factor) |
-| StateFlow / flatMapLatest / stateIn | Quản lý trạng thái phản ứng |
-| DAO / Repository | Data Access Object / lớp trung gian |
-| Distractor | Đáp án nhiễu trong trắc nghiệm |
-| Streak | Chuỗi ngày học liên tiếp |
-| Streak multiplier | Hệ số nhân điểm theo chuỗi trả lời đúng |
-| Due cards | Thẻ đến hạn ôn tập (`nextReviewTimestamp <= now`) |
-| VIP level | 8 cấp độ khung hiệu ứng (0-7) |
-| AppWidget / RemoteViews | Widget màn hình chính |
-| AlarmManager | Lập lịch hẹn giờ hệ thống |
-| PendingIntent | Intent đại diện chạy sau (cho notification/widget/alarm) |
+| Thành viên | File chính | Phạm vi |
+|-----------|-----------|---------|
+| **Khôi** | `ui/*` (14+ files, ~7000 dòng) | UI/UX: theme, components, welcome, home, study, quiz, match, leaderboard, dialogs |
+| **Nam** | `data/*` (15+ files, ~2000 dòng) | Data: 8 entities, 8 DAOs, 2 seed data files, repository |
+| **Tuấn** | `MainActivity.kt`, `MainViewModel.kt`, `audio/*`, `notification/*`, `widget/*` (9 files, ~1500 dòng) | Logic: navigation, business logic, TTS, notifications, widget |
+
+---
+
+## 10. Bảng tra cứu thay đổi nhanh
+
+| Muốn thay đổi... | File cần sửa |
+|-------------------|-------------|
+| Màu sắc chủ đạo | `ui/theme/Color.kt` |
+| Font chữ | `ui/theme/Type.kt` |
+| Theme light/dark | `ui/theme/Theme.kt` |
+| Thêm màn hình mới | `ScreenState` sealed class + `MainViewModel` + `MainActivity.when` |
+| Sửa luồng Back | `BackHandler` trong `MainActivity` |
+| Sửa trang chủ | `ui/home/HomeScreen.kt` + `HomeComponents.kt` |
+| Sửa streak tracker | `ui/home/StreakWeeklyTracker.kt` |
+| Sửa flashcard view | `ui/components/Flashcard3DView.kt` |
+| Sửa VIP frame | `ui/components/VipAvatarFrame.kt` |
+| Sửa study screen | `ui/study/FlashcardStudyScreen.kt` |
+| Sửa quiz | `ui/quiz/QuizScreen.kt` |
+| Sửa ghép từ | `ui/match/WordMatchScreen.kt` |
+| Sửa BXH | `ui/leaderboard/LeaderboardTab.kt` |
+| Sửa dialog | `ui/dialogs/*` |
+| Thêm entity mới | Entity + `@Database.entities` + DAO + Repository |
+| Thêm cột | Entity + tăng DB version |
+| Thêm hàm DAO/Repository | File tương ứng |
+| Thêm ngôn ngữ | `Language.kt` + `Color.kt` + seed data |
+| Sửa seed data | `DefaultVocabData.kt` / `StarterVocabData.kt` |
+| Kích hoạt SRS SM-2 | `MainViewModel.recordReview` → `recordSrsReview` |
+| Sửa giờ nhắc | `MainViewModel.updateStudySchedule` + `StudySchedule` |
+| Sửa nội dung thông báo | `SmartNotificationEngine` + `NotificationHelper` |
+| Sửa widget | `VocabularyStreakWidgetProvider` + `res/layout/widget_*` |
+| Nối đăng nhập DB | `LoginScreen`/`RegisterScreen` + ViewModel + `UserAccountDao` |
+| Đổi giọng TTS | `TTSManager.kt` (map Locale) |
+
+---
+
+## 11. Q&A giám khảo
+
+### Q1. Kiến trúc app?
+MVVM + Repository. UI (Compose) → ViewModel (StateFlow) → Repository → DAO → Room DB.
+
+### Q2. Tại sao dùng sealed class cho navigation?
+Đơn giản, truyền data trực tiếp, không cần library bên ngoài. Phù hợp với app quy mô vừa.
+
+### Q3. Room database migrations?
+Hiện dùng `fallbackToDestructiveMigration()` (dev). Production sẽ viết `Migration(oldVersion, newVersion)`.
+
+### Q4. Dữ liệu seed từ đâu?
+Hardcoded trong Kotlin (`DefaultVocabData.kt` + `StarterVocabData.kt`), nạp qua `DatabaseCallback.onCreate` + `checkAndSeedDatabase()`.
+
+### Q5. Notification thông minh hoạt động thế nào?
+SmartNotificationEngine kiểm tra nhiều yếu tố (snooze, đã học hôm nay, due words, streak) trước khi gửi. AlarmManager hẹn giờ chính xác.
+
+### Q6. Widget cập nhật thế nào?
+`updateAllWidgets` lưu streak prefs + broadcast. Provider nhận broadcast → render RemoteViews. Auto-refresh 8s.
+
+### Q7. TTS hỗ trợ ngôn ngữ nào?
+10 ngôn ngữ: EN, KO, JA, ZH, FR, ES, DE, IT, PT, VI. Thiếu locale → fallback US.
+
+### Q8. VIP levels hoạt động thế nào?
+8 cấp (0-7), mỗi cấp có animation speed/gradient/badge riêng. UI render bởi `VipAvatarFrame` + `VipCardFrame`.
+
+### Q9. Onboarding trial flow?
+User thử học 5 từ starter + quiz thử trước khi đăng ký. Dùng `StarterVocabData` (50 thẻ, 5/ngôn ngữ). Sau trial → đăng ký → cards được insert vào DB.
+
+### Q10. Phân biệt study session và quiz record?
+Study session: cardsStudied, masteredCount, duration. Quiz record: score, points, maxStreak, accuracy. Tách riêng để analytics chi tiết.

@@ -1,6 +1,6 @@
 # DOC_KHOI — Tài liệu thành viên Khôi: UI/UX & Giao diện (Jetpack Compose)
 
-> **Vai trò:** Bạn phụ trách toàn bộ giao diện (`ui/`). Tài liệu mô tả **từng file, từng hàm** với đầy đủ chữ ký, hành vi bên trong, giá trị hardcode và lý do thiết kế, để trả lời trọn vẹn mọi câu hỏi giám khảo (kể cả "vì sao dùng cách này" và "em triển khai thế nào").
+> **Vai trò:** Bạn phụ trách toàn bộ giao diện (`ui/`). Tài liệu mô tả **từng file, từng hàm** với đầy đủ chữ ký, hành vi bên trong, giá trị hardcode và lý do thiết kế, để trả lời trọn vẹn mọi câu hỏi giám khảo.
 
 ---
 
@@ -25,9 +25,12 @@ ui/
 ├── components/     → VipAvatarFrame, Flashcard3DView, OwlMascotView,
 │                     LanguageSpeechBubble, GlowingCardsHeader, LaurelWreathHeader
 ├── welcome/        → WelcomeScreen, LoginScreen, RegisterScreen, OnboardingStepsScreen
-├── home/           → HomeScreen, HomeComponents
+├── home/           → HomeScreen (1867 dòng), HomeComponents (2037 dòng),
+│                     StreakWeeklyTracker (291 dòng)
 ├── detail/         → DeckDetailScreen
-├── study/ quiz/ match/
+├── study/          → FlashcardStudyScreen (711 dòng)
+├── quiz/           → QuizScreen (1197 dòng)
+├── match/          → WordMatchScreen (314 dòng)
 ├── leaderboard/    → LeaderboardTab
 └── dialogs/        → HomeDialogs, UserProfileDialog, CreateDeckAndCardDialogs
 ```
@@ -40,7 +43,8 @@ ui/
 - **State Hoisting:** state nâng lên cha, sự kiện phát ngược bằng lambda → tái sử dụng + dễ test.
 - **`remember`/`mutableStateOf`** cho state cục bộ; dữ liệu nghiệp vụ để trong `MainViewModel`.
 - **Coil** cho ảnh (`AsyncImage` + `crossfade`); **`LazyColumn`/`LazyVerticalGrid`** render lazy.
-- **Canvas** vẽ hình nhỏ (cờ, vòng %) thay ảnh → sắc nét + giảm APK.
+- **Canvas** vẽ hình nhỏ (cờ, vòng %, cờ Trung Quốc, nốt nhạc) thay ảnh → sắc nét + giảm APK.
+- **`graphicsLayer`** (GPU, không recomposition) cho animation VIP frame.
 
 ---
 
@@ -48,24 +52,40 @@ ui/
 
 ### 3.1 `ui/theme/`
 
-**`Color.kt`** — hằng màu (không hàm): Brand `NTKPrimary(0xFF0284C7)/Dark/Light/Secondary/Tertiary`; 10 màu Bubble (`BubbleEnglish`...`BubblePortuguese`); Surface `NTKBackgroundLight(0xFFF0F9FF)/SurfaceLight/CardBorder(0xFFE0F2FE)`; Text `NTKTextPrimary(0xFF0F172A)/Secondary/Muted`; Feedback `EasyGreen/GoodYellow/HardRed`; Gradient `NTKGradientStart/End`, `NTKBgGradientTop/Bottom`.
+**`Color.kt`** — hằng màu (không hàm):
+- Brand: `NTKPrimary(0xFF0284C7)`, `NTKPrimaryDark(0xFF0369A1)`, `NTKPrimaryLight(0xFF0EA5E9)`, `NTKSecondary(0xFF6366F1)`, `NTKTertiary(0xFF10B981)`
+- 10 màu Bubble: `BubbleEnglish(0xFF3B82F6)`→`BubblePortuguese(0xFF10B981)`
+- Surface: `NTKBackgroundLight(0xFFF0F9FF)`, `NTKSurfaceLight(0xFFFFFFFF)`, `CardBorder(0xFFE0F2FE)`
+- Text: `NTKTextPrimary(0xFF0F172A)`, `NTKTextSecondary(0xFF475569)`, `NTKTextMuted(0xFF94A3B8)`
+- Feedback: `EasyGreen(0xFF22C55E)`, `GoodYellow(0xFFFBBF24)`, `HardRed(0xFFEF4444)`
+- Gradient: `NTKGradientStart(0xFF0EA5E9)`, `NTKGradientEnd(0xFF6366F1)`, `NTKBgGradientTop(0xFFF0F9FF)`, `NTKBgGradientBottom(0xFFE0F2FE)`
 
 **`Type.kt`** — `val Typography` (Material 3, chỉ override `bodyLarge`).
 
 **`Theme.kt`** — `private LightColorScheme`/`DarkColorScheme`; `@Composable fun MyApplicationTheme(darkTheme=false, dynamicColor=false, content)`: chọn scheme (dynamic color trên Android 12+) rồi bọc `MaterialTheme(typography = Typography)`.
 
-### 3.2 `ui/components/VipAvatarFrame.kt`
+### 3.2 `ui/components/VipAvatarFrame.kt` (837 dòng)
 
-**`enum class VipLevel(levelNumber, title, badgeLabel, crownEmoji, badgeBgColor, badgeTextColor, gradientColors)`** — 8 cấp NONE(0)→VIP7(7), mỗi cấp có bộ gradient riêng (VIP1 đồng cam, VIP2 bạc, VIP3 bạch kim cyan, VIP4 vàng, VIP5 kim cương neon, VIP6 lửa, VIP7 cầu vồng). `companion fun fromLevel(level: Int): VipLevel` — map số → enum, mặc định NONE.
+**`enum class VipLevel(levelNumber, title, badgeLabel, crownEmoji, badgeBgColor, badgeTextColor, gradientColors)`** — 8 cấp NONE(0)→VIP7(7):
+- NONE: gradient rỗng, crown rỗng
+- VIP1: đồng cam, crown 👑
+- VIP2: bạc, crown 👑
+- VIP3: bạch kim cyan, crown 👑
+- VIP4: vàng hoàng gia, crown 👑👑
+- VIP5: kim cương neon, crown 👑👑
+- VIP6: lửa, crown 👑👑👑
+- VIP7: cầu vồng, crown 👑👑👑
+
+`companion fun fromLevel(level: Int): VipLevel` — map số → enum, mặc định NONE.
 
 **`@Composable fun VipAvatarFrame(vipLevel, avatarSize=58.dp, modifier, content)`** — khung avatar 5 lớp:
-- 3 animation `rememberInfiniteTransition`: `rotationAngle` (0→360°, `LinearEasing` + `Restart`; tốc độ theo cấp VIP1 4200ms → VIP7 800ms), `pulseAlpha` (0.35→0.90, `Reverse`), `pulseScale` (1.0→1.03..1.12 theo cấp).
-- `borderWidth` 2dp(NONE)→5.5dp(VIP7); `shadowElevation` 0→7dp; `glowBrush` radialGradient theo cấp; `sweepBrush` sweepGradient (nối thêm màu đầu để quay liền mạch).
-- Layer 1: aura phát sáng (`graphicsLayer scale/alpha`). Layer 2: vòng sweep xoay (`graphicsLayer rotationZ`). Layer 3: vòng trắng + `content()`. Layer 4: crown emoji ở đỉnh. Layer 5: badge pill "VIP n" ở đáy.
+- 3 animation `rememberInfiniteTransition`: `rotationAngle` (0→360°, `LinearEasing` + `Restart`; tốc độ VIP1 4200ms→VIP7 800ms), `pulseAlpha` (0.35→0.90, `Reverse`), `pulseScale` (1.0→1.03..1.12 theo cấp).
+- `borderWidth` 2dp(NONE)→5.5dp(VIP7); `shadowElevation` 0→7dp.
+- Layer 1: aura phát sáng (`graphicsLayer scale/alpha`). Layer 2: vòng sweep xoay (`graphicsLayer rotationZ`). Layer 3: vòng trắng + `content()`. Layer 4: crown emoji. Layer 5: badge pill.
 
-**`@Composable fun VipLevelSelectorCard(currentVipLevel, onSelectVipLevel, modifier)`** — card chọn cấp VIP: header "Khung Viền VIP Profile" + badge cấp hiện tại; `Row.horizontalScroll` liệt kê `VipLevel.values()`, mỗi ô 78dp chứa mini `VipAvatarFrame(28.dp)` + tên + check "Đang chọn". Bấm → `onSelectVipLevel(vip.levelNumber)`.
+**`@Composable fun VipLevelSelectorCard(currentVipLevel, onSelectVipLevel, modifier)`** — card chọn cấp VIP: header + badge cấp hiện tại; `Row.horizontalScroll` liệt kê `VipLevel.values()`, mỗi ô 78dp chứa mini `VipAvatarFrame(28.dp)` + tên + check "Đang chọn".
 
-**`@Composable fun VipCardFrame(userVipLevel, modifier, cornerRadius=24.dp, content)`** — viền thẻ cho flashcard. Nếu NONE → chỉ `Box { content() }`. Ngược lại: 3 animation (`borderProgress` 0→1 chạy tia, `pulseAlpha`, `pulseScale`); cache `cardGlowBrush`, `trackColors`, `beamColors`, `beamCount`(1-4), `beamLengthRatio`(0.32→0.18). 4 lớp: aura, `drawBehind` vẽ viền track + tia sáng chạy dọc `PathMeasure` (reuse `Path` để zero-alloc) + chấm spark, `content()` clip, tag VIP nổi góc phải.
+**`@Composable fun VipCardFrame(userVipLevel, modifier, cornerRadius=24.dp, content)`** — viền thẻ flashcard. Nếu NONE → chỉ `Box { content() }`. Ngược lại: 3 animation; cache `cardGlowBrush`, `trackColors`, `beamColors`, `beamCount`(1-4), `beamLengthRatio`(0.32→0.18). 4 lớp: aura, `drawBehind` viền + tia sáng chạy dọc `PathMeasure` (cache `Path` zero-alloc) + spark, `content()` clip, tag VIP góc phải.
 
 ### 3.3 `ui/components/Flashcard3DView.kt`
 
@@ -81,8 +101,8 @@ ui/
 ### 3.4 `ui/components/` còn lại
 
 - **`OwlMascotView.kt`** — `OwlMascotView(modifier, onLanguageClick)` : linh vật cú + 4 `LanguageSpeechBubble` (en/ja/ko/vi).
-- **`LanguageSpeechBubble.kt`** — `enum BubbleTailDirection`; `LanguageSpeechBubble(text, backgroundColor, tailDirection, floatOffset=4f, durationMs=2000, modifier, onClick)` : bubble + đuôi Canvas, lơ lửng `infiniteRepeatable`.
-- **`GlowingCardsHeader.kt`** — `GlowingCardsHeader(modifier)` : 3 thẻ phát sáng + sparkle.
+- **`LanguageSpeechBubble.kt`** (126 dòng) — `enum BubbleTailDirection` (4 hướng); `LanguageSpeechBubble(text, backgroundColor, tailDirection, floatOffset=4f, durationMs=2000, modifier, onClick)` : bubble + đuôi Canvas 12x8dp, lơ lửng `infiniteRepeatable`. `testTag("bubble_$text")`.
+- **`GlowingCardsHeader.kt`** (153 dòng) — `GlowingCardsHeader(modifier)` : 3 thẻ phát sáng (2pcs 54x68dp xoay ±14° + main 56x72dp), sparkle 3 viên, glow 76dp radial gradient, lơ lửng 2200ms -3dp↔+3dp.
 - **`LaurelWreathHeader.kt`** — `LaurelWreathHeader(modifier)` + `private LaurelBranch(isLeft)` : tên app + slogan + vòng nguyệt quế.
 
 ### 3.5 `ui/welcome/WelcomeScreen.kt`
@@ -91,86 +111,159 @@ ui/
 - `currentPage` (`mutableIntStateOf(0)`) + `LaunchedEffect(Unit){ while(true){ delay(3500); currentPage=(currentPage+1)%3 } }` tự chuyển carousel.
 - Nền gradient trắng→cyan; `GlowingCardsHeader` + `LaurelWreathHeader`; `OwlMascotView(onLanguageClick=onSelectLanguage)`.
 - `AnimatedContent(currentPage)` slide+fade (400ms) hiển thị 3 cặp title/subtitle hardcode.
-- Dot indicator `animateDpAsState` (8dp↔24dp, spring bouncy), bấm đổi trang.
+- Dot indicator `animateDpAsState` (8dp↔24dp, spring bouncy).
 - Nút "Bắt đầu học ngay" (`start_learning_button`) → `onStartLearning`; "Đăng nhập" (`login_button`) → `onLoginClick`.
 
 ### 3.6 `ui/welcome/LoginScreen.kt`
 
 **`@Composable fun LoginScreen(onLoginSuccess:(String)->Unit, onBackToWelcome, onNavigateToRegister, modifier)`**:
 - State: `username`, `password`, `rememberMe=true`, `isPasswordVisible`.
-- `Scaffold` + top bar back (`back_button`). Header "Đăng nhập" + mascot penguin.
-- Form card: ô tên đăng nhập (`login_username_input`), ô mật khẩu (`login_password_input`, có toggle ẩn/hiện + `PasswordVisualTransformation`), dòng "Ghi nhớ đăng nhập" (checkbox tự vẽ) + "Quên mật khẩu?" (Toast), nút "Đăng nhập" (`submit_login_button`), card info "Học mọi lúc, mọi nơi", footer "Đăng ký ngay" (`register_link`).
+- Form card: ô tên (`login_username_input`), ô mật khẩu (`login_password_input`, toggle ẩn/hiện), checkbox "Ghi nhớ", "Quên mật khẩu?" (Toast), nút "Đăng nhập" (`submit_login_button`), footer "Đăng ký ngay" (`register_link`).
 - Nút Đăng nhập: `val userStr = username.ifBlank { "Học viên NTK" }` → Toast + `onLoginSuccess(userStr)`. **Chưa nối DB.**
 
 ### 3.7 `ui/welcome/RegisterScreen.kt`
 
 **`@Composable fun RegisterScreen(onRegisterSuccess:(String)->Unit, onBackToWelcome, onNavigateToLogin, modifier)`**:
 - State: `username`, `password`, `confirmPassword`, `isPasswordVisible`, `isConfirmPasswordVisible`.
-- Validate dẫn xuất: `isUsernameValid = length in 4..20 && !contains(" ")`; `isPasswordValid = length >= 8`; `isPasswordsMatch = password == confirmPassword && confirmPassword.isNotEmpty()`.
-- Độ mạnh mật khẩu `remember(password)` → `Triple(text, color, segments)`: rỗng/"Rất yếu"(1)/"Yếu"(2)/"Trung bình"(3)/"Mạnh" hoặc "Rất mạnh"(4, cần chữ hoa + số + ký tự đặc biệt).
-- Nút "Đăng ký" (`register_button`) kiểm tra tuần tự 3 điều kiện (Toast lỗi tương ứng), thành công → Toast + `onRegisterSuccess(username)`.
+- Validate: `isUsernameValid = length in 4..20 && !contains(" ")`; `isPasswordValid = length >= 8`; `isPasswordsMatch = password == confirmPassword`.
+- Độ mạnh mật khẩu: rỗng/"Rất yếu"(1)/"Yếu"(2)/"Trung bình"(3)/"Mạnh"(4, cần chữ hoa+số+đặc biệt).
+- Nút "Đăng ký" (`register_button`) kiểm tra tuần tự → Toast + `onRegisterSuccess(username)`.
 
 ### 3.8 `ui/welcome/OnboardingStepsScreen.kt` (7 bước)
 
 **`@Composable fun OnboardingStepsScreen(onCompleteOnboarding:(AppLanguage,Int)->Unit, onBackToWelcome, modifier)`**:
 - `currentStep` 1-7, `selectedLanguage=ENGLISH`, `selectedLevelId="beginner"`, `selectedTopics=setOf("daily","travel","work")`, `selectedTimeSlots=setOf("slot_morning_2","slot_afternoon","slot_evening_2")`.
 - `primaryHour = timeSlots.firstOrNull { selectedTimeSlots.contains(it.id) }?.defaultHour ?: 19`.
-- Bước: (1) `StepLanguageSelection` chọn ngôn ngữ (9, grid 3x3) → (2) `StepLevelSelection` cấp độ → (3) `StepTopicSelection` chủ đề (8, đa chọn) → (4) `StepTimeSelection` khung giờ (7 slot) → (5) `StepNotificationPermission` xin quyền → (6) `StepAddWidgetHomeScreen` thêm widget → (7) `StepMascotPreparingFlashcards` loading → `onCompleteOnboarding(selectedLanguage, primaryHour)`.
-- `AnimatedContent` slide+fade chuyển bước; `TopStepperBar` 4 chấm.
+- Bước: (1) `StepLanguageSelection` (9 ngôn ngữ, grid 3x3) → (2) `StepLevelSelection` → (3) `StepTopicSelection` (8, đa chọn) → (4) `StepTimeSelection` (7 slot) → (5) `StepNotificationPermission` → (6) `StepAddWidgetHomeScreen` → (7) `StepMascotPreparingFlashcards` loading → `onCompleteOnboarding(selectedLanguage, primaryHour)`.
+- `AnimatedContent` slide+fade; `TopStepperBar` 4 chấm.
 
-Các composable private (từng bước): `TopStepperBar`, `StepLanguageSelection`, `LanguageCard`, `StepLevelSelection`, `StepTopicSelection`, `StepTimeSelection`, `TimeSlotCard`, `WideTimeSlotCard`, `HeaderBannerWithMascot`, `StepNotificationPermission`, `NotificationBenefitCard`, `StepGuidePill`, `StepAddWidgetHomeScreen`, `NotificationBenefitCardCompact`, `WidgetQuickFeatureBadge`, `MockDockAppIcon`, `WidgetBenefitItem`, `StepMascotPreparingFlashcards`, `PreparationCheckItem`. Data class: `OnboardingLanguageItem`, `StudyLevelItem`, `StudyTopicItem`, `TimeSlotItem`, private `WidgetSampleWord`.
+Các composable private: `TopStepperBar`, `StepLanguageSelection`, `LanguageCard`, `StepLevelSelection`, `StepTopicSelection`, `StepTimeSelection`, `TimeSlotCard`, `WideTimeSlotCard`, `HeaderBannerWithMascot`, `StepNotificationPermission`, `NotificationBenefitCard`, `StepGuidePill`, `StepAddWidgetHomeScreen`, `NotificationBenefitCardCompact`, `WidgetQuickFeatureBadge`, `MockDockAppIcon`, `WidgetBenefitItem`, `StepMascotPreparingFlashcards`, `PreparationCheckItem`.
+Data class: `OnboardingLanguageItem`, `StudyLevelItem`, `StudyTopicItem`, `TimeSlotItem`, private `WidgetSampleWord`.
 
-### 3.9 `ui/home/HomeScreen.kt`
+### 3.9 `ui/home/StreakWeeklyTracker.kt` (291 dòng) — FILE MỚI
 
-**`@Composable fun HomeScreen(...)`** — 4 tab dưới + overlay Ôn tập + search + dialog/sheet. State: `searchQuery`, `selectedBottomTab`, `showReviewOverlay`, `showStatsDialog`, `showSavedCardsDialog`, `showCreateDeckDialog`, `showImportCardsDialog`, `showLanguageFilterSheet`, `showAllDecksSheet`, `showAddLanguageSheet`.
-- Tab 0 Trang chủ: `HomeTopHeader` → `HomeSearchBar` → (search) `SearchResultsView` / `StarterWelcomeHeroCard` hoặc `StreakMascotBanner` → `QuickActionGrid` → `ContinueLearningSection` → `SpacedRepetitionDueWidget` → `YourDecksSection` → `DailyGoalCard`.
-- Tab 1 Khám phá: `ExploreDecksTab`. Tab 2 BXH: `LeaderboardTab`. Tab 3 Tài khoản: `AccountProfileTab`.
+**`enum class DayStudyStatus`** — 4 trạng thái: `COMPLETED` (ngày quá khứ đã học, ✓ xanh lá), `TODAY_COMPLETED` (hôm nay đã học, ⭐ vàng nhấp nháy), `TODAY_PENDING` (hôm nay chưa học, 🔥 vàng nhấp nháy), `UPCOMING` (ngày tương lai, ○ mờ).
 
-Private: `SearchResultsView`, `DeckListCard` (3 nút Học/Quiz/Ghép), `ExploreDecksTab`, `ReviewHistoryTab` (overlay Ôn tập), `AccountProfileTab`.
+**`data class DayOfWeekInfo(shortLabel, fullLabel, dayOfWeekCalendar, isToday, status)`** — `shortLabel` = "T2".."CN"; `fullLabel` = "Thứ Hai".."Chủ Nhật".
 
-### 3.10 `ui/home/HomeComponents.kt`
+**`object StreakTimeHelper`**:
+- `fun getTodayIndex(): Int` — trả 0-6 (Thứ Hai=0, Chủ Nhật=6) dựa trên `Calendar.getInstance()`.
+- `fun getTodayFullName(): String` — tên hôm nay bằng tiếng Việt.
+- `fun getWeeklyDaysInfo(streakDays: Int, isTodayStudied: Boolean = true): List<DayOfWeekInfo>` — tạo 7 phần tử:
+  - Ngày trước hôm nay: `COMPLETED` nếu `streakDays > (todayIndex - index)`, else `UPCOMING`.
+  - Hôm nay: `TODAY_COMPLETED` nếu `isTodayStudied || streakDays > 0`, else `TODAY_PENDING`.
+  - Ngày sau: luôn `UPCOMING`.
 
-Public: `HomeTopHeader(userName, streakDays, onStreakClick)`, `HomeSearchBar(query, onQueryChange, onFilterClick)`, `StreakMascotBanner(streakDays, onBannerClick)` (banner gradient + tracker T2-CN + linh vật + sparkle `infiniteRepeatable`), `QuickActionGrid(onCreateDeck, onReviewCards, onViewStats, onViewSaved)`, `StarterWelcomeHeroCard(userName, language, starterDeck, onStartFirstLesson)`, `ContinueLearningSection(...)`, `SpacedRepetitionDueWidget(dueCount, onStartReview)`, `YourDecksSection(...)`, `DynamicDeckCard(deck, language, onClick, onStudy, onQuiz, onMatch)`, `CreateNewDeckCard(onClick)`, `AddLanguageBottomSheet(learningLanguages, onSelectNewLanguage, onDismiss)`, `DailyGoalCard(currentCount, targetCount, percentage, onClick)` (vòng % Canvas `drawArc`+`sweepGradient`), `HomeBottomNavBar(selectedTab, onTabSelected)`.
-Private: `QuickActionItem`, `QuickStepItem`, `NavBarItem`. Minh hoạ: `JapaneseFujiArt`, `UsFlagArt`, `KoreaFlagArt`, `GlobeArt`; `DrawScope.drawTrigram`, `drawSparkle`.
+**`@Composable fun WeeklyStreakTrackerBar(streakDays=7, isTodayStudied=true, modifier)`** — hàng ngang 7 cột (T2-CN):
+- Mỗi cột: label ngắn bold + trạng thái tròn (✓ xanh/⭐ vàng pulse 🔥 flash/○ mờ) + chấm trắng nhỏ bên dưới hôm nay.
+- `rememberInfiniteTransition` cho pulse (1.0→1.08x, 1000ms).
+- `testTag("streak_day_T2")` etc.
 
-### 3.11 `ui/detail/DeckDetailScreen.kt`
+### 3.10 `ui/home/HomeScreen.kt` (1867 dòng)
+
+**`@Composable fun HomeScreen(selectedLanguage, onSelectLanguage, learningLanguages, onAddLearningLanguage, decks, allDecksList, starredCards, allCardsList, streakDays, masteredWordsCount, totalWordsCount, userName, userVipLevel, onSelectVipLevel, onOpenDeckDetail, onStudyDeck, onQuizDeck, onMatchDeck, onAddCardToDeck, onCreateNewDeck, onOpenProfile, onOpenStarred, onSpeak, onToggleStar, onStartStudySaved, onStartQuizSaved, onStartMatchSaved, onCreateDeckDirect, onImportCardsDirect, onStudyByLang, onTestSmartNotification, onTestMilestoneNotification, modifier)`**
+
+4 tab dưới + overlay Ôn tập + search + dialog/sheet:
+- State: `selectedBottomTab(0)`, `showReviewOverlay(false)`, `showStatsDialog(false)`, `showSavedCardsDialog(false)`, `showCreateDeckDialog(false)`, `showImportCardsDialog(false)`, `showLanguageFilterSheet(false)`, `showAllDecksSheet(false)`, `showAddLanguageSheet(false)`.
+- Derived: `isFirstTimeUser = masteredWordsCount == 0 && streakDays <= 1`, `currentActiveDeck`, `studiedCount`, `goalCurrent/goalTarget/goalPercentage`.
+- Scroll: `showScrollButton` (floating nút lên/xuống), `arrowRotation` animate 90°/-90°.
+
+**Tab 0 (Trang chủ):** `HomeTopHeader` → `HomeSearchBar` → (search) `SearchResultsView` / `StarterWelcomeHeroCard` (first-time) hoặc `StreakMascotBanner` (returning) → `QuickActionGrid` → `ContinueLearningSection` → `SpacedRepetitionDueWidget` (hardcoded dueCount=8) → `YourDecksSection` → `DailyGoalCard` → `AccountProfileTab`.
+
+**Tab 1 (Khám phá):** `ExploreDecksTab` — search bar + language chips + topic filter ("Tất cả" / "Cơ bản" / "Giao tiếp" / "Tự tạo") + deck list.
+
+**Tab 2 (BXH):** `LeaderboardTab`.
+
+**Tab 3 (Tài khoản):** `AccountProfileTab` — avatar VIP, progress overview, nút test smart notification, nút test milestone notification, widget guide dialog.
+
+Private composable: `SearchResultsView`, `DeckListCard` (Study/Quiz/Match buttons), `ExploreDecksTab` (1003-1225), `ReviewHistoryTab` (1231-1453, overlay Ôn tập + language filter + banner "Từ vựng đã lưu"), `AccountProfileTab` (1459-1867).
+
+### 3.11 `ui/home/HomeComponents.kt` (2037 dòng)
+
+**Public composables:**
+
+| Hàm | Chữ ký | Mô tả |
+|------|--------|-------|
+| `HomeTopHeader` | `(userName, streakDays, onStreakClick, modifier)` | Header chào + streak badge |
+| `HomeSearchBar` | `(query, onQueryChange, onFilterClick, modifier)` | `BasicTextField` + cursor brush + icon filter |
+| `StreakMascotBanner` | `(streakDays, onBannerClick, modifier)` | Banner gradient cyan + Squirtle mascot (Coil `AsyncImage`) + sparkle canvas (`infiniteRepeatable`) + `WeeklyStreakTrackerBar` |
+| `QuickActionGrid` | `(onCreateDeck, onReviewCards, onViewStats, onViewSaved, modifier)` | 4 nút: Tạo bộ thẻ (🆕), Ôn tập (🔄), Thống kê (📊), Đã lưu (⭐). Dùng `Icons.Outlined.*` |
+| `StarterWelcomeHeroCard` | `(userName, language, starterDeck, onStartFirstLesson, modifier)` | Card chào mừng user mới: mascot avatar + banner deck 0% + CTA glow "Bắt đầu học ngay" + 3 bước roadmap (`QuickStepItem`) |
+| `ContinueLearningSection` | `(title, studiedCount, totalCount, languageEmoji, levelBadge, language?, level?, onContinueClick, onViewAllClick, modifier)` | Section tiếp tục học + progress bar + badge ngôn ngữ |
+| `SpacedRepetitionDueWidget` | `(dueCount, onStartReview, onReviewDueCards, modifier)` | Widget SRS tím + nút "Ôn ngay ⚡", hỗ trợ 2 callback |
+| `YourDecksSection` | `(selectedLanguage, learningLanguages, onSelectLanguage, onAddLanguageClick, decks, onDeckClick, onOpenDeckDetail, onStudyDeck, onQuizDeck, onMatchDeck, onCreateNewDeck, onCreateDeckClick, onViewAllClick, modifier)` | Section bộ thẻ: language chips + category filter + "➕ Thêm ngôn ngữ" + grid deck + "Xem tất cả" link + deck count badge |
+| `DynamicDeckCard` | `(deck, language, onClick, onStudy, onQuiz, onMatch, modifier)` | Deck card ngang: flag badge + level badge + mini progress bar + 3 nút (Học/Quiz/Ghép) |
+| `CreateNewDeckCard` | `(onClick, modifier)` | Card "Tạo bộ mới" 140dp fixed width |
+| `AddLanguageBottomSheet` | `(learningLanguages, onSelectNewLanguage, onDismiss)` | Bottom sheet 10 ngôn ngữ: flag + native name + "Đang học" / "+ Thêm" |
+| `DailyGoalCard` | `(currentCount, targetCount, percentage, onClick, modifier)` | Vòng % Canvas `drawArc` + `sweepGradient` + cheer messages (3 tiers: 0%/1-99%/100%) |
+| `HomeBottomNavBar` | `(selectedTab, onTabSelected, modifier)` | 4 tab: Trang chủ, Khám phá, BXH, Tài khoản |
+| `JapaneseFujiArt` | `()` | Coil `AsyncImage(R.drawable.japan_fuji)` trong circle |
+| `UsFlagArt` | `()` | Canvas vẽ cờ Mỹ: sọc đỏ/trắng + ngôi sao trắng |
+| `KoreaFlagArt` | `()` | Canvas vẽ cờ Hàn: Thái cực đỏ/xanh + quẻ |
+| `GlobeArt` | `()` | Canvas vẽ trái đất: châu lục xanh trên nền xanh dương |
+
+**Private composables:**
+- `QuickActionItem(title, icon, iconTint, bgColor, onClick, testTag)` — nút hành động nhanh.
+- `QuickStepItem(step, icon, title, desc)` — bước roadmap trong hero card.
+- `NavBarItem(title, icon, isSelected, onClick, testTag)` — item bottom nav.
+
+**DrawScope extensions:**
+- `DrawScope.drawTrigram(pos, color)` — vẽ quẻ Hàn Quốc (3 bars).
+- `DrawScope.drawSparkle(center, size, color)` — vẽ ngôi sao lấp lánh.
+
+### 3.12 `ui/detail/DeckDetailScreen.kt`
 
 - `data class DeckTopic(id, title, cardCount, progressPercent, description)`.
-- `@Composable fun DeckDetailScreen(deck, cards, onBack, onStartStudy, onStartQuiz, onStartMatch, onSpeak, onToggleStar)` — `Scaffold`, hero (ảnh bìa + rating 4.9 + số thẻ + tag chips `FlowRow`), nút "Học ngay", menu ⋮ (Quiz/Match), 2 tab Nội dung/Thống kê.
+- `@Composable fun DeckDetailScreen(deck, cards, onBack, onStartStudy, onStartQuiz, onStartMatch, onSpeak, onToggleStar)` — hero + tag chips + nút "Học ngay" + menu ⋮ + 2 tab Nội dung/Thống kê.
 - private: `DeckCoverImageCard(deck)`, `AvatarCircle(emoji, bgColor, offset)`, `StatsDetailTab(deck, cards, onStartQuiz, onStartMatch)`.
 
-### 3.12 `ui/study/FlashcardStudyScreen.kt`
+### 3.13 `ui/study/FlashcardStudyScreen.kt` (711 dòng)
 
-**`@Composable fun FlashcardStudyScreen(deckTitle, languageTag, cards, userVipLevel=0, onBack, onSpeak, onToggleStar, onRecordReview, onStartQuiz, onSessionFinished:((Int,Int)->Unit)?=null, modifier)`**:
-- 3 nút hành động: Trộn thẻ (`btn_shuffle_cards`), Lưu từ điển (`btn_save_dictionary`), đổi mặt (`btn_flip_indicator`).
-- 2 nút đánh giá: "Chưa thuộc" (`btn_not_memorized`, `onRecordReview(id,3)`, không chuyển) & "Đã thuộc" (`btn_memorized`, `onRecordReview(id,1)`, tự chuyển).
+**`@Composable fun FlashcardStudyScreen(deckTitle, languageTag, cards, userVipLevel=0, allowBack=true, isOnboardingTrial=false, onBack, onSpeak, onToggleStar, onRecordReview?=null, onStartQuiz, onSessionFinished?=null, modifier)`**
+
+- `cardList` = `cards` (shuffled in-place by `remember`).
+- **Không còn nút "Chưa thuộc"/"Đã thuộc"** — `onRecordReview` **không được gọi** trong UI (chỉ có trong chữ ký). Chỉ còn 3 nút hành động: Trộn thẻ (`btn_shuffle_cards`), Lưu từ điển (`btn_save_dictionary`), đổi mặt (`btn_flip_indicator`).
 - Auto-play `LaunchedEffect(isAutoPlay, currentIndex, isFlipped, isCompleted)`: đọc mặt trước + `delay(2600)` → lật; `delay(2200)` → thẻ tiếp.
-- Overlay hoàn thành + `LaunchedEffect(isCompleted)` gọi `onSessionFinished`. Toast tạm (`LaunchedEffect(toastMessage)` 1500ms).
-- `private advanceNext(...)` — helper (hiện dead code).
+- `LaunchedEffect(currentIndex, cardList)` — tự phát âm khi chuyển thẻ (nếu không auto-play).
+- Overlay hoàn thành: nếu `isOnboardingTrial` → hiển thị bản khác + nút "Tiếp tục" → `onCompleteTrial`.
+- Toast tạm (`LaunchedEffect(toastMessage)` 1500ms).
 
-### 3.13 `ui/quiz/QuizScreen.kt`
+### 3.14 `ui/quiz/QuizScreen.kt` (1197 dòng)
 
-- `data class StreakMultiplierInfo(multiplier, title, badgeColor, emoji)`; `fun getStreakMultiplierInfo(streak)`: ≤1→1.0, 2→1.5, 3→2.0, 4→2.5, 5→3.0, 6→3.5, ≥7→5.0 ("COMBO THẦN THÁO").
-- `@Composable fun QuizScreen(deckTitle, languageTag, cards, onBack, onSpeak, onFinishQuiz(score,total), onStudyNext=null, modifier)`: guard `cards.size<2`; `quizCards=cards.shuffled()`; `currentOptions` = 3 nghĩa nhiễu + nghĩa đúng (xáo); đúng → `score++`, `currentStreak++`, `totalPoints += 100*multiplier`; sai → reset chuỗi; popup điểm `Animatable`; pháo hoa `FireworksCanvas`; overlay kết quả.
-- `@Composable fun FireworksCanvas(durationMs=8000L, modifier, onFinished)`: `Canvas`+`withFrameNanos`, hạt có trọng lực 0.25/lực cản 0.96/alpha giảm, ≤90 hạt, 3 hình (tròn/vuông/sao).
-- `private data class FireworkParticle`.
+**`data class StreakMultiplierInfo(multiplier, title, badgeColor, emoji)`**
+**`fun getStreakMultiplierInfo(streak)`:** ≤1→1.0 "Cơ Bản"⚡, 2→1.5 "Chuỗi Thăng Hoa"🔥, 3→2.0 "Chuỗi Bùng Nổ"🔥🔥, 4→2.5 "Chuỗi Xuất Sắc"⚡🔥, 5→3.0 "Chuỗi SIÊU CẤP"👑🔥, 6→3.5 "Chuỗi HUYỀN THOẠI"💎🔥, ≥7→5.0 "COMBO THẦN THÁO"👑🔥✨.
 
-### 3.14 `ui/match/WordMatchScreen.kt`
+**`@Composable fun QuizScreen(deckTitle, languageTag, cards, allowBack=true, isOnboardingTrial=false, onBack, onSpeak, onFinishQuiz(score,total,wrongCards), onAnswerCorrect?=null, onAnswerWrong?=null, onStudyWrongCards?=null, onStudyNext?=null, onCompleteTrial?=null, modifier)`**
+
+- Guard `cards.size<2`. `quizCards=cards.shuffled()`.
+- `currentOptions` = 3 nghĩa nhiễu + nghĩa đúng (xáo). Guard nếu < 4 options → dùng 3.
+- Đúng → `score++`, `currentStreak++`, `earned = 100*multiplier`, `totalPoints += earned`, popup `Animatable`. Sai → reset streak, thêm vào `wrongCards` (dedup by `id` + `frontWord`).
+- `onAnswerCorrect`/`onAnswerWrong` callbacks mới (dùng trong onboarding trial).
+- Popup điểm: `popupTrigger++` → `popupAlpha` 0→1, `popupScale` 0.7→1.1 → giữ 900ms → `popupOffsetY` bay lên + `popupAlpha` giảm.
+- Overlay kết quả: rank "Thần Thoại Multiplier"(100%) / "Bậc Thầy Từ Vựng"(≥80%) / "Học Viên Xuất Sắc"(≥50%) / "Cố Gắng Lần Sau"(<50%).
+  - Nếu có wrong cards → nút "Học lại N từ chưa thuộc" → `onStudyWrongCards`.
+  - Nếu ≥50% + không sai → gợi ý học deck tiếp → `onStudyNext`.
+  - Nếu `isOnboardingTrial` → nút "Tiếp tục" → `onCompleteTrial`.
+- **Pháo hoa** `FireworksCanvas` 8s sau khi xong.
+
+**`@Composable fun FireworksCanvas(durationMs=8000L, modifier, onFinished)`**: `Canvas` + `withFrameNanos`, hạt có trọng lực 0.25/lực cản 0.96/vòng đời, ≤90 hạt, 3 hình (tròn/vuông/sao). `private data class FireworkParticle`.
+
+### 3.15 `ui/match/WordMatchScreen.kt`
 
 - `data class MatchItem(id, text, isFront, pairId)`.
-- `@Composable fun WordMatchScreen(deckTitle, cards, onBack, modifier)`: `gameCards=cards.take(6)`; tạo cặp từ↔nghĩa + `shuffled()`; `LazyVerticalGrid(GridCells.Fixed(2))`; đúng khi `pairId` khớp & khác `isFront`; `LaunchedEffect` thắng khi ghép đủ.
+- `@Composable fun WordMatchScreen(deckTitle, cards, onBack, modifier)`: `gameCards=cards.take(6)`; tạo cặp từ↔nghĩa 12 items + `shuffled()`; `LazyVerticalGrid(GridCells.Fixed(2))`; đúng khi `pairId` khớp & khác `isFront`; `LaunchedEffect` thắng khi ghép đủ.
 
-### 3.15 `ui/leaderboard/LeaderboardTab.kt`
+### 3.16 `ui/leaderboard/LeaderboardTab.kt`
 
 - `enum LeaderboardFilterType(POINTS/STREAK/CARDS)`, `enum TimePeriod(THIS_WEEK/THIS_MONTH/ALL_TIME)`, `sealed class RankTrend(Up/Down/Same)`, `data class LeaderboardUser(rank, name, points, streakDays, cardsLearned, trend, avatarBgColor, avatarEmoji, vipLevel, isCurrentUser)`.
-- `@Composable fun LeaderboardTab(userName, userVipLevel, userScore, userStreak, userCardsLearned, modifier)`: state `selectedFilter/selectedTimePeriod/showTimeMenu/selectedUserForDialog/showAllRewardsDialog`; `leaderboardList` 10 user mock nhân theo `multiplier` (Tuần 1.0/Tháng 3.5/Tất cả 8.0); `currentUserItem` rank 23. Header + dropdown `TimePeriod` + segmented filter + top-3 `PodiumStep` + rank 4-10 `LeaderboardRowItem` + `RewardCard` + 2 dialog (user detail, all rewards).
-- private: `PodiumStep` (avatar VIP + bục + huy chương), `LeaderboardRowItem` (rank + trend ↑↓- + avatar VIP + tên + điểm), `RewardCard`.
+- `@Composable fun LeaderboardTab(userName, userVipLevel, userScore, userStreak, userCardsLearned, modifier)`: leaderboardList 10 user mock nhân multiplier (Tuần 1.0/Tháng 3.5/Tất cả 8.0); `currentUserItem` rank 23.
+- private: `PodiumStep`, `LeaderboardRowItem`, `RewardCard`.
 
-### 3.16 `ui/dialogs/`
+### 3.17 `ui/dialogs/`
 
-- **`HomeDialogs.kt`**: `ImportCardsDialog(decks, onDismiss, onImportCards(deckId,cards))` (nhập `Từ|Nghĩa|Ví dụ`, hardcode fr/phrase); `StatsSummaryDialog(streakDays, masteredCount, totalCardsCount, onDismiss)` (4 StatCard + biểu đồ tuần); `SavedCardsDialog(starredCards, decks, onSpeak, onToggleStar, onStartStudy/Quiz/Match, onDismiss)` (lọc ngôn ngữ/chủ đề + tìm kiếm + `SavedWordDetailCard`); private `StatCard`, `SavedWordDetailCard`.
-- **`UserProfileDialog.kt`**: `UserProfileDialog(userName, userVipLevel=1, streakDays, masteredWordsCount, totalWordsCount, onDismiss, onUpdateName, onSelectVipLevel)` — avatar VIP, đổi tên, `VipLevelSelectorCard`, thống kê.
-- **`CreateDeckAndCardDialogs.kt`**: `CreateCardDialog(deckId, languageCode, onDismiss, onSave(FlashCardEntity))` (form từ vựng); `CreateDeckDialog(currentLanguageCode, allCards, onDismiss, onSave(DeckEntity, List<FlashCardEntity>))` (tạo bộ thẻ + chọn thẻ 2 tab "⭐ Đã lưu"/"💡 Chưa thuộc").
+- **`HomeDialogs.kt`**: `ImportCardsDialog(decks, onDismiss, onImportCards(deckId,cards))`, `StatsSummaryDialog(streakDays, masteredCount, totalCardsCount, onDismiss)`, `SavedCardsDialog(starredCards, decks, onSpeak, onToggleStar, onStartStudy/Quiz/Match, onDismiss)`.
+- **`UserProfileDialog.kt`**: `UserProfileDialog(userName, userVipLevel=1, streakDays, masteredWordsCount, totalWordsCount, onDismiss, onUpdateName, onSelectVipLevel)`.
+- **`CreateDeckAndCardDialogs.kt`**: `CreateCardDialog(deckId, languageCode, onDismiss, onSave)`, `CreateDeckDialog(currentLanguageCode, allCards, onDismiss, onSave)`.
 
 ---
 
@@ -184,6 +277,8 @@ FlashcardStudyScreen(
     languageTag = screen.deck.languageCode,
     cards = screen.cards,
     userVipLevel = userVipLevel,
+    allowBack = true,
+    isOnboardingTrial = false,
     onBack = { viewModel.navigateTo(ScreenState.Home) },
     onSpeak = { text, tag -> viewModel.speak(text, tag) },
     onToggleStar = { id, starred -> viewModel.toggleStar(id, starred) },
@@ -202,12 +297,15 @@ FlashcardStudyScreen(
 | Lật thẻ 3D | `graphicsLayer.rotationY` + `animateFloatAsState` + `cameraDistance` | 0↔180°, ngưỡng 90° |
 | Khung VIP avatar | `rememberInfiniteTransition` (rotation/pulse alpha/pulse scale) | aura + vòng sweep xoay + nội dung |
 | Viền thẻ VIP | `drawBehind` + `PathMeasure` | tia sáng chạy dọc viền + spark |
-| Pháo hoa | `Canvas` + `withFrameNanos` | hạt có trọng lực/lực cản/vòng đời, ≤90 hạt, 8s |
-| Popup điểm | `Animatable` | pop → giữ 900ms → bay lên mờ |
+| Pháo hoa | `Canvas` + `withFrameNanos` | hạt trọng lực/lực cản/vòng đời, ≤90 hạt, 8s |
+| Popup điểm quiz | `Animatable` (alpha/scale/offsetY) | pop → giữ 900ms → bay lên mờ |
+| Streak tracker pulse | `infiniteRepeatable` + `animateFloat` | ⭐/🔥 nhấp nháy scale 1.0→1.08x |
+| Banner sparkle | `infiniteRepeatable` + `animateFloat` | alpha 0.4→1.0 pulse |
 | Carousel/step | `AnimatedContent` | slide+fade |
 | Overlay | `AnimatedVisibility` | `fadeIn + scaleIn` |
 | Mở rộng chủ đề | `animateContentSize` | `expand/shrinkVertically` |
 | Lơ lửng | `infiniteRepeatable` | `animateFloat` đảo chiều |
+| Floating scroll btn | `AnimatedVisibility` + `animateFloatAsState` (rotation) | fade+scale + xoay 90° |
 
 ---
 
@@ -223,16 +321,17 @@ Home: streak_badge, home_search_input, streak_mascot_banner, quick_create_deck, 
       quick_stats, quick_saved, starter_welcome_hero_card, btn_start_first_lesson, continue_learning_card,
       btn_continue_study, srs_due_review_card, lang_chip_<code>, btn_add_language_chip, deck_filter_<f>,
       card_create_new_deck, deck_item_card_<id>, add_lang_item_<code>, daily_goal_card,
-      tab_home, tab_explore, tab_leaderboard, tab_profile
+      tab_home, tab_explore, tab_leaderboard, tab_profile,
+      streak_day_T2..streak_day_CN
 Study: btn_back_study, btn_shuffle_cards, btn_save_dictionary, btn_flip_indicator,
-       btn_not_memorized, btn_memorized, btn_prev_card, btn_next_card, flashcard_3d_container,
-       btn_pronounce_front, btn_star_card
+       flashcard_3d_container, btn_pronounce_front, btn_star_card
 Quiz: quiz_option_<text>, btn_next_quiz, btn_study_next_card
 Match: match_card_<id>
 DeckDetail: btn_quiz_mode_card, btn_match_mode_card
 Leaderboard: leaderboard_screen, time_period_dropdown
 Dialogs: input_front_word, input_back_meaning, btn_save_card, input_deck_title, btn_save_deck,
          btn_close_profile, saved_cards_search_input, saved_word_card_<id>, filter_lang_all, filter_lang_<code>
+Bubble: bubble_<text>
 ```
 
 ---
@@ -244,13 +343,15 @@ Dialogs: input_front_word, input_back_meaning, btn_save_card, input_deck_title, 
 | Đổi màu | `ui/theme/Color.kt` |
 | Đổi font | `ui/theme/Type.kt` |
 | Thêm màn hình | composable + `ScreenState` + `when` `MainActivity` + hàm `MainViewModel` |
-| Sửa home | `ui/home/*` |
+| Sửa home | `ui/home/HomeScreen.kt` + `HomeComponents.kt` |
+| Sửa streak tracker | `ui/home/StreakWeeklyTracker.kt` |
 | Sửa thẻ học | `ui/study/FlashcardStudyScreen.kt` + `Flashcard3DView.kt` |
 | Sửa quiz | `ui/quiz/QuizScreen.kt` |
 | Sửa ghép từ | `ui/match/WordMatchScreen.kt` |
 | Sửa VIP | `components/VipAvatarFrame.kt` |
 | Sửa BXH | `ui/leaderboard/LeaderboardTab.kt` |
 | Sửa dialog | `ui/dialogs/*` |
+| Thêm bubble | `LanguageSpeechBubble.kt` |
 
 ---
 
@@ -287,7 +388,19 @@ Số ô thay đổi (12 ô), chia cột tự động, render lazy.
 Hình nhỏ → vector sắc nét trên mọi mật độ, không tăng APK; ảnh phức tạp mới dùng ảnh thật.
 
 ### Q11. Vì sao VIP dùng `graphicsLayer` thay vì animation trực tiếp?
-`graphicsLayer` (rotationZ/scale/alpha) chạy trên GPU, **không trigger recomposition** mỗi frame → mượt hơn, tiết kiệm CPU. Đây là kỹ thuật tối ưu hiệu năng quan trọng.
+`graphicsLayer` (rotationZ/scale/alpha) chạy trên GPU, **không trigger recomposition** mỗi frame → mượt hơn, tiết kiệm CPU.
 
 ### Q12. Vì sao `VipCardFrame` cache `Path`/`PathMeasure` bằng `remember`?
 Để tránh cấp phát object (garbage collection) trong `drawBehind` mỗi frame — giữ 60fps cho animation viền.
+
+### Q13. Study screen thay đổi gì so với phiên bản trước?
+Phiên bản mới **bỏ nút "Chưa thuộc"/"Đã thuộc"** (chỉ giữ trong chữ ký callback). UX chỉ còn flip + auto-play + shuffle + bookmark. `onRecordReview` không được gọi trong UI — quyền quyết định mastery thuộc về ViewModel/quiz flow.
+
+### Q14. Quiz screen có callback mới gì?
+Bổ sung `onAnswerCorrect(card)`, `onAnswerWrong(card)`, `onStudyWrongCards(cards)`, `onStudyNext()`, `onCompleteTrial()` — phục vụ onboarding trial flow (quiz thử → đăng ký).
+
+### Q15. StreakWeeklyTracker hoạt động ra sao?
+`StreakTimeHelper.getWeeklyDaysInfo(streakDays)` tạo 7 DayOfWeekInfo dựa trên `Calendar.getInstance()`. Ngày trước hôm nay: `COMPLETED` nếu streak đủ dài. Hôm nay: pulse ⭐ hoặc 🔥. Ngày sau: `UPCOMING`. `WeeklyStreakTrackerBar` render 7 cột ngang với animation pulse.
+
+### Q16. HomeScreen phân biệt user mới/cũ thế nào?
+`isFirstTimeUser = masteredWordsCount == 0 && streakDays <= 1`. User mới → `StarterWelcomeHeroCard` (CTA glow + roadmap 3 bước). User cũ → `StreakMascotBanner` (mascot + tracker 7 ngày).
