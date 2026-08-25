@@ -126,6 +126,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     val notificationPreview by viewModel.notificationPreview.collectAsStateWithLifecycle()
     val continueLearning by viewModel.continueLearning.collectAsStateWithLifecycle()
     val decksWithStats by viewModel.decksWithStats.collectAsStateWithLifecycle()
+    val weeklyPoints by viewModel.weeklyPoints.collectAsStateWithLifecycle()
+    val monthlyPoints by viewModel.monthlyPoints.collectAsStateWithLifecycle()
 
     var showProfileDialog by remember { mutableStateOf(false) }
     var showCreateDeckDialog by remember { mutableStateOf(false) }
@@ -285,6 +287,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         userName = userName,
                         userVipLevel = userVipLevel,
                         userTotalPoints = userTotalPoints,
+                        userWeeklyPoints = weeklyPoints,
+                        userMonthlyPoints = monthlyPoints,
                         onSelectVipLevel = { viewModel.updateUserVipLevel(it) },
                         onOpenDeckDetail = { deck -> viewModel.openDeckDetail(deck) },
                         onStudyDeck = { deck -> viewModel.startStudyDeck(deck) },
@@ -377,6 +381,15 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                 }
 
                 is ScreenState.Quiz -> {
+                    val nextStep by viewModel.quizNextStep.collectAsStateWithLifecycle()
+                    val nextStepLabel = when (val step = nextStep) {
+                        is com.example.ui.viewmodel.NextStudyStep.ReviewUnmastered ->
+                            "Ôn lại ${step.cards.size} thẻ chưa thuộc của ${step.deck.title}"
+                        is com.example.ui.viewmodel.NextStudyStep.AdvanceTo ->
+                            "Học tiếp: ${step.deck.title}"
+                        com.example.ui.viewmodel.NextStudyStep.AllDone -> null
+                        null -> null
+                    }
                     QuizScreen(
                         deckTitle = screen.deck.title,
                         languageTag = screen.deck.languageCode,
@@ -402,7 +415,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         onStudyWrongCards = { wrongCards ->
                             viewModel.startStudyUnmasteredDeck(screen.deck, wrongCards)
                         },
-                        onStudyNext = { viewModel.startStudyDeck(screen.deck) }
+                        onStudyNext = { viewModel.continueAfterQuiz() },
+                        nextStepLabel = nextStepLabel
                     )
                 }
 

@@ -47,6 +47,18 @@ data class ContinueLearningInfo(
     val totalCount: Int
 )
 
+/**
+ * Bước học KẾ TIẾP sau khi hoàn thành Quiz của 1 deck:
+ * - ReviewUnmastered: deck chưa xong -> ôn lại đúng các thẻ chưa thuộc
+ * - AdvanceTo: deck đã xong -> chuyển sang deck kế tiếp trên LearningPath
+ * - AllDone: đã chinh phục toàn bộ path của ngôn ngữ này
+ */
+sealed class NextStudyStep {
+    data class ReviewUnmastered(val deck: DeckEntity, val cards: List<FlashCardEntity>) : NextStudyStep()
+    data class AdvanceTo(val deck: DeckEntity, val cards: List<FlashCardEntity>, val finishedDeckTitle: String) : NextStudyStep()
+    object AllDone : NextStudyStep()
+}
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database: AppDatabase = AppDatabase.getDatabase(application)
@@ -55,6 +67,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _currentScreen = MutableStateFlow<ScreenState>(ScreenState.Welcome)
     val currentScreen: StateFlow<ScreenState> = _currentScreen.asStateFlow()
+
+    // Bước học kế tiếp sau Quiz (được tính khi processQuizResult hoàn tất)
+    private val _quizNextStep = MutableStateFlow<NextStudyStep?>(null)
+    val quizNextStep: StateFlow<NextStudyStep?> = _quizNextStep.asStateFlow()
 
     private val _selectedLanguage = MutableStateFlow(AppLanguage.ENGLISH)
     val selectedLanguage: StateFlow<AppLanguage> = _selectedLanguage.asStateFlow()
@@ -96,12 +112,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         when {
             lastDeckStats != null ->
                 ContinueLearningInfo(lastDeckStats.deck, session, lastDeckStats.masteredCards, lastDeckStats.totalCards)
-            else -> stats.filter { it.deck.languageCode == lang.code }
-                .firstOrNull()?.let {
-                    ContinueLearningInfo(it.deck, null, it.masteredCards, it.totalCards)
+            else -> {
+                // Chưa từng học: gợi ý deck đầu tiên CHƯA hoàn thành trên LearningPath
+                val langStats = stats.filter { it.deck.languageCode == lang.code }
+                val pathDecks = com.example.data.local.LearningPath.buildPath(langStats.map { it.deck }, lang.code)
+                val suggested = pathDecks.firstOrNull { p ->
+                    val s = statsByIdFor(langStats)[p.id]
+                    !com.example.data.local.LearningPath.isCompleted(s?.masteredCards, s?.totalCards)
+                } ?: langStats.firstOrNull()?.deck
+                suggested?.let {
+                    val s = statsByIdFor(langStats)[it.id]
+                    ContinueLearningInfo(it, null, s?.masteredCards ?: 0, s?.totalCards ?: 0)
                 }
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private fun statsByIdFor(langStats: List<com.example.data.model.DeckWithStats>) =
+        langStats.associateBy { it.deck.id }
 
     val masteredCountForCurrentLanguage: StateFlow<Int> = _selectedLanguage
         .flatMapLatest { lang -> repository.getMasteredCountByLanguage(lang.code) }
@@ -124,6 +152,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val userTotalPoints: StateFlow<Int> = userProfile
         .map { it?.totalPoints ?: 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // Điểm kiếm được trong TUẦN này (từ thứ Hai đầu tuần) — BXH thật
+    val weeklyPoints: StateFlow<Int> = repository.getPointsEarnedSince(startOfWeekMillis())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // Điểm kiếm được trong THÁNG này (từ ngày 1) — BXH thật
+    val monthlyPoints: StateFlow<Int> = repository.getPointsEarnedSince(startOfMonthMillis())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val studySchedule: StateFlow<com.example.data.model.StudyScheduleEntity?> = repository.getStudySchedule()
@@ -442,6 +478,60 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.addPoints(score * 100)
             repository.updateDailyStreakIfNeeded()
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
+
+            // 6. Tính bước học KẾ TIẾP trên LearningPath cho nút "Học card tiếp theo"
+            _quizNextStep.value = computeNextStepAfterQuiz(deck)
+        }
+    }
+
+    /** Tính bước kế tiếp: deck chưa xong -> ôn thẻ chưa thuộc; đã xong -> AdvanceTo deck kế trên path */
+    suspend fun computeNextStepAfterQuiz(deck: DeckEntity): NextStudyStep {
+        val cards = repository.getCardsForDeck(deck.id).first()
+        val unmastered = cards.filter { !it.isMastered }
+        if (unmastered.isNotEmpty()) {
+            return NextStudyStep.ReviewUnmastered(
+                deck,
+                unmastered.sortedBy { it.nextReviewTimestamp }
+            )
+        }
+
+        val allDecks = repository.getAllDecks().first()
+        val statsById = repository.getAllDecksWithStats().first().associateBy { it.deck.id }
+        val path = com.example.data.local.LearningPath.buildPath(allDecks, deck.languageCode)
+        val next = com.example.data.local.LearningPath.nextDeckAfter(
+            current = deck,
+            path = path,
+            masteredCountByDeckId = statsById.mapValues { it.value.masteredCards },
+            totalCardsByDeckId = statsById.mapValues { it.value.totalCards }
+        ) ?: return NextStudyStep.AllDone
+
+        val nextCards = repository.getCardsForDeck(next.id).first()
+        return NextStudyStep.AdvanceTo(next, nextCards, deck.title)
+    }
+
+    /** Nút "Học card tiếp theo": điều hướng theo bước đã tính + thông báo lên level */
+    fun continueAfterQuiz() {
+        val step = _quizNextStep.value ?: return
+        _quizNextStep.value = null
+        when (step) {
+            is NextStudyStep.ReviewUnmastered ->
+                _currentScreen.value = ScreenState.Study(step.deck, step.cards)
+
+            is NextStudyStep.AdvanceTo -> {
+                android.widget.Toast.makeText(
+                    getApplication(),
+                    "🎉 Hoàn thành \"${step.finishedDeckTitle}\"! Tiếp tục: ${step.deck.title}",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                _currentScreen.value = ScreenState.Study(step.deck, step.cards)
+            }
+
+            NextStudyStep.AllDone ->
+                android.widget.Toast.makeText(
+                    getApplication(),
+                    "🏆 Xuất sắc! Bạn đã chinh phục toàn bộ các level của ngôn ngữ này!",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
         }
     }
 
@@ -571,6 +661,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startQuizDeck(deck: DeckEntity) {
         viewModelScope.launch {
+            _quizNextStep.value = null
             val cards = repository.getCardsForDeck(deck.id).first()
             _currentScreen.value = ScreenState.Quiz(deck, cards)
         }
@@ -693,5 +784,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         ttsManager.shutdown()
+    }
+
+    private companion object {
+        /** 00:00 của thứ Hai đầu tuần (Tuần này) */
+        fun startOfWeekMillis(now: Long = System.currentTimeMillis()): Long {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = now
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            val dayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK) // SUN=1..SAT=7
+            cal.add(java.util.Calendar.DAY_OF_YEAR, if (dayOfWeek == java.util.Calendar.SUNDAY) -6 else -(dayOfWeek - 2))
+            return cal.timeInMillis
+        }
+
+        /** 00:00 ngày 1 tháng hiện tại (Tháng này) */
+        fun startOfMonthMillis(now: Long = System.currentTimeMillis()): Long {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = now
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
+        }
     }
 }

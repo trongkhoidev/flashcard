@@ -347,6 +347,9 @@ class FlashCardRepository(
 
     fun getTotalQuizPointsEarned(): Flow<Int?> = quizDao.getTotalPointsEarned()
 
+    // Tổng điểm kiếm được từ mốc thời gian (BXH Tuần / Tháng)
+    fun getPointsEarnedSince(since: Long): Flow<Int> = quizDao.getPointsSince(since)
+
     fun getHighestStreakRecord(): Flow<Int?> = quizDao.getHighestStreak()
 
     fun getTotalGamesPlayedCount(): Flow<Int> = quizDao.getTotalGamesPlayed()

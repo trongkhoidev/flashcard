@@ -123,6 +123,7 @@ fun QuizScreen(
     onAnswerWrong: ((FlashCardEntity) -> Unit)? = null,
     onStudyWrongCards: ((List<FlashCardEntity>) -> Unit)? = null,
     onStudyNext: (() -> Unit)? = null,
+    nextStepLabel: String? = null,
     onCompleteTrial: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -938,8 +939,9 @@ fun QuizScreen(
                             }
                         }
 
-                        // 2. PASS >= 50% SUGGESTION CARD (Nếu đã đạt điểm tốt)
-                        if (accuracy >= 50 && wrongCards.isEmpty()) {
+                        // 2. NEXT STEP CARD — luôn hiện sau khi xong quiz:
+                        //    còn từ sai đã có card "Học lại" ở trên; hết sai -> đề nghị bước kế tiếp trên LearningPath
+                        if (wrongCards.isEmpty()) {
                             Spacer(modifier = Modifier.height(14.dp))
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
@@ -957,15 +959,21 @@ fun QuizScreen(
                                         Text("🎉", fontSize = 18.sp)
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Bạn có muốn học card tiếp theo không?",
+                                            text = when {
+                                                nextStepLabel?.startsWith("Ôn lại") == true -> "Deck này chưa hoàn thành!"
+                                                nextStepLabel != null -> "Sẵn sàng tiến lên level mới? 🚀"
+                                                else -> "Bạn có muốn học tiếp không?"
+                                            },
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0369A1)
+                                            color = Color(0xFF0369A1),
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Đạt $accuracy% - Kết quả xuất sắc! Giữ đà học tập để làm chủ toàn bộ từ vựng.",
+                                        text = nextStepLabel?.let { "Bước tiếp theo: $it" }
+                                            ?: "Giữ đà học tập để làm chủ toàn bộ từ vựng.",
                                         fontSize = 12.sp,
                                         color = NTKTextSecondary,
                                         textAlign = TextAlign.Center
@@ -982,7 +990,10 @@ fun QuizScreen(
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
                                     ) {
-                                        Text("🎴 Học card tiếp theo ngay", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+                                        Text(
+                                            nextStepLabel?.let { "🎴 Học tiếp ngay" } ?: "🎴 Ôn tập lại từ đầu",
+                                            fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White
+                                        )
                                     }
                                 }
                             }

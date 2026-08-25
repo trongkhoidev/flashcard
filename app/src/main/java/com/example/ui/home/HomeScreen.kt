@@ -109,6 +109,8 @@ fun HomeScreen(
     userName: String = "bạn",
     userVipLevel: Int = 1,
     userTotalPoints: Int = 1250,
+    userWeeklyPoints: Int = 0,
+    userMonthlyPoints: Int = 0,
     onSelectVipLevel: (Int) -> Unit = {},
     onOpenDeckDetail: (DeckEntity) -> Unit = {},
     onStudyDeck: (DeckEntity) -> Unit,
@@ -339,11 +341,14 @@ fun HomeScreen(
                     }
 
                     2 -> {
-                        // TAB 2: BẢNG XẾP HẠNG (Leaderboard strictly matching provided mockup)
+                        // TAB 2: BẢNG XẾP HẠNG — dữ liệu THẬT của người chơi
+                        // Điểm: Tuần/Tháng lấy từ quiz_records, "Tất cả" = userProfile.totalPoints
                         LeaderboardTab(
                             userName = userName,
                             userVipLevel = userVipLevel,
-                            userScore = if (userTotalPoints > 0) userTotalPoints else (if (masteredWordsCount > 0) (masteredWordsCount * 100) + (streakDays * 50) else 1250),
+                            userScore = userTotalPoints,
+                            userWeeklyPoints = userWeeklyPoints,
+                            userMonthlyPoints = userMonthlyPoints,
                             userStreak = streakDays,
                             userCardsLearned = masteredWordsCount,
                             modifier = Modifier.weight(1f)

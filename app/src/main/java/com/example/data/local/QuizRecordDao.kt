@@ -32,6 +32,10 @@ interface QuizRecordDao {
     @Query("SELECT SUM(pointsEarned) FROM quiz_records")
     fun getTotalPointsEarned(): Flow<Int?>
 
+    // Tổng điểm kiếm được từ mốc thời gian (dùng cho BXH theo Tuần / Tháng)
+    @Query("SELECT COALESCE(SUM(pointsEarned), 0) FROM quiz_records WHERE timestamp >= :since")
+    fun getPointsSince(since: Long): Flow<Int>
+
     @Query("SELECT MAX(maxStreak) FROM quiz_records")
     fun getHighestStreak(): Flow<Int?>
 

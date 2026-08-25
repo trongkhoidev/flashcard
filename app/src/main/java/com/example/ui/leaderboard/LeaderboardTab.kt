@@ -97,13 +97,41 @@ data class LeaderboardUser(
     val isCurrentUser: Boolean = false
 )
 
+/** Chỉ số so hạng theo loại filter đang chọn */
+internal fun metricOf(user: LeaderboardUser, filterType: LeaderboardFilterType): Int = when (filterType) {
+    LeaderboardFilterType.POINTS -> user.points
+    LeaderboardFilterType.STREAK -> user.streakDays
+    LeaderboardFilterType.CARDS -> user.cardsLearned
+}
+
+/**
+ * Gộp người chơi THẬT vào bảng cùng đối thủ rồi xếp hạng thật:
+ * - Sắp giảm dần theo chỉ số của filter đang chọn
+ * - Bằng điểm -> người dùng thật ưu tiên đứng trên
+ * - Rank gán lại tuần tự từ 1 (podium & danh sách đều dùng kết quả này)
+ */
+internal fun computeRankedList(
+    mockUsers: List<LeaderboardUser>,
+    currentUser: LeaderboardUser,
+    filterType: LeaderboardFilterType
+): List<LeaderboardUser> {
+    return (mockUsers.map { it.copy(isCurrentUser = false) } + currentUser.copy(isCurrentUser = true))
+        .sortedWith(
+            compareByDescending<LeaderboardUser> { metricOf(it, filterType) }
+                .thenBy { if (it.isCurrentUser) 0 else 1 }
+        )
+        .mapIndexed { index, user -> user.copy(rank = index + 1) }
+}
+
 @Composable
 fun LeaderboardTab(
     userName: String = "Bạn",
     userVipLevel: Int = 1,
-    userScore: Int = 1250,
-    userStreak: Int = 7,
-    userCardsLearned: Int = 42,
+    userScore: Int = 0,
+    userWeeklyPoints: Int = 0,
+    userMonthlyPoints: Int = 0,
+    userStreak: Int = 0,
+    userCardsLearned: Int = 0,
     modifier: Modifier = Modifier
 ) {
     var selectedFilter by remember { mutableStateOf(LeaderboardFilterType.POINTS) }
@@ -112,8 +140,9 @@ fun LeaderboardTab(
     var selectedUserForDialog by remember { mutableStateOf<LeaderboardUser?>(null) }
     var showAllRewardsDialog by remember { mutableStateOf(false) }
 
-    // Mock dataset matching the user's provided UI mockup accurately
-    val leaderboardList = remember(selectedFilter, selectedTimePeriod) {
+    // Đối thủ ảo (app offline không có server). Hạng của bạn vẫn được tính THẬT
+    // bằng cách gộp vào danh sách và so theo đúng chỉ số đang chọn.
+    val mockUsers = remember(selectedTimePeriod) {
         val multiplier = when (selectedTimePeriod) {
             TimePeriod.THIS_WEEK -> 1.0f
             TimePeriod.THIS_MONTH -> 3.5f
@@ -121,37 +150,46 @@ fun LeaderboardTab(
         }
 
         listOf(
-            LeaderboardUser(1, "Minh Anh", (12850 * multiplier).toInt(), (25 * multiplier).toInt().coerceAtMost(365), (320 * multiplier).toInt(), RankTrend.Same, Color(0xFFFDE68A), "👦🏻", vipLevel = 5),
-            LeaderboardUser(2, "Bảo Ngọc", (9450 * multiplier).toInt(), (18 * multiplier).toInt().coerceAtMost(365), (240 * multiplier).toInt(), RankTrend.Up(1), Color(0xFFFBCFE8), "👧🏻", vipLevel = 3),
-            LeaderboardUser(3, "Hoàng Nam", (7650 * multiplier).toInt(), (15 * multiplier).toInt().coerceAtMost(365), (190 * multiplier).toInt(), RankTrend.Down(1), Color(0xFFFED7AA), "👦🏽", vipLevel = 2),
-            LeaderboardUser(4, "Khánh Linh", (6240 * multiplier).toInt(), 14, 160, RankTrend.Up(2), Color(0xFFFDE68A), "👧🏽", vipLevel = 4),
-            LeaderboardUser(5, "Gia Huy", (5870 * multiplier).toInt(), 12, 145, RankTrend.Down(1), Color(0xFFBAE6FD), "👦🏼", vipLevel = 1),
-            LeaderboardUser(6, "Phương Anh", (4980 * multiplier).toInt(), 10, 130, RankTrend.Same, Color(0xFFE9D5FF), "👧🏿", vipLevel = 6),
-            LeaderboardUser(7, "Quang Huy", (4210 * multiplier).toInt(), 9, 115, RankTrend.Up(3), Color(0xFFFED7AA), "👦🏻", vipLevel = 2),
-            LeaderboardUser(8, "Thảo Vy", (3860 * multiplier).toInt(), 8, 100, RankTrend.Down(2), Color(0xFFFECDD3), "👧🏻", vipLevel = 1),
-            LeaderboardUser(9, "Đức Mạnh", (3450 * multiplier).toInt(), 7, 90, RankTrend.Same, Color(0xFFA7F3D0), "👦🏽", vipLevel = 3),
-            LeaderboardUser(10, "Mai Chi", (3120 * multiplier).toInt(), 6, 80, RankTrend.Same, Color(0xFFFDE68A), "👧🏼", vipLevel = 4)
+            LeaderboardUser(0, "Minh Anh", (12850 * multiplier).toInt(), (25 * multiplier).toInt().coerceAtMost(365), (320 * multiplier).toInt(), RankTrend.Same, Color(0xFFFDE68A), "👦🏻", vipLevel = 5),
+            LeaderboardUser(0, "Bảo Ngọc", (9450 * multiplier).toInt(), (18 * multiplier).toInt().coerceAtMost(365), (240 * multiplier).toInt(), RankTrend.Up(1), Color(0xFFFBCFE8), "👧🏻", vipLevel = 3),
+            LeaderboardUser(0, "Hoàng Nam", (7650 * multiplier).toInt(), (15 * multiplier).toInt().coerceAtMost(365), (190 * multiplier).toInt(), RankTrend.Down(1), Color(0xFFFED7AA), "👦🏽", vipLevel = 2),
+            LeaderboardUser(0, "Khánh Linh", (6240 * multiplier).toInt(), 14, 160, RankTrend.Up(2), Color(0xFFFDE68A), "👧🏽", vipLevel = 4),
+            LeaderboardUser(0, "Gia Huy", (5870 * multiplier).toInt(), 12, 145, RankTrend.Down(1), Color(0xFFBAE6FD), "👦🏼", vipLevel = 1),
+            LeaderboardUser(0, "Phương Anh", (4980 * multiplier).toInt(), 10, 130, RankTrend.Same, Color(0xFFE9D5FF), "👧🏿", vipLevel = 6),
+            LeaderboardUser(0, "Quang Huy", (4210 * multiplier).toInt(), 9, 115, RankTrend.Up(3), Color(0xFFFED7AA), "👦🏻", vipLevel = 2),
+            LeaderboardUser(0, "Thảo Vy", (3860 * multiplier).toInt(), 8, 100, RankTrend.Down(2), Color(0xFFFECDD3), "👧🏻", vipLevel = 1),
+            LeaderboardUser(0, "Đức Mạnh", (3450 * multiplier).toInt(), 7, 90, RankTrend.Same, Color(0xFFA7F3D0), "👦🏽", vipLevel = 3),
+            LeaderboardUser(0, "Mai Chi", (3120 * multiplier).toInt(), 6, 80, RankTrend.Same, Color(0xFFFDE68A), "👧🏼", vipLevel = 4)
         )
     }
 
-    val currentUserItem = remember(userName, userVipLevel, userScore, userStreak, userCardsLearned, selectedTimePeriod) {
-        val multiplier = when (selectedTimePeriod) {
-            TimePeriod.THIS_WEEK -> 1.0f
-            TimePeriod.THIS_MONTH -> 3.2f
-            TimePeriod.ALL_TIME -> 6.5f
+    // Dữ liệu THẬT của người chơi — đọc trực tiếp từ DB, KHÔNG nhân hệ số giả
+    val currentUserItem = remember(
+        userName, userVipLevel, userScore, userWeeklyPoints, userMonthlyPoints,
+        userStreak, userCardsLearned, selectedTimePeriod
+    ) {
+        val realPoints = when (selectedTimePeriod) {
+            TimePeriod.THIS_WEEK -> userWeeklyPoints
+            TimePeriod.THIS_MONTH -> userMonthlyPoints
+            TimePeriod.ALL_TIME -> userScore
         }
         LeaderboardUser(
-            rank = 23,
+            rank = 0,
             name = userName,
-            points = (userScore * multiplier).toInt(),
-            streakDays = (userStreak * multiplier).toInt(),
-            cardsLearned = (userCardsLearned * multiplier).toInt(),
+            points = realPoints,
+            streakDays = userStreak,
+            cardsLearned = userCardsLearned,
             trend = RankTrend.Same,
             avatarBgColor = Color(0xFFDDD6FE),
             avatarEmoji = "🧑🏻‍💻",
             vipLevel = userVipLevel,
             isCurrentUser = true
         )
+    }
+
+    // Gộp + xếp hạng thật theo filter đang chọn
+    val rankedList = remember(mockUsers, currentUserItem, selectedFilter) {
+        computeRankedList(mockUsers, currentUserItem, selectedFilter)
     }
 
     Column(
@@ -291,9 +329,10 @@ fun LeaderboardTab(
         Spacer(modifier = Modifier.height(18.dp))
 
         // 3. TOP 3 PODIUM SECTION (Rank 2, Rank 1, Rank 3 - Bục nhận giải)
-        val top1 = leaderboardList[0]
-        val top2 = leaderboardList[1]
-        val top3 = leaderboardList[2]
+        // Lấy từ danh sách ĐÃ GỘP: bạn hoàn toàn có thể vào bục nếu điểm thật đủ cao!
+        val top1 = rankedList.getOrNull(0) ?: currentUserItem
+        val top2 = rankedList.getOrNull(1) ?: top1
+        val top3 = rankedList.getOrNull(2) ?: top1
 
         Row(
             modifier = Modifier
@@ -359,8 +398,9 @@ fun LeaderboardTab(
             Column(
                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
             ) {
-                // Ranks 4 to 10
-                leaderboardList.drop(3).forEach { user ->
+                // Ranks 4 trở đi — bao gồm cả BẠN nếu lọt nhóm này (hàng hiện tại được highlight sẵn)
+                val rowsAfterPodium = rankedList.drop(3)
+                rowsAfterPodium.forEach { user ->
                     LeaderboardRowItem(
                         user = user,
                         filterType = selectedFilter,
@@ -368,15 +408,25 @@ fun LeaderboardTab(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Highlighted Current User Row (Rank 23 "Bạn")
-                LeaderboardRowItem(
-                    user = currentUserItem,
-                    filterType = selectedFilter,
-                    isCurrentUser = true,
-                    onClick = { selectedUserForDialog = currentUserItem }
-                )
+                // Bạn đang ngoài Top hiển thị -> ghim hàng cuối với hạng THẬT
+                val me = rankedList.first { it.isCurrentUser }
+                if (rowsAfterPodium.none { it.isCurrentUser }) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "• • •",
+                        fontSize = 12.sp,
+                        color = Color(0xFFCBD5E1),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LeaderboardRowItem(
+                        user = me,
+                        filterType = selectedFilter,
+                        isCurrentUser = true,
+                        onClick = { selectedUserForDialog = me }
+                    )
+                }
             }
         }
 
