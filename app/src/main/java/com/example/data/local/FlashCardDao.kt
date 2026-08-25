@@ -110,6 +110,10 @@ interface FlashCardDao {
     @Query("SELECT * FROM flashcards WHERE languageCode = :langCode ORDER BY RANDOM() LIMIT :limit")
     fun getRandomCardsByLanguage(langCode: String, limit: Int): Flow<List<FlashCardEntity>>
 
+    // Toàn bộ thẻ của 1 ngôn ngữ, thứ tự ổn định (dùng cho Widget hiển thị tuần tự)
+    @Query("SELECT * FROM flashcards WHERE languageCode = :langCode ORDER BY nextReviewTimestamp ASC, id ASC")
+    fun getAllCardsByLanguage(langCode: String): Flow<List<FlashCardEntity>>
+
     @Query("SELECT * FROM flashcards WHERE isStarred = 1 ORDER BY RANDOM() LIMIT :limit")
     fun getRandomStarredCards(limit: Int): Flow<List<FlashCardEntity>>
 
