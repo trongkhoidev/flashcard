@@ -395,6 +395,18 @@ class FlashCardRepository(
         user
     }
 
+    /**
+     * Đăng nhập theo cách cũ (so khớp trực tiếp chuỗi lưu trong DB).
+     * Chỉ dùng làm fallback cho tài khoản được tạo từ bản chưa hash mật khẩu.
+     */
+    suspend fun authenticateLegacy(username: String, rawPassword: String): UserAccountEntity? = withContext(Dispatchers.IO) {
+        accountDao.authenticate(username, rawPassword)
+    }
+
+    suspend fun updateAccountPassword(username: String, newPasswordHash: String) = withContext(Dispatchers.IO) {
+        accountDao.updatePassword(username, newPasswordHash)
+    }
+
     suspend fun registerUser(username: String, passwordHash: String): Boolean = withContext(Dispatchers.IO) {
         val exists = accountDao.isUsernameExists(username) > 0
         if (exists) {

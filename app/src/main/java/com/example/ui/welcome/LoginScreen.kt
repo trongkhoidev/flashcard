@@ -324,8 +324,12 @@ fun LoginScreen(
                     Button(
                         enabled = !isLoading,
                         onClick = {
-                            val userStr = username.ifBlank { "tuanzeebee" }
-                            val passStr = password.ifBlank { "123456" }
+                            val userStr = username.trim()
+                            val passStr = password
+                            if (userStr.isBlank() || passStr.isBlank()) {
+                                Toast.makeText(context, "⚠️ Vui lòng nhập tên đăng nhập và mật khẩu!", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
                             if (onLoginSubmit != null) {
                                 isLoading = true
                                 coroutineScope.launch {

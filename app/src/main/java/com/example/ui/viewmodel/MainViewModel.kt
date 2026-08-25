@@ -103,7 +103,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun authenticateUser(username: String, passwordHash: String): Boolean {
-        val user = repository.authenticateUser(username, com.example.data.local.PasswordHasher.sha256(passwordHash))
+        val hashed = com.example.data.local.PasswordHasher.sha256(passwordHash)
+        var user = repository.authenticateUser(username, hashed)
+
+        // Fallback cho tài khoản tạo từ bản cũ lưu plaintext trong DB,
+        // đăng nhập thành công sẽ tự nâng cấp sang SHA-256
+        if (user == null) {
+            val legacy = repository.authenticateLegacy(username, passwordHash)
+            if (legacy != null) {
+                repository.updateAccountPassword(username, hashed)
+                user = legacy
+            }
+        }
+
         if (user != null) {
             _pendingTrialLanguage = null
             repository.updateUserName(user.username)
@@ -149,11 +161,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            repository.checkAndSeedDatabase()
-            val activeUser = repository.getActiveLoggedInUserDirect()
-            if (activeUser != null) {
-                applyActiveLanguageFromDb()
-                _currentScreen.value = ScreenState.Home
+            try {
+                repository.checkAndSeedDatabase()
+                val activeUser = repository.getActiveLoggedInUserDirect()
+                if (activeUser != null) {
+                    applyActiveLanguageFromDb()
+                    _currentScreen.value = ScreenState.Home
+                }
+            } catch (_: Exception) {
+                _currentScreen.value = ScreenState.Welcome
             }
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
 
@@ -168,9 +184,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Khôi phục "thứ đang học": đọc danh sách ngôn ngữ theo học từ DB,
      * chọn ngôn ngữ có cờ isCurrentActive làm ngôn ngữ hiện tại.
+     * Lưu ý: phải đọc trực tiếp từ Room Flow, KHÔNG dùng learningLanguagesFromDb
+     * (StateFlow WhileSubscribed chưa có collector sẽ trả về emptyList).
      */
     private suspend fun applyActiveLanguageFromDb() {
-        val langs = learningLanguagesFromDb.first()
+        val langs = repository.getAllLearningLanguages().first()
         if (langs.isEmpty()) return
         val active = langs.firstOrNull { it.isCurrentActive } ?: langs.first()
         _selectedLanguage.value = AppLanguage.fromCode(active.languageCode)

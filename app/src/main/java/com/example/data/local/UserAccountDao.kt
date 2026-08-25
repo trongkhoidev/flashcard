@@ -28,10 +28,10 @@ interface UserAccountDao {
     @Query("SELECT COUNT(*) FROM user_accounts WHERE username = :username")
     suspend fun isUsernameExists(username: String): Int
 
-    @Query("SELECT * FROM user_accounts WHERE isLoggedIn = 1 LIMIT 1")
+    @Query("SELECT * FROM user_accounts WHERE isLoggedIn = 1 ORDER BY lastLoginAt DESC LIMIT 1")
     fun getActiveLoggedInUser(): Flow<UserAccountEntity?>
 
-    @Query("SELECT * FROM user_accounts WHERE isLoggedIn = 1 LIMIT 1")
+    @Query("SELECT * FROM user_accounts WHERE isLoggedIn = 1 ORDER BY lastLoginAt DESC LIMIT 1")
     suspend fun getActiveLoggedInUserDirect(): UserAccountEntity?
 
     @Query("SELECT * FROM user_accounts ORDER BY lastLoginAt DESC")
