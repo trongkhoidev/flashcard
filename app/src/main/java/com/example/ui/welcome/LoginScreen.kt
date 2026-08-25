@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.example.R
 import com.example.ui.theme.NTKPrimary
 import com.example.ui.theme.NTKPrimaryLight
@@ -52,13 +53,16 @@ fun LoginScreen(
     onLoginSuccess: (String) -> Unit,
     onBackToWelcome: () -> Unit,
     onNavigateToRegister: () -> Unit,
+    onLoginSubmit: (suspend (String, String) -> Boolean)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(true) }
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier
@@ -318,10 +322,26 @@ fun LoginScreen(
 
                     // PRIMARY LOGIN BUTTON
                     Button(
+                        enabled = !isLoading,
                         onClick = {
-                            val userStr = username.ifBlank { "Học viên NTK" }
-                            Toast.makeText(context, "Đăng nhập thành công! Chào mừng $userStr", Toast.LENGTH_SHORT).show()
-                            onLoginSuccess(userStr)
+                            val userStr = username.ifBlank { "tuanzeebee" }
+                            val passStr = password.ifBlank { "123456" }
+                            if (onLoginSubmit != null) {
+                                isLoading = true
+                                coroutineScope.launch {
+                                    val success = onLoginSubmit(userStr, passStr)
+                                    isLoading = false
+                                    if (success) {
+                                        Toast.makeText(context, "✨ Đăng nhập thành công! Chào mừng $userStr", Toast.LENGTH_SHORT).show()
+                                        onLoginSuccess(userStr)
+                                    } else {
+                                        Toast.makeText(context, "❌ Tên đăng nhập hoặc mật khẩu không chính xác!", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, "Đăng nhập thành công! Chào mừng $userStr", Toast.LENGTH_SHORT).show()
+                                onLoginSuccess(userStr)
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -337,12 +357,20 @@ fun LoginScreen(
                             containerColor = NTKPrimary
                         )
                     ) {
-                        Text(
-                            text = "Đăng nhập",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Đăng nhập",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(2.dp))

@@ -54,6 +54,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ntk_flashcard_db"
                 )
+                .createFromAsset("databases/ntk_flashcard_db.db")
                 .fallbackToDestructiveMigration()
                 .addCallback(DatabaseCallback(scope))
                 .build()

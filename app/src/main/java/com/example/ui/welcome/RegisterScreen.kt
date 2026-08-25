@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.example.R
 import com.example.ui.theme.NTKPrimary
 import com.example.ui.theme.NTKPrimaryDark
@@ -51,12 +52,15 @@ fun RegisterScreen(
     onRegisterSuccess: (String) -> Unit,
     onBackToWelcome: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onRegisterSubmit: (suspend (String, String) -> Boolean)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     var isConfirmPasswordVisible by remember { mutableStateOf(false) }
@@ -396,9 +400,10 @@ fun RegisterScreen(
 
                     // PRIMARY REGISTER BUTTON
                     Button(
+                        enabled = !isLoading,
                         onClick = {
                             if (!isUsernameValid) {
-                                Toast.makeText(context, "Tên đăng nhập không hợp lệ!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Tên đăng nhập từ 4-20 ký tự, không chứa khoảng trắng!", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
                             if (!isPasswordValid) {
@@ -410,9 +415,22 @@ fun RegisterScreen(
                                 return@Button
                             }
 
-                            // Toast success
-                            Toast.makeText(context, "Đăng ký tài khoản thành công!", Toast.LENGTH_LONG).show()
-                            onRegisterSuccess(username)
+                            if (onRegisterSubmit != null) {
+                                isLoading = true
+                                coroutineScope.launch {
+                                    val success = onRegisterSubmit(username, password)
+                                    isLoading = false
+                                    if (success) {
+                                        Toast.makeText(context, "✨ Đăng ký tài khoản thành công!", Toast.LENGTH_LONG).show()
+                                        onRegisterSuccess(username)
+                                    } else {
+                                        Toast.makeText(context, "❌ Tên đăng nhập này đã tồn tại trong hệ thống!", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, "Đăng ký tài khoản thành công!", Toast.LENGTH_LONG).show()
+                                onRegisterSuccess(username)
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -428,12 +446,20 @@ fun RegisterScreen(
                             containerColor = NTKPrimary
                         )
                     ) {
-                        Text(
-                            text = "Đăng ký",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Đăng ký",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

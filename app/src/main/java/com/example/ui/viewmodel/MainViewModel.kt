@@ -9,12 +9,14 @@ import com.example.data.model.AppLanguage
 import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
 import com.example.data.repository.FlashCardRepository
+import com.example.data.model.UserProfileEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -67,14 +69,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .flatMapLatest { lang -> repository.getMasteredCountByLanguage(lang.code) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    private val _userName = MutableStateFlow("Bạn Học")
-    val userName: StateFlow<String> = _userName.asStateFlow()
+    val userProfile: StateFlow<UserProfileEntity?> = repository.getUserProfile()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _userVipLevel = MutableStateFlow(1) // Default VIP 1 for test user
-    val userVipLevel: StateFlow<Int> = _userVipLevel.asStateFlow()
+    val userName: StateFlow<String> = userProfile
+        .map { it?.userName ?: "Tuấn Nguyễn" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Tuấn Nguyễn")
 
-    private val _streakDays = MutableStateFlow(7)
-    val streakDays: StateFlow<Int> = _streakDays.asStateFlow()
+    val userVipLevel: StateFlow<Int> = userProfile
+        .map { it?.vipLevel ?: 3 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 3)
+
+    val streakDays: StateFlow<Int> = userProfile
+        .map { it?.streakDays ?: 7 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 7)
+
+    val userTotalPoints: StateFlow<Int> = userProfile
+        .map { it?.totalPoints ?: 1250 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1250)
+
+    val studySchedule: StateFlow<com.example.data.model.StudyScheduleEntity?> = repository.getStudySchedule()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val smartNotificationEngine = com.example.notification.SmartNotificationEngine(application)
 
@@ -83,6 +98,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissNotificationPreview() {
         _notificationPreview.value = null
+    }
+
+    suspend fun authenticateUser(username: String, passwordHash: String): Boolean {
+        val user = repository.authenticateUser(username, passwordHash)
+        if (user != null) {
+            repository.updateUserName(user.username)
+            return true
+        }
+        return false
+    }
+
+    suspend fun registerUser(username: String, passwordHash: String): Boolean {
+        return repository.registerUser(username, passwordHash)
+    }
+
+    suspend fun logoutUser() {
+        repository.logoutUser()
     }
 
     val decksForCurrentLanguage: StateFlow<List<DeckEntity>> = _selectedLanguage
@@ -107,7 +139,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             repository.checkAndSeedDatabase()
-            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
             
             // Khởi tạo lịch học AlarmManager thông minh
             com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
@@ -152,23 +184,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateStudySchedule(reminderHour: Int, reminderMinute: Int = 0) {
-        val schedule = com.example.data.model.StudySchedule(
-            isEnabled = true,
-            reminderHour = reminderHour,
-            reminderMinute = reminderMinute
-        )
-        com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
-            getApplication(),
-            schedule
-        )
+        viewModelScope.launch {
+            val existing = repository.getStudyScheduleDirect()
+            if (existing == null) {
+                repository.saveStudySchedule(
+                    com.example.data.model.StudyScheduleEntity(
+                        isEnabled = true,
+                        reminderHour = reminderHour,
+                        reminderMinute = reminderMinute
+                    )
+                )
+            } else {
+                repository.updateReminderTime(reminderHour, reminderMinute)
+            }
+            val schedule = com.example.data.model.StudySchedule(
+                isEnabled = true,
+                reminderHour = reminderHour,
+                reminderMinute = reminderMinute
+            )
+            com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
+                getApplication(),
+                schedule
+            )
+        }
     }
 
     fun updateUserName(name: String) {
-        _userName.value = name
+        viewModelScope.launch {
+            repository.updateUserName(name)
+        }
     }
 
     fun updateUserVipLevel(level: Int) {
-        _userVipLevel.value = level
+        viewModelScope.launch {
+            repository.updateUserVipLevel(level)
+        }
     }
 
     fun speak(text: String, languageTag: String = "en-US") {
@@ -184,7 +234,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun recordReview(cardId: Long, difficulty: Int) {
         viewModelScope.launch {
             repository.recordCardReview(cardId, difficulty)
-            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
         }
     }
 
@@ -207,7 +257,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun markCardMastered(cardId: Long, langCode: String) {
         viewModelScope.launch {
             repository.markCardMastered(cardId, langCode)
-            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
         }
     }
 
@@ -301,7 +351,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             // 5. Cập nhật điểm & Widget
             repository.addPoints(score * 100)
-            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), _streakDays.value)
+            com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
         }
     }
 
@@ -494,8 +544,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun completeTrialRegistration(username: String) {
-        updateUserName(username)
         viewModelScope.launch {
+            repository.updateUserName(username)
+            repository.updateStreak(1)
             val currentLang = _selectedLanguage.value
             val starterCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(currentLang)
             repository.addLearningLanguage(currentLang)
@@ -504,7 +555,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 repository.insertCard(card.copy(id = 0L))
             }
         }
-        _streakDays.value = 1
         _currentScreen.value = ScreenState.Home
     }
 

@@ -121,6 +121,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     val totalCount by viewModel.totalCardsCount.collectAsStateWithLifecycle()
     val userName by viewModel.userName.collectAsStateWithLifecycle()
     val userVipLevel by viewModel.userVipLevel.collectAsStateWithLifecycle()
+    val userTotalPoints by viewModel.userTotalPoints.collectAsStateWithLifecycle()
+    val studySchedule by viewModel.studySchedule.collectAsStateWithLifecycle()
     val notificationPreview by viewModel.notificationPreview.collectAsStateWithLifecycle()
 
     var showProfileDialog by remember { mutableStateOf(false) }
@@ -174,13 +176,16 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                 is ScreenState.Login -> {
                     LoginScreen(
                         onLoginSuccess = { username ->
-                            viewModel.completeTrialRegistration(username)
+                            viewModel.navigateTo(ScreenState.Home)
                         },
                         onBackToWelcome = {
                             viewModel.navigateTo(ScreenState.Welcome)
                         },
                         onNavigateToRegister = {
                             viewModel.navigateTo(ScreenState.Register)
+                        },
+                        onLoginSubmit = { user, pass ->
+                            viewModel.authenticateUser(user, pass)
                         }
                     )
                 }
@@ -188,13 +193,16 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                 is ScreenState.Register -> {
                     RegisterScreen(
                         onRegisterSuccess = { username ->
-                            viewModel.completeTrialRegistration(username)
+                            viewModel.navigateTo(ScreenState.Home)
                         },
                         onBackToWelcome = {
                             viewModel.navigateTo(ScreenState.Welcome)
                         },
                         onNavigateToLogin = {
                             viewModel.navigateTo(ScreenState.Login)
+                        },
+                        onRegisterSubmit = { user, pass ->
+                            viewModel.registerUser(user, pass)
                         }
                     )
                 }
@@ -275,6 +283,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         totalWordsCount = totalCount,
                         userName = userName,
                         userVipLevel = userVipLevel,
+                        userTotalPoints = userTotalPoints,
                         onSelectVipLevel = { viewModel.updateUserVipLevel(it) },
                         onOpenDeckDetail = { deck -> viewModel.openDeckDetail(deck) },
                         onStudyDeck = { deck -> viewModel.startStudyDeck(deck) },
@@ -297,6 +306,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         onStudyByLang = { langCode ->
                             viewModel.startStudyByLanguage(langCode)
                         },
+                        studySchedule = studySchedule,
+                        onUpdateScheduleTime = { h, m -> viewModel.updateStudySchedule(h, m) },
                         onTestSmartNotification = {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 val hasPermission = ContextCompat.checkSelfPermission(

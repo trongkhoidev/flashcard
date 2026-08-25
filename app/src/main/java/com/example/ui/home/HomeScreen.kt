@@ -107,6 +107,7 @@ fun HomeScreen(
     totalWordsCount: Int = 20,
     userName: String = "bạn",
     userVipLevel: Int = 1,
+    userTotalPoints: Int = 1250,
     onSelectVipLevel: (Int) -> Unit = {},
     onOpenDeckDetail: (DeckEntity) -> Unit = {},
     onStudyDeck: (DeckEntity) -> Unit,
@@ -124,6 +125,8 @@ fun HomeScreen(
     onCreateDeckDirect: (DeckEntity, List<FlashCardEntity>) -> Unit = { _, _ -> },
     onImportCardsDirect: (String, List<FlashCardEntity>) -> Unit = { _, _ -> },
     onStudyByLang: (String) -> Unit = {},
+    studySchedule: com.example.data.model.StudyScheduleEntity? = null,
+    onUpdateScheduleTime: (Int, Int) -> Unit = { _, _ -> },
     onTestSmartNotification: () -> Unit = {},
     onTestMilestoneNotification: (Int) -> Unit = {},
     modifier: Modifier = Modifier
@@ -338,7 +341,7 @@ fun HomeScreen(
                         LeaderboardTab(
                             userName = userName,
                             userVipLevel = userVipLevel,
-                            userScore = if (masteredWordsCount > 0) (masteredWordsCount * 100) + (streakDays * 50) else 1250,
+                            userScore = if (userTotalPoints > 0) userTotalPoints else (if (masteredWordsCount > 0) (masteredWordsCount * 100) + (streakDays * 50) else 1250),
                             userStreak = streakDays,
                             userCardsLearned = masteredWordsCount,
                             modifier = Modifier.weight(1f)
@@ -353,6 +356,8 @@ fun HomeScreen(
                             streakDays = streakDays,
                             masteredCount = masteredWordsCount,
                             totalCount = totalWordsCount,
+                            studySchedule = studySchedule,
+                            onUpdateScheduleTime = onUpdateScheduleTime,
                             onOpenEditProfile = onOpenProfile,
                             onSelectVipLevel = onSelectVipLevel,
                             onViewStats = { showStatsDialog = true },
@@ -1462,6 +1467,8 @@ private fun AccountProfileTab(
     streakDays: Int,
     masteredCount: Int,
     totalCount: Int,
+    studySchedule: com.example.data.model.StudyScheduleEntity? = null,
+    onUpdateScheduleTime: (Int, Int) -> Unit = { _, _ -> },
     onOpenEditProfile: () -> Unit,
     onSelectVipLevel: (Int) -> Unit = {},
     onViewStats: () -> Unit,
@@ -1470,8 +1477,10 @@ private fun AccountProfileTab(
     modifier: Modifier = Modifier
 ) {
     var showWidgetGuideDialog by remember { mutableStateOf(false) }
-    var notificationScheduledTime by remember { mutableStateOf("19:00 hàng ngày") }
-    var isNotificationActive by remember { mutableStateOf(true) }
+    val reminderHour = studySchedule?.reminderHour ?: 19
+    val reminderMinute = studySchedule?.reminderMinute ?: 0
+    val minuteFormatted = if (reminderMinute < 10) "0$reminderMinute" else "$reminderMinute"
+    val notificationScheduledTime = "$reminderHour:$minuteFormatted hàng ngày"
     val context = androidx.compose.ui.platform.LocalContext.current
     val vipLevelObj = VipLevel.fromLevel(userVipLevel)
 

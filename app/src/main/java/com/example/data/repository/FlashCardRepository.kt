@@ -1,5 +1,9 @@
 package com.example.data.repository
 
+import com.example.data.local.StudyScheduleDao
+import com.example.data.model.StudyScheduleEntity
+import com.example.data.local.UserAccountDao
+import com.example.data.model.UserAccountEntity
 import com.example.data.local.AppDatabase
 import com.example.data.local.DeckDao
 import com.example.data.local.FlashCardDao
@@ -25,7 +29,9 @@ class FlashCardRepository(
     private val sessionDao: StudySessionDao,
     private val quizDao: QuizRecordDao,
     private val profileDao: UserProfileDao,
-    private val languageDao: UserLanguageDao
+    private val languageDao: UserLanguageDao,
+    private val accountDao: UserAccountDao,
+    private val scheduleDao: StudyScheduleDao
 ) {
 
     constructor(database: AppDatabase) : this(
@@ -34,7 +40,9 @@ class FlashCardRepository(
         sessionDao = database.studySessionDao(),
         quizDao = database.quizRecordDao(),
         profileDao = database.userProfileDao(),
-        languageDao = database.userLanguageDao()
+        languageDao = database.userLanguageDao(),
+        accountDao = database.userAccountDao(),
+        scheduleDao = database.studyScheduleDao()
     )
 
     suspend fun checkAndSeedDatabase() = withContext(Dispatchers.IO) {
@@ -336,5 +344,67 @@ class FlashCardRepository(
 
     suspend fun incrementCardsLearned(count: Int) = withContext(Dispatchers.IO) {
         profileDao.incrementCardsLearned(count)
+    }
+
+    // ==========================================
+    // 7. USER ACCOUNTS & AUTHENTICATION
+    // ==========================================
+    fun getActiveLoggedInUser(): Flow<UserAccountEntity?> = accountDao.getActiveLoggedInUser()
+
+    suspend fun getActiveLoggedInUserDirect(): UserAccountEntity? = withContext(Dispatchers.IO) {
+        accountDao.getActiveLoggedInUserDirect()
+    }
+
+    suspend fun authenticateUser(username: String, passwordHash: String): UserAccountEntity? = withContext(Dispatchers.IO) {
+        val user = accountDao.authenticate(username, passwordHash)
+        if (user != null) {
+            accountDao.logoutAllUsers()
+            accountDao.setLoggedIn(user.id, System.currentTimeMillis())
+        }
+        user
+    }
+
+    suspend fun registerUser(username: String, passwordHash: String): Boolean = withContext(Dispatchers.IO) {
+        val exists = accountDao.isUsernameExists(username) > 0
+        if (exists) {
+            false
+        } else {
+            accountDao.logoutAllUsers()
+            val newAccount = UserAccountEntity(
+                username = username,
+                passwordHash = passwordHash,
+                createdAt = System.currentTimeMillis(),
+                lastLoginAt = System.currentTimeMillis(),
+                isLoggedIn = true
+            )
+            accountDao.registerUser(newAccount)
+            profileDao.updateName(username)
+            true
+        }
+    }
+
+    suspend fun logoutUser() = withContext(Dispatchers.IO) {
+        accountDao.logoutAllUsers()
+    }
+
+    // ==========================================
+    // 8. STUDY SCHEDULE & REMINDERS (LỊCH HỌC & NHẮC NHỞ)
+    // ==========================================
+    fun getStudySchedule(): Flow<StudyScheduleEntity?> = scheduleDao.getSchedule()
+
+    suspend fun getStudyScheduleDirect(): StudyScheduleEntity? = withContext(Dispatchers.IO) {
+        scheduleDao.getScheduleDirect()
+    }
+
+    suspend fun saveStudySchedule(schedule: StudyScheduleEntity) = withContext(Dispatchers.IO) {
+        scheduleDao.saveSchedule(schedule)
+    }
+
+    suspend fun updateReminderTime(hour: Int, minute: Int) = withContext(Dispatchers.IO) {
+        scheduleDao.updateReminderTime(hour, minute)
+    }
+
+    suspend fun setReminderEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
+        scheduleDao.setReminderEnabled(enabled)
     }
 }
