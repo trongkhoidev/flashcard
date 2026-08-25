@@ -295,7 +295,7 @@ fun StatsSummaryDialog(
                     )
                     StatCard(
                         title = "Tỷ lệ nhớ",
-                        value = "${if (totalCardsCount > 0) (masteredCount * 100 / totalCardsCount).coerceAtLeast(75) else 80}%",
+                        value = "${if (totalCardsCount > 0) (masteredCount * 100 / totalCardsCount).coerceIn(0, 100) else 0}%",
                         icon = Icons.Outlined.School,
                         color = Color(0xFF8B5CF6),
                         bgColor = Color(0xFFF5F3FF),

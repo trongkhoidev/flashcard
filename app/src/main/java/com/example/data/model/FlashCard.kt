@@ -1,5 +1,6 @@
 package com.example.data.model
 
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -59,12 +60,18 @@ data class FlashCardEntity(
     val nextReviewTimestamp: Long = 0L // Epoch timestamp when card is due for review
 )
 
+/**
+ * Tiến trình thật của 1 deck: tổng số thẻ & số thẻ ĐÃ THUỘC (isMastered = 1,
+ * chỉ đạt được khi trả lời ĐÚNG trong Quiz).
+ */
 data class DeckWithStats(
-    val deck: DeckEntity,
+    @Embedded val deck: DeckEntity,
     val totalCards: Int,
-    val masteredCards: Int,
-    val learningCards: Int
+    val masteredCards: Int
 ) {
+    val learningCards: Int
+        get() = (totalCards - masteredCards).coerceAtLeast(0)
+
     val progressPercent: Float
         get() = if (totalCards > 0) masteredCards.toFloat() / totalCards.toFloat() else 0f
 }

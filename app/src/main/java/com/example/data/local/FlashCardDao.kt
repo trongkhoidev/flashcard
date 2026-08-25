@@ -175,6 +175,18 @@ interface FlashCardDao {
     @Query("SELECT COUNT(*) FROM flashcards WHERE languageCode = :langCode AND lastReviewedTimestamp >= :startOfDayTimestamp")
     fun getCardsStudiedTodayByLanguageCount(langCode: String, startOfDayTimestamp: Long): Flow<Int>
 
+    // Tiến trình thật của TẤT CẢ deck: tổng thẻ & số thẻ đã thuộc (quiz đúng mới thuộc)
+    @Query("""
+        SELECT d.*,
+               COUNT(f.id) AS totalCards,
+               COALESCE(SUM(CASE WHEN f.isMastered = 1 THEN 1 ELSE 0 END), 0) AS masteredCards
+        FROM decks d
+        LEFT JOIN flashcards f ON f.deckId = d.id
+        GROUP BY d.id
+        ORDER BY d.id
+    """)
+    fun getAllDecksWithStats(): Flow<List<com.example.data.model.DeckWithStats>>
+
     // ========================================================
     // 6. THAO TÁC THÊM / SỬA / XÓA
     // ========================================================
@@ -211,6 +223,17 @@ interface FlashCardDao {
         WHERE id = :id
     """)
     suspend fun recordReview(id: Long, mastered: Boolean, difficulty: Int, timestamp: Long)
+
+    // Ghi nhận lượt học flashcard: KHÔNG thay đổi isMastered.
+    // Trạng thái "Đã thuộc" chỉ được quyết định bởi kết quả trả lời ĐÚNG trong Quiz.
+    @Query("""
+        UPDATE flashcards
+        SET difficulty = :difficulty,
+            reviewCount = reviewCount + 1,
+            lastReviewedTimestamp = :timestamp
+        WHERE id = :id
+    """)
+    suspend fun updateReviewProgress(id: Long, difficulty: Int, timestamp: Long)
 
     // Cập nhật thông số Spaced Repetition (SRS)
     @Query("""

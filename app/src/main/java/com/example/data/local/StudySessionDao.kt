@@ -20,6 +20,10 @@ interface StudySessionDao {
     @Query("SELECT * FROM study_sessions ORDER BY timestamp DESC LIMIT :limit")
     fun getRecentSessions(limit: Int): Flow<List<StudySessionEntity>>
 
+    // Phiên học gần nhất — dùng cho mục "Tiếp tục học" ở Home
+    @Query("SELECT * FROM study_sessions ORDER BY timestamp DESC LIMIT 1")
+    fun getLastStudySession(): Flow<StudySessionEntity?>
+
     @Query("SELECT * FROM study_sessions WHERE deckId = :deckId ORDER BY timestamp DESC")
     fun getSessionsForDeck(deckId: String): Flow<List<StudySessionEntity>>
 

@@ -118,7 +118,7 @@ fun QuizScreen(
     isOnboardingTrial: Boolean = false,
     onBack: () -> Unit,
     onSpeak: (String, String) -> Unit,
-    onFinishQuiz: (score: Int, total: Int, wrongCards: List<FlashCardEntity>) -> Unit,
+    onFinishQuiz: (score: Int, total: Int, correctCards: List<FlashCardEntity>, wrongCards: List<FlashCardEntity>) -> Unit,
     onAnswerCorrect: ((FlashCardEntity) -> Unit)? = null,
     onAnswerWrong: ((FlashCardEntity) -> Unit)? = null,
     onStudyWrongCards: ((List<FlashCardEntity>) -> Unit)? = null,
@@ -146,6 +146,7 @@ fun QuizScreen(
     var score by remember { mutableIntStateOf(0) }
     var totalPoints by remember { mutableIntStateOf(0) }
     val wrongCards = remember { mutableStateListOf<FlashCardEntity>() }
+    val correctCards = remember { mutableStateListOf<FlashCardEntity>() }
     var currentStreak by remember { mutableIntStateOf(0) }
     var maxStreak by remember { mutableIntStateOf(0) }
     var lastPointsEarned by remember { mutableIntStateOf(0) }
@@ -591,6 +592,9 @@ fun QuizScreen(
                                     lastPointsEarned = earned
                                     totalPoints += earned
                                     popupTrigger++
+                                    if (!correctCards.any { it.id == currentCard.id || it.frontWord == currentCard.frontWord }) {
+                                        correctCards.add(currentCard)
+                                    }
                                     onAnswerCorrect?.invoke(currentCard)
                                 } else {
                                     currentStreak = 0
@@ -683,7 +687,7 @@ fun QuizScreen(
                         isAnswerSubmitted = false
                     } else {
                         isQuizCompleted = true
-                        onFinishQuiz(score, quizCards.size, wrongCards.toList())
+                        onFinishQuiz(score, quizCards.size, correctCards.toList(), wrongCards.toList())
                     }
                 },
                 modifier = Modifier

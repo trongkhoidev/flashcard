@@ -52,6 +52,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -129,6 +130,9 @@ fun HomeScreen(
     onUpdateScheduleTime: (Int, Int) -> Unit = { _, _ -> },
     onTestSmartNotification: () -> Unit = {},
     onTestMilestoneNotification: (Int) -> Unit = {},
+    continueLearning: com.example.ui.viewmodel.ContinueLearningInfo? = null,
+    decksWithStats: List<com.example.data.model.DeckWithStats> = emptyList(),
+    onContinueLearning: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedBottomTab by remember { mutableIntStateOf(0) }
@@ -247,33 +251,31 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                                // 5. "Tiếp tục học" SECTION: Dynamic active language/deck
-                                val studiedCount = remember(masteredWordsCount, currentActiveDeck) {
-                                    if (masteredWordsCount > 0) {
-                                        masteredWordsCount
-                                    } else {
-                                        ((currentActiveDeck?.cardCount ?: 50) * 0.45f).toInt().coerceAtLeast(1)
-                                    }
+                                // 5. "Tiếp tục học" SECTION: deck học gần nhất + tiến trình THẬT
+                                //    (thẻ "Đã thuộc" chỉ tính khi trả lời ĐÚNG trong Quiz)
+                                val continueInfo = continueLearning
+                                if (continueInfo != null && continueInfo.totalCount > 0) {
+                                    ContinueLearningSection(
+                                        title = continueInfo.deck.title,
+                                        studiedCount = continueInfo.masteredCount,
+                                        totalCount = continueInfo.totalCount,
+                                        language = selectedLanguage,
+                                        level = continueInfo.deck.level,
+                                        onContinueClick = onContinueLearning,
+                                        onViewAllClick = { showAllDecksSheet = true }
+                                    )
+                                } else {
+                                    val totalCount = totalWordsCount.takeIf { it > 0 } ?: 50
+                                    ContinueLearningSection(
+                                        title = "${selectedLanguage.displayName} cơ bản",
+                                        studiedCount = masteredWordsCount.coerceIn(0, totalCount),
+                                        totalCount = totalCount,
+                                        language = selectedLanguage,
+                                        level = "Mới bắt đầu",
+                                        onContinueClick = { onStudyByLang(selectedLanguage.code) },
+                                        onViewAllClick = { showAllDecksSheet = true }
+                                    )
                                 }
-                                val totalCount = remember(currentActiveDeck, totalWordsCount) {
-                                    currentActiveDeck?.cardCount?.takeIf { it > 0 } ?: totalWordsCount.takeIf { it > 0 } ?: 50
-                                }
-
-                                ContinueLearningSection(
-                                    title = currentActiveDeck?.title ?: "${selectedLanguage.displayName} cơ bản",
-                                    studiedCount = studiedCount,
-                                    totalCount = totalCount,
-                                    language = selectedLanguage,
-                                    level = currentActiveDeck?.level ?: "Mới bắt đầu",
-                                    onContinueClick = {
-                                        if (currentActiveDeck != null) {
-                                            onStudyDeck(currentActiveDeck)
-                                        } else {
-                                            onStudyByLang(selectedLanguage.code)
-                                        }
-                                    },
-                                    onViewAllClick = { showAllDecksSheet = true }
-                                )
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -598,6 +600,9 @@ fun HomeScreen(
         val decksByLanguage = remember(displayedDecks) {
             displayedDecks.groupBy { it.languageCode }
         }
+        val statsById = remember(decksWithStats) {
+            decksWithStats.associateBy { it.deck.id }
+        }
 
         ModalBottomSheet(
             onDismissRequest = {
@@ -793,8 +798,11 @@ fun HomeScreen(
                         }
 
                         items(langDecks, key = { it.id }) { deck ->
+                            val deckStat = statsById[deck.id]
                             DeckListCard(
                                 deck = deck,
+                                masteredCount = deckStat?.masteredCards,
+                                totalCardCount = deckStat?.totalCards,
                                 onClickDetail = {
                                     showAllDecksSheet = false
                                     onOpenDeckDetail(deck)
@@ -904,8 +912,11 @@ private fun DeckListCard(
     onQuiz: () -> Unit,
     onMatch: () -> Unit,
     onClickDetail: () -> Unit = onStudy,
+    masteredCount: Int? = null,
+    totalCardCount: Int? = null,
     modifier: Modifier = Modifier
 ) {
+    val showProgress = masteredCount != null && totalCardCount != null && totalCardCount > 0
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = Color.White,
@@ -941,7 +952,7 @@ private fun DeckListCard(
                         color = Color(0xFF1E293B)
                     )
                     Text(
-                        text = "${deck.cardCount} thẻ • ${deck.level}",
+                        text = if (totalCardCount != null) "$totalCardCount thẻ • ${deck.level}" else "${deck.cardCount} thẻ • ${deck.level}",
                         fontSize = 12.sp,
                         color = Color(0xFF64748B)
                     )
@@ -955,6 +966,28 @@ private fun DeckListCard(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            // Tiến trình thật: "Đã thuộc X/Y thẻ" — chỉ tính thẻ trả lời ĐÚNG trong Quiz
+            if (showProgress && masteredCount != null && totalCardCount != null) {
+                val percent = ((masteredCount.toFloat() / totalCardCount) * 100f).toInt().coerceIn(0, 100)
+                Text(
+                    text = "✅ Đã thuộc $masteredCount/$totalCardCount thẻ ($percent%)",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (percent >= 100) Color(0xFF16A34A) else Color(0xFF475569)
+                )
+                Spacer(modifier = Modifier.height(5.dp))
+                LinearProgressIndicator(
+                    progress = { percent / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = if (percent >= 100) Color(0xFF16A34A) else Color(0xFF0284C7),
+                    trackColor = Color(0xFFE2E8F0)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
 
             // Action Buttons: Học, Trắc nghiệm, Ghép thẻ
             Row(

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -34,6 +35,17 @@ sealed class ScreenState {
     data class OnboardingTrialStudy(val language: AppLanguage, val cards: List<FlashCardEntity>) : ScreenState()
     data class OnboardingTrialQuiz(val language: AppLanguage, val cards: List<FlashCardEntity>) : ScreenState()
 }
+
+/**
+ * Dữ liệu cho mục "Tiếp tục học": deck học gần nhất (hoặc deck đầu của ngôn ngữ đang học)
+ * cùng số liệu tiến trình THẬT (thẻ đã thuộc chỉ tính từ Quiz trả lời đúng).
+ */
+data class ContinueLearningInfo(
+    val deck: DeckEntity,
+    val lastSession: com.example.data.model.StudySessionEntity?,
+    val masteredCount: Int,
+    val totalCount: Int
+)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -64,6 +76,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val starterCardsForCurrentLanguage: StateFlow<List<FlashCardEntity>> = _selectedLanguage
         .flatMapLatest { lang -> repository.getStarterCardsForLanguage(lang.code) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Phiên học gần nhất — nguồn cho mục "Tiếp tục học"
+    val lastStudySession: StateFlow<com.example.data.model.StudySessionEntity?> = repository.getLastStudySession()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    // Tiến trình thật của từng deck: mastered chỉ tính thẻ trả lời ĐÚNG trong Quiz
+    val decksWithStats: StateFlow<List<com.example.data.model.DeckWithStats>> = repository.getAllDecksWithStats()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val continueLearning: StateFlow<ContinueLearningInfo?> = combine(
+        repository.getLastStudySession(),
+        repository.getAllDecksWithStats(),
+        _selectedLanguage
+    ) { session, stats, lang ->
+        val lastDeckStats = session?.takeIf {
+            !it.deckId.startsWith("trial_") && !it.deckId.startsWith("unmastered_")
+        }?.let { s -> stats.firstOrNull { it.deck.id == s.deckId } }
+        when {
+            lastDeckStats != null ->
+                ContinueLearningInfo(lastDeckStats.deck, session, lastDeckStats.masteredCards, lastDeckStats.totalCards)
+            else -> stats.filter { it.deck.languageCode == lang.code }
+                .firstOrNull()?.let {
+                    ContinueLearningInfo(it.deck, null, it.masteredCards, it.totalCards)
+                }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val masteredCountForCurrentLanguage: StateFlow<Int> = _selectedLanguage
         .flatMapLatest { lang -> repository.getMasteredCountByLanguage(lang.code) }
@@ -315,8 +353,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Xử lý hoàn tất bài Quiz:
-     * 1. Đánh dấu các từ trả lời SAI là "Chưa thuộc" (isMastered = false)
+     * Xử lý hoàn tất bài Quiz — nguồn quyết định CUỐI CÙNG trạng thái thẻ:
+     * 1. Trả lời ĐÚNG -> "Đã thuộc"; trả lời SAI -> "Chưa thuộc" (idempotent)
      * 2. Tự động tạo/cập nhật 1 bộ thẻ "Từ chưa thuộc" cho bộ từ vựng đó để người dùng học lại
      * 3. Lưu lịch sử Quiz và phiên học
      */
@@ -324,6 +362,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         deck: DeckEntity,
         score: Int,
         total: Int,
+        correctCards: List<FlashCardEntity>,
         wrongCards: List<FlashCardEntity>,
         durationSecs: Int = 90
     ) {
@@ -358,10 +397,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
 
-            // 3. Đánh dấu các từ SAI là chưa thuộc trong database
-            wrongCards.forEach { card ->
-                repository.markCardUnmastered(card.id)
-            }
+            // 3. Nguồn quyết định CUỐI CÙNG trạng thái thẻ:
+            //    trả lời ĐÚNG mới được tính "Đã thuộc", trả lời SAI -> chưa thuộc
+            repository.setCardsMasteredState(
+                correctIds = correctCards.map { it.id },
+                wrongIds = wrongCards.map { it.id },
+                langCode = deck.languageCode
+            )
 
             // 4. Nếu có từ sai, tự động tạo / cập nhật bộ thẻ "Từ chưa thuộc" trong CSDL
             if (wrongCards.isNotEmpty()) {
@@ -509,6 +551,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val cards = repository.getCardsForDeck(deck.id).first()
             _currentScreen.value = ScreenState.Study(deck, cards)
+        }
+    }
+
+    /**
+     * "Học tiếp": mở lại deck học gần nhất, ưu tiên các thẻ CHƯA thuộc
+     * (thẻ đến hạn ôn sớm nhất đứng trước), các thẻ đã thuộc xếp sau.
+     */
+    fun continueLastStudy() {
+        val info = continueLearning.value ?: return
+        viewModelScope.launch {
+            val cards = repository.getCardsForDeck(info.deck.id).first()
+            val unmasteredFirst = cards.filter { !it.isMastered }.sortedBy { it.nextReviewTimestamp }
+            val masteredLast = cards.filter { it.isMastered }
+                .sortedByDescending { it.lastReviewedTimestamp }
+            _currentScreen.value = ScreenState.Study(info.deck, unmasteredFirst + masteredLast)
         }
     }
 

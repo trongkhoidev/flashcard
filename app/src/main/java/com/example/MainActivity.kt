@@ -124,6 +124,8 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     val userTotalPoints by viewModel.userTotalPoints.collectAsStateWithLifecycle()
     val studySchedule by viewModel.studySchedule.collectAsStateWithLifecycle()
     val notificationPreview by viewModel.notificationPreview.collectAsStateWithLifecycle()
+    val continueLearning by viewModel.continueLearning.collectAsStateWithLifecycle()
+    val decksWithStats by viewModel.decksWithStats.collectAsStateWithLifecycle()
 
     var showProfileDialog by remember { mutableStateOf(false) }
     var showCreateDeckDialog by remember { mutableStateOf(false) }
@@ -260,7 +262,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         onAnswerWrong = { wrongCard ->
                             viewModel.markCardUnmastered(wrongCard.id)
                         },
-                        onFinishQuiz = { score, total, wrongCards -> },
+                        onFinishQuiz = { _, _, _, _ -> },
                         onCompleteTrial = {
                             viewModel.finishOnboardingTrialAndGoToAuth()
                         }
@@ -305,6 +307,9 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         onStudyByLang = { langCode ->
                             viewModel.startStudyByLanguage(langCode)
                         },
+                        continueLearning = continueLearning,
+                        decksWithStats = decksWithStats,
+                        onContinueLearning = { viewModel.continueLastStudy() },
                         studySchedule = studySchedule,
                         onUpdateScheduleTime = { h, m -> viewModel.updateStudySchedule(h, m) },
                         onTestSmartNotification = {
@@ -384,11 +389,12 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         onAnswerWrong = { wrongCard ->
                             viewModel.markCardUnmastered(wrongCard.id)
                         },
-                        onFinishQuiz = { score, total, wrongCards ->
+                        onFinishQuiz = { score, total, correctCards, wrongCards ->
                             viewModel.processQuizResult(
                                 deck = screen.deck,
                                 score = score,
                                 total = total,
+                                correctCards = correctCards,
                                 wrongCards = wrongCards,
                                 durationSecs = 90
                             )

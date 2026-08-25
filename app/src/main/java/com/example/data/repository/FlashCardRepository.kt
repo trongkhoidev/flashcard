@@ -186,37 +186,78 @@ class FlashCardRepository(
     }
 
     /**
-     * Đánh dấu từ vựng ĐÃ THUỘC (Hoàn thành) khi người dùng trả lời đúng trong Quiz
+     * Đánh dấu từ vựng ĐÃ THUỘC (Hoàn thành) khi người dùng trả lời đúng trong Quiz.
+     * Chỉ tăng masteredCardsCount khi chuyển trạng thái CHƯA -> ĐÃ thuộc (tránh cộng dồn).
      */
     suspend fun markCardMastered(id: Long, langCode: String) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        cardDao.recordReview(
-            id = id,
-            mastered = true,
-            difficulty = 1,
-            timestamp = now
-        )
-        languageDao.incrementMasteredCount(langCode, increment = 1, timestamp = now)
+        val card = cardDao.getCardById(id) ?: return@withContext
+        if (!card.isMastered) {
+            cardDao.recordReview(id = id, mastered = true, difficulty = 1, timestamp = now)
+            languageDao.incrementMasteredCount(langCode, increment = 1, timestamp = now)
+        } else {
+            cardDao.updateReviewProgress(id = id, difficulty = 1, timestamp = now)
+        }
     }
 
     /**
-     * Đánh dấu từ vựng CHƯA THUỘC khi người dùng trả lời sai trong Quiz
+     * Đánh dấu từ vựng CHƯA THUỘC khi trả lời sai trong Quiz
      */
     suspend fun markCardUnmastered(id: Long) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        cardDao.recordReview(
-            id = id,
-            mastered = false,
-            difficulty = 3,
-            timestamp = now
-        )
+        val card = cardDao.getCardById(id) ?: return@withContext
+        if (card.isMastered) {
+            cardDao.recordReview(id = id, mastered = false, difficulty = 3, timestamp = now)
+        } else {
+            cardDao.updateReviewProgress(id = id, difficulty = 3, timestamp = now)
+        }
     }
 
+    /**
+     * Nguồn quyết định CUỐI CÙNG trạng thái các thẻ sau một phiên Quiz:
+     * - Trả lời ĐÚNG  -> isMastered = true
+     * - Trả lời SAI    -> isMastered = false
+     * Idempotent: chỉ tăng/giảm masteredCardsCount khi thực sự chuyển trạng thái.
+     */
+    suspend fun setCardsMasteredState(
+        correctIds: List<Long>,
+        wrongIds: List<Long>,
+        langCode: String,
+        timestamp: Long = System.currentTimeMillis()
+    ) = withContext(Dispatchers.IO) {
+        var newlyMastered = 0
+        correctIds.forEach { id ->
+            val card = cardDao.getCardById(id) ?: return@forEach
+            if (!card.isMastered) {
+                cardDao.recordReview(id = id, mastered = true, difficulty = 1, timestamp = timestamp)
+                newlyMastered++
+            } else {
+                cardDao.updateReviewProgress(id = id, difficulty = 1, timestamp = timestamp)
+            }
+        }
+        var demoted = 0
+        wrongIds.forEach { id ->
+            val card = cardDao.getCardById(id) ?: return@forEach
+            if (card.isMastered) {
+                cardDao.recordReview(id = id, mastered = false, difficulty = 3, timestamp = timestamp)
+                demoted++
+            } else {
+                cardDao.updateReviewProgress(id = id, difficulty = 3, timestamp = timestamp)
+            }
+        }
+        val netChange = newlyMastered - demoted
+        if (netChange != 0) {
+            languageDao.incrementMasteredCount(langCode, increment = netChange, timestamp = timestamp)
+        }
+    }
+
+    /**
+     * Ghi nhận lượt học flashcard trong màn Study — KHÔNG BAO GIỜ đổi isMastered.
+     * "Đã thuộc" chỉ đến từ kết quả Quiz đúng.
+     */
     suspend fun recordCardReview(id: Long, difficulty: Int) = withContext(Dispatchers.IO) {
-        val isMastered = (difficulty == 1)
-        cardDao.recordReview(
+        cardDao.updateReviewProgress(
             id = id,
-            mastered = isMastered,
             difficulty = difficulty,
             timestamp = System.currentTimeMillis()
         )
@@ -273,6 +314,11 @@ class FlashCardRepository(
     fun getAllStudySessions(): Flow<List<StudySessionEntity>> = sessionDao.getAllSessions()
 
     fun getRecentStudySessions(limit: Int = 10): Flow<List<StudySessionEntity>> = sessionDao.getRecentSessions(limit)
+
+    fun getLastStudySession(): Flow<StudySessionEntity?> = sessionDao.getLastStudySession()
+
+    // Tiến trình thật của từng deck (mastered chỉ tính từ Quiz trả lời đúng)
+    fun getAllDecksWithStats(): Flow<List<com.example.data.model.DeckWithStats>> = cardDao.getAllDecksWithStats()
 
     fun getSessionsForDeck(deckId: String): Flow<List<StudySessionEntity>> = sessionDao.getSessionsForDeck(deckId)
 
