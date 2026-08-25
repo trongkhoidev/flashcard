@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ElectricBolt
@@ -25,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,7 +63,8 @@ fun UserProfileDialog(
     totalWordsCount: Int,
     onDismiss: () -> Unit,
     onUpdateName: (String) -> Unit,
-    onSelectVipLevel: ((Int) -> Unit)? = null
+    onSelectVipLevel: ((Int) -> Unit)? = null,
+    onLogout: (() -> Unit)? = null
 ) {
     var nameInput by remember { mutableStateOf(userName) }
     var isEditing by remember { mutableStateOf(false) }
@@ -276,6 +279,27 @@ fun UserProfileDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = NTKPrimary)
                 ) {
                     Text("Hoàn tất & Lưu thay đổi", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+
+                onLogout?.let { logout ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = logout,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("btn_logout"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626))
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Logout,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Đăng xuất", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

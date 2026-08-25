@@ -1,6 +1,8 @@
 package com.example.data.model
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "decks")
@@ -16,7 +18,24 @@ data class DeckEntity(
     val isCustom: Boolean = false
 )
 
-@Entity(tableName = "flashcards")
+@Entity(
+    tableName = "flashcards",
+    foreignKeys = [
+        ForeignKey(
+            entity = DeckEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["deckId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index("deckId"),
+        Index("isStarred"),
+        Index("isMastered"),
+        Index("nextReviewTimestamp")
+    ]
+)
 data class FlashCardEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val deckId: String,

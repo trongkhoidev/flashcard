@@ -149,7 +149,6 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
             is ScreenState.Login -> viewModel.navigateTo(ScreenState.Welcome)
             is ScreenState.Register -> viewModel.navigateTo(ScreenState.Welcome)
             is ScreenState.Onboarding -> viewModel.navigateTo(ScreenState.Welcome)
-            is ScreenState.Home -> viewModel.navigateTo(ScreenState.Welcome)
             else -> viewModel.navigateTo(ScreenState.Home)
         }
     }
@@ -193,7 +192,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                 is ScreenState.Register -> {
                     RegisterScreen(
                         onRegisterSuccess = { username ->
-                            viewModel.navigateTo(ScreenState.Home)
+                            viewModel.onRegisterSuccess(username)
                         },
                         onBackToWelcome = {
                             viewModel.navigateTo(ScreenState.Welcome)
@@ -728,7 +727,11 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
             totalWordsCount = totalCount,
             onDismiss = { showProfileDialog = false },
             onUpdateName = { viewModel.updateUserName(it) },
-            onSelectVipLevel = { viewModel.updateUserVipLevel(it) }
+            onSelectVipLevel = { viewModel.updateUserVipLevel(it) },
+            onLogout = {
+                showProfileDialog = false
+                viewModel.logoutAndReturnToWelcome()
+            }
         )
     }
 

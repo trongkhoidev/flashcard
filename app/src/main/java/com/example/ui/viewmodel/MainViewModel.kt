@@ -37,7 +37,7 @@ sealed class ScreenState {
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val database: AppDatabase = AppDatabase.getDatabase(application, viewModelScope)
+    private val database: AppDatabase = AppDatabase.getDatabase(application)
     private val repository: FlashCardRepository = FlashCardRepository(database)
     private val ttsManager: TTSManager = TTSManager(application)
 
@@ -81,12 +81,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 3)
 
     val streakDays: StateFlow<Int> = userProfile
-        .map { it?.streakDays ?: 7 }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 7)
+        .map { it?.streakDays ?: 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val userTotalPoints: StateFlow<Int> = userProfile
-        .map { it?.totalPoints ?: 1250 }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1250)
+        .map { it?.totalPoints ?: 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val studySchedule: StateFlow<com.example.data.model.StudyScheduleEntity?> = repository.getStudySchedule()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -96,25 +96,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _notificationPreview = MutableStateFlow<com.example.notification.NotificationPreviewEvent?>(null)
     val notificationPreview: StateFlow<com.example.notification.NotificationPreviewEvent?> = _notificationPreview.asStateFlow()
 
+    private var _pendingTrialLanguage: AppLanguage? = null
+
     fun dismissNotificationPreview() {
         _notificationPreview.value = null
     }
 
     suspend fun authenticateUser(username: String, passwordHash: String): Boolean {
-        val user = repository.authenticateUser(username, passwordHash)
+        val user = repository.authenticateUser(username, com.example.data.local.PasswordHasher.sha256(passwordHash))
         if (user != null) {
+            _pendingTrialLanguage = null
             repository.updateUserName(user.username)
+            applyActiveLanguageFromDb()
             return true
         }
         return false
     }
 
     suspend fun registerUser(username: String, passwordHash: String): Boolean {
-        return repository.registerUser(username, passwordHash)
+        return repository.registerUser(username, com.example.data.local.PasswordHasher.sha256(passwordHash))
     }
 
     suspend fun logoutUser() {
         repository.logoutUser()
+    }
+
+    fun logoutAndReturnToWelcome() {
+        viewModelScope.launch { repository.logoutUser() }
+        _selectedLanguage.value = AppLanguage.ENGLISH
+        _learningLanguages.value = listOf(AppLanguage.ENGLISH)
+        _currentScreen.value = ScreenState.Welcome
     }
 
     val decksForCurrentLanguage: StateFlow<List<DeckEntity>> = _selectedLanguage
@@ -139,14 +150,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             repository.checkAndSeedDatabase()
+            val activeUser = repository.getActiveLoggedInUserDirect()
+            if (activeUser != null) {
+                applyActiveLanguageFromDb()
+                _currentScreen.value = ScreenState.Home
+            }
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
-            
+
             // Khởi tạo lịch học AlarmManager thông minh
             com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
                 getApplication(),
                 com.example.data.model.StudySchedule()
             )
         }
+    }
+
+    /**
+     * Khôi phục "thứ đang học": đọc danh sách ngôn ngữ theo học từ DB,
+     * chọn ngôn ngữ có cờ isCurrentActive làm ngôn ngữ hiện tại.
+     */
+    private suspend fun applyActiveLanguageFromDb() {
+        val langs = learningLanguagesFromDb.first()
+        if (langs.isEmpty()) return
+        val active = langs.firstOrNull { it.isCurrentActive } ?: langs.first()
+        _selectedLanguage.value = AppLanguage.fromCode(active.languageCode)
+        _learningLanguages.value = langs.map { AppLanguage.fromCode(it.languageCode) }
     }
 
     fun navigateTo(screen: ScreenState) {
@@ -251,6 +279,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     timestamp = System.currentTimeMillis()
                 )
             )
+            repository.updateDailyStreakIfNeeded()
         }
     }
 
@@ -349,8 +378,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 repository.insertCards(newCardsForUnmasteredDeck)
             }
 
-            // 5. Cập nhật điểm & Widget
+            // 5. Cập nhật điểm, streak theo ngày & Widget
             repository.addPoints(score * 100)
+            repository.updateDailyStreakIfNeeded()
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
         }
     }
@@ -528,6 +558,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startOnboardingTrial(language: AppLanguage, reminderHour: Int) {
+        _pendingTrialLanguage = language
         _selectedLanguage.value = language
         _learningLanguages.value = listOf(language)
         updateStudySchedule(reminderHour)
@@ -543,16 +574,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentScreen.value = ScreenState.Register
     }
 
-    fun completeTrialRegistration(username: String) {
+    /**
+     * Gọi sau khi đăng ký tài khoản thành công.
+     * - Đến từ luồng Onboarding Trial: lưu ngôn ngữ đang học, tạo bộ Starter + thẻ,
+     *   và set streak = 1 (vừa học thử hôm nay).
+     * - Đăng ký trực tiếp: đảm bảo có ngôn ngữ mặc định đang theo học.
+     */
+    fun onRegisterSuccess(username: String) {
         viewModelScope.launch {
-            repository.updateUserName(username)
-            repository.updateStreak(1)
-            val currentLang = _selectedLanguage.value
-            val starterCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(currentLang)
-            repository.addLearningLanguage(currentLang)
-            repository.switchActiveLanguage(currentLang.code)
-            starterCards.forEach { card ->
-                repository.insertCard(card.copy(id = 0L))
+            val trialLang = _pendingTrialLanguage
+            _pendingTrialLanguage = null
+            if (trialLang != null) {
+                _selectedLanguage.value = trialLang
+                _learningLanguages.value = listOf(trialLang)
+                repository.addLearningLanguage(trialLang)
+                repository.switchActiveLanguage(trialLang.code)
+                val starterCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(trialLang)
+                repository.insertDeck(
+                    DeckEntity(
+                        id = "${trialLang.code}_starter",
+                        languageCode = trialLang.code,
+                        title = "${trialLang.displayName} Khởi động",
+                        subtitle = "Bộ từ vựng khởi đầu từ màn hình chào mừng",
+                        iconEmoji = "🚀",
+                        level = "Mới bắt đầu",
+                        colorHex = "#10B981",
+                        cardCount = starterCards.size,
+                        isCustom = false
+                    )
+                )
+                starterCards.forEach { card ->
+                    repository.insertCard(card.copy(id = 0L))
+                }
+                repository.updateStreak(1)
+            } else {
+                repository.addLearningLanguage(_selectedLanguage.value)
+                repository.switchActiveLanguage(_selectedLanguage.value.code)
             }
         }
         _currentScreen.value = ScreenState.Home

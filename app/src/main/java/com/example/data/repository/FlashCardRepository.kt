@@ -33,6 +33,10 @@ class FlashCardRepository(
     private val accountDao: UserAccountDao,
     private val scheduleDao: StudyScheduleDao
 ) {
+    private companion object {
+        const val MILLIS_PER_DAY = 86_400_000L
+    }
+
 
     constructor(database: AppDatabase) : this(
         deckDao = database.deckDao(),
@@ -338,6 +342,33 @@ class FlashCardRepository(
         profileDao.updateStreak(streakDays, System.currentTimeMillis())
     }
 
+    /**
+     * Cập nhật chuỗi ngày học theo ngày thật:
+     * - Học trong cùng ngày -> giữ nguyên (tránh cộng dồn nhiều lần/ngày)
+     * - Học liên tục sang hôm sau -> streak + 1
+     * - Bỏ học >= 2 ngày -> reset về 1
+     */
+    suspend fun updateDailyStreakIfNeeded(now: Long = System.currentTimeMillis()) = withContext(Dispatchers.IO) {
+        val profile = profileDao.getUserProfileDirect() ?: return@withContext
+        val dayDiff = ((startOfDayMillis(now) - startOfDayMillis(profile.lastActiveTimestamp)) / MILLIS_PER_DAY).toInt()
+        val newStreak = when {
+            dayDiff <= 0 -> return@withContext
+            dayDiff == 1 -> profile.streakDays + 1
+            else -> 1
+        }
+        profileDao.updateStreak(newStreak, now)
+    }
+
+    private fun startOfDayMillis(millis: Long): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.timeInMillis = millis
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
     suspend fun addPoints(points: Int) = withContext(Dispatchers.IO) {
         profileDao.addPoints(points)
     }
@@ -378,7 +409,20 @@ class FlashCardRepository(
                 isLoggedIn = true
             )
             accountDao.registerUser(newAccount)
-            profileDao.updateName(username)
+            profileDao.insertOrUpdateProfile(
+                UserProfileEntity(
+                    id = 1,
+                    userName = username,
+                    avatarEmoji = "🦉",
+                    avatarBgColorHex = "#EEF2FF",
+                    vipLevel = 1,
+                    streakDays = 0,
+                    maxStreakDays = 0,
+                    totalPoints = 0,
+                    totalCardsLearned = 0,
+                    lastActiveTimestamp = System.currentTimeMillis()
+                )
+            )
             true
         }
     }

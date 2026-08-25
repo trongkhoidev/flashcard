@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.AppLanguage
 import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
@@ -14,9 +13,6 @@ import com.example.data.model.StudySessionEntity
 import com.example.data.model.UserAccountEntity
 import com.example.data.model.UserLanguageEntity
 import com.example.data.model.UserProfileEntity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -47,37 +43,18 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        fun getDatabase(context: Context, scope: CoroutineScope = CoroutineScope(Dispatchers.IO)): AppDatabase {
+        fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "ntk_flashcard_db"
                 )
-                .createFromAsset("databases/ntk_flashcard_db.db")
+                .createFromAsset("databases/flashcard_database_expanded.db")
                 .fallbackToDestructiveMigration()
-                .addCallback(DatabaseCallback(scope))
                 .build()
                 INSTANCE = instance
                 instance
-            }
-        }
-
-        private class DatabaseCallback(
-            private val scope: CoroutineScope
-        ) : RoomDatabase.Callback() {
-            override fun onCreate(db: SupportSQLiteDatabase) {
-                super.onCreate(db)
-                INSTANCE?.let { database ->
-                    scope.launch {
-                        populateInitialData(
-                            deckDao = database.deckDao(),
-                            flashCardDao = database.flashCardDao(),
-                            userProfileDao = database.userProfileDao(),
-                            userLanguageDao = database.userLanguageDao()
-                        )
-                    }
-                }
             }
         }
 
