@@ -132,6 +132,7 @@ fun LeaderboardTab(
     userMonthlyPoints: Int = 0,
     userStreak: Int = 0,
     userCardsLearned: Int = 0,
+    otherUserProfiles: List<com.example.data.model.UserLeaderboardProfile> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var selectedFilter by remember { mutableStateOf(LeaderboardFilterType.POINTS) }
@@ -140,16 +141,44 @@ fun LeaderboardTab(
     var selectedUserForDialog by remember { mutableStateOf<LeaderboardUser?>(null) }
     var showAllRewardsDialog by remember { mutableStateOf(false) }
 
+    // Các tài khoản thật khác trên thiết bị này (nếu có)
+    val otherUsersList = remember(otherUserProfiles, selectedTimePeriod) {
+        otherUserProfiles.map { profile ->
+            val pointsForPeriod = when (selectedTimePeriod) {
+                TimePeriod.THIS_WEEK -> profile.weeklyPoints
+                TimePeriod.THIS_MONTH -> profile.monthlyPoints
+                TimePeriod.ALL_TIME -> profile.totalPoints
+            }
+            val colorHex = try {
+                Color(android.graphics.Color.parseColor(profile.avatarBgColorHex))
+            } catch (e: Exception) {
+                Color(0xFFFED7AA)
+            }
+            LeaderboardUser(
+                rank = 0,
+                name = profile.userName,
+                points = pointsForPeriod,
+                streakDays = profile.streakDays,
+                cardsLearned = profile.totalCardsLearned,
+                trend = RankTrend.Same,
+                avatarBgColor = colorHex,
+                avatarEmoji = profile.avatarEmoji,
+                vipLevel = profile.vipLevel,
+                isCurrentUser = false
+            )
+        }
+    }
+
     // Đối thủ ảo (app offline không có server). Hạng của bạn vẫn được tính THẬT
     // bằng cách gộp vào danh sách và so theo đúng chỉ số đang chọn.
-    val mockUsers = remember(selectedTimePeriod) {
+    val mockUsers = remember(selectedTimePeriod, otherUsersList) {
         val multiplier = when (selectedTimePeriod) {
             TimePeriod.THIS_WEEK -> 1.0f
             TimePeriod.THIS_MONTH -> 3.5f
             TimePeriod.ALL_TIME -> 8.0f
         }
 
-        listOf(
+        val baseMock = listOf(
             LeaderboardUser(0, "Minh Anh", (12850 * multiplier).toInt(), (25 * multiplier).toInt().coerceAtMost(365), (320 * multiplier).toInt(), RankTrend.Same, Color(0xFFFDE68A), "👦🏻", vipLevel = 5),
             LeaderboardUser(0, "Bảo Ngọc", (9450 * multiplier).toInt(), (18 * multiplier).toInt().coerceAtMost(365), (240 * multiplier).toInt(), RankTrend.Up(1), Color(0xFFFBCFE8), "👧🏻", vipLevel = 3),
             LeaderboardUser(0, "Hoàng Nam", (7650 * multiplier).toInt(), (15 * multiplier).toInt().coerceAtMost(365), (190 * multiplier).toInt(), RankTrend.Down(1), Color(0xFFFED7AA), "👦🏽", vipLevel = 2),
@@ -161,6 +190,7 @@ fun LeaderboardTab(
             LeaderboardUser(0, "Đức Mạnh", (3450 * multiplier).toInt(), 7, 90, RankTrend.Same, Color(0xFFA7F3D0), "👦🏽", vipLevel = 3),
             LeaderboardUser(0, "Mai Chi", (3120 * multiplier).toInt(), 6, 80, RankTrend.Same, Color(0xFFFDE68A), "👧🏼", vipLevel = 4)
         )
+        otherUsersList + baseMock
     }
 
     // Dữ liệu THẬT của người chơi — đọc trực tiếp từ DB, KHÔNG nhân hệ số giả

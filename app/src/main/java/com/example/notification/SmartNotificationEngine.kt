@@ -45,8 +45,20 @@ class SmartNotificationEngine(private val context: Context) {
         val sessionDao = database.studySessionDao()
         val cardDao = database.flashCardDao()
         val profileDao = database.userProfileDao()
+        val accountDao = database.userAccountDao()
+        val languageDao = database.userLanguageDao()
 
-        // 1. Tính mốc 00:00:00 hôm nay
+        // 1. Lấy thông tin tài khoản đang đăng nhập (Active Logged In Account)
+        val activeUser = accountDao.getActiveLoggedInUserDirect()
+        val uid = activeUser?.id ?: 1L
+        val profile = profileDao.getUserProfileByIdDirect(uid) ?: profileDao.getUserProfile().firstOrNull()
+
+        val userName = profile?.userName?.takeIf { it.isNotBlank() }
+            ?: activeUser?.username?.takeIf { it.isNotBlank() }
+            ?: "bạn"
+        val streakDays = profile?.streakDays ?: 0
+
+        // 2. Tính mốc 00:00:00 hôm nay
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
@@ -55,7 +67,7 @@ class SmartNotificationEngine(private val context: Context) {
         }
         val startOfToday = calendar.timeInMillis
 
-        // 2. Kiểm tra xem hôm nay user đã hoàn thành phiên học nào chưa?
+        // 3. Kiểm tra xem hôm nay user đã hoàn thành phiên học nào chưa?
         val todaySessions = sessionDao.getSessionsSince(startOfToday).firstOrNull() ?: emptyList()
         val hasStudiedToday = todaySessions.isNotEmpty()
 
@@ -64,52 +76,72 @@ class SmartNotificationEngine(private val context: Context) {
             return
         }
 
-        // 3. Lấy thông tin người dùng & Streak
-        val profile = profileDao.getUserProfile().firstOrNull()
-        val streakDays = profile?.streakDays ?: 7
-        val userName = profile?.userName?.takeIf { it.isNotBlank() } ?: "bạn"
+        // 4. Lấy danh sách ngôn ngữ đang học của tài khoản này
+        var userLangs = languageDao.getAllLearningLanguagesForUser(uid).firstOrNull() ?: emptyList()
+        if (userLangs.isEmpty()) {
+            userLangs = languageDao.getAllLearningLanguages().firstOrNull() ?: emptyList()
+        }
+        val langCodes = userLangs.map { it.languageCode }.toSet()
 
-        // 4. Đếm số từ chưa thuộc / cần ôn
-        val dueCards = cardDao.getAllCards().firstOrNull()?.filter { !it.isMastered } ?: emptyList()
-        val dueWordsCount = if (dueCards.isNotEmpty()) dueCards.size else 15
+        // 5. Thống kê số từ thực tế của người dùng đang học (chuẩn xác theo ngôn ngữ đang học)
+        val allCardsInDb = cardDao.getAllCards().firstOrNull() ?: emptyList()
+        val masteredCardIds = database.userMasteredCardDao().getMasteredCardIdsForUserDirect(uid).toSet()
 
-        // 5. Tạo thông điệp ngữ cảnh thông minh (Smart Context-Aware Messaging)
+        val userCards = if (langCodes.isNotEmpty()) {
+            allCardsInDb.filter { it.languageCode in langCodes }
+        } else {
+            allCardsInDb
+        }
+
+        val totalWordsCount = userCards.size
+        val masteredWordsCount = userCards.count { it.id in masteredCardIds || it.isMastered }
+        val dueWordsCount = (totalWordsCount - masteredWordsCount).coerceAtLeast(0)
+
+        // Định dạng giờ hẹn nhắc học của người dùng đã thiết lập khi thực thi step / cài đặt (VD: "19:00", "20:00")
+        val formattedScheduleTime = String.format(Locale.getDefault(), "%02d:%02d", schedule.reminderHour, schedule.reminderMinute)
+
+        // 6. Tạo thông điệp ngữ cảnh thông minh (Smart Context-Aware Messaging)
         val title: String
         val message: String
 
         if (hasStudiedToday && isForcedTest) {
-            title = "✨ Bạn đã hoàn thành bài học hôm nay!"
-            message = "Chào $userName, hệ thống ghi nhận bạn đã học $dueWordsCount từ hôm nay và giữ vững chuỗi $streakDays ngày!"
+            title = "✨ $userName đã hoàn thành bài học hôm nay!"
+            message = "Chào $userName, bạn đã thuộc $masteredWordsCount/$totalWordsCount từ. Hôm nay bạn đã hoàn thành bài học và giữ vững chuỗi $streakDays ngày!"
         } else if (dueWordsCount >= schedule.minWordsThreshold && streakDays > 0) {
             // Case A: Có từ cần ôn VÀ có streak -> Gộp thông báo thông minh
-            title = "🔥 Giữ vững chuỗi $streakDays ngày!"
-            message = "Chào $userName, bạn có $dueWordsCount từ cần ôn hôm nay. Hãy hoàn thành 1 bài học ngắn để giữ vững streak nhé!"
+            title = "🔥 $userName ơi, đến giờ học $formattedScheduleTime rồi!"
+            message = "Chào $userName, bạn đã thuộc $masteredWordsCount/$totalWordsCount từ. Còn $dueWordsCount từ cần ôn tập. Hãy học 1 bài ngắn để giữ chuỗi $streakDays ngày nhé!"
         } else if (dueWordsCount >= schedule.minWordsThreshold) {
             // Case B: Có từ cần ôn, chưa có streak
-            title = "📚 Đến giờ học rồi!"
-            message = "Chào $userName, bạn có $dueWordsCount từ vựng đang chờ ôn luyện. Cùng bắt đầu ngay nào!"
+            title = "📚 Đến giờ học $formattedScheduleTime rồi!"
+            message = "Chào $userName, hệ thống ghi nhận bạn đã thuộc $masteredWordsCount/$totalWordsCount từ vựng (còn $dueWordsCount từ cần ôn). Cùng bắt đầu ngay nào!"
         } else if (streakDays > 0 && schedule.remindStreak) {
-            // Case C: Không có từ tồn đọng, nhưng cần duy trì streak hàng ngày
-            title = "⚡ Đừng để mất chuỗi $streakDays ngày!"
-            message = "Bạn chưa hoàn thành bài học hôm nay. Dành 3 phút mở thêm bài mới để duy trì streak nhé!"
+            // Case C: Duy trì streak hàng ngày
+            title = "⚡ Duy trì chuỗi $streakDays ngày cùng $userName!"
+            message = "Chào $userName, bạn đã thuộc $masteredWordsCount/$totalWordsCount từ vựng. Dành 3 phút mở ứng dụng để duy trì streak nhé!"
+        } else if (totalWordsCount > 0) {
+            // Case D: Nhắc nhở chung với số từ thực tế
+            title = "📖 Thời gian học từ vựng ($formattedScheduleTime)"
+            message = "Chào $userName, bạn đã thuộc $masteredWordsCount/$totalWordsCount từ vựng trong lộ trình học. Dành một vài phút để khám phá bài học mới hôm nay!"
         } else {
-            // Case D: Nhắc nhở chung nếu được cấu hình
-            title = "📖 Thời gian học từ vựng lý tưởng"
-            message = "Dành một vài phút khám phá các chủ đề từ vựng mới cùng bài học hôm nay!"
+            title = "📖 Thời gian học từ vựng lý tưởng ($formattedScheduleTime)"
+            message = "Chào $userName, cùng dành một vài phút khám phá các chủ đề từ vựng mới trong lộ trình học hôm nay!"
         }
 
-        // 6. Gửi Notification hệ thống
+        // 7. Gửi Notification hệ thống
         NotificationHelper.showStudyReminderNotification(
             context = context,
             title = title,
             message = message,
             dueWordsCount = dueWordsCount,
-            streakDays = streakDays
+            streakDays = streakDays,
+            totalWordsCount = totalWordsCount,
+            masteredWordsCount = masteredWordsCount
         )
 
         val timeFormatted = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
 
-        // 7. Gửi callback để hiển thị banner in-app xem trước trực quan
+        // 8. Gửi callback để hiển thị banner in-app xem trước trực quan
         onPreviewGenerated?.invoke(
             NotificationPreviewEvent(
                 title = title,

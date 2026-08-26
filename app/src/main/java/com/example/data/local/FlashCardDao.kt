@@ -179,7 +179,19 @@ interface FlashCardDao {
     @Query("SELECT COUNT(*) FROM flashcards WHERE languageCode = :langCode AND lastReviewedTimestamp >= :startOfDayTimestamp")
     fun getCardsStudiedTodayByLanguageCount(langCode: String, startOfDayTimestamp: Long): Flow<Int>
 
-    // Tiến trình thật của TẤT CẢ deck: tổng thẻ & số thẻ đã thuộc (quiz đúng mới thuộc)
+    // Tiến trình thật của TẤT CẢ deck theo user: tổng thẻ & số thẻ đã thuộc (quiz đúng mới thuộc)
+    @Query("""
+        SELECT d.*,
+               COUNT(f.id) AS totalCards,
+               COALESCE(SUM(CASE WHEN f.isMastered = 1 THEN 1 ELSE 0 END), 0) AS masteredCards
+        FROM decks d
+        LEFT JOIN flashcards f ON f.deckId = d.id
+        WHERE d.isCustom = 0 OR (d.isCustom = 1 AND d.userId = :userId)
+        GROUP BY d.id
+        ORDER BY d.id
+    """)
+    fun getAllDecksWithStatsForUser(userId: Long): Flow<List<com.example.data.model.DeckWithStats>>
+
     @Query("""
         SELECT d.*,
                COUNT(f.id) AS totalCards,
@@ -217,6 +229,18 @@ interface FlashCardDao {
     // ========================================================
     @Query("UPDATE flashcards SET isStarred = :starred WHERE id = :id")
     suspend fun toggleStar(id: Long, starred: Boolean)
+
+    @Query("UPDATE flashcards SET isStarred = 0")
+    suspend fun clearAllStarredFlags()
+
+    @Query("UPDATE flashcards SET isStarred = 1 WHERE id IN (:cardIds)")
+    suspend fun setStarredForCardIds(cardIds: List<Long>)
+
+    @Query("UPDATE flashcards SET isMastered = 0")
+    suspend fun clearAllMasteredFlags()
+
+    @Query("UPDATE flashcards SET isMastered = 1 WHERE id IN (:cardIds)")
+    suspend fun setMasteredForCardIds(cardIds: List<Long>)
 
     @Query("""
         UPDATE flashcards 

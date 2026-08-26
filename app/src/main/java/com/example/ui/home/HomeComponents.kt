@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -1078,6 +1079,61 @@ fun SpacedRepetitionDueWidget(
 }
 
 /**
+ * Thanh tiến trình chia theo khấc từ vựng (Chuẩn 10 khấc):
+ * - 10 từ -> Full thanh (10/10 khấc)
+ * - 5 từ -> Nửa thanh (5/10 khấc)
+ * - Hiển thị màu xanh đậm cho từ đã thuộc, màu xanh nhạt tươi cho thẻ từ vựng trong bộ, xám cho khấc trống
+ */
+@Composable
+fun NotchedProgressBar(
+    totalCards: Int,
+    masteredCards: Int = 0,
+    maxNotches: Int = 10,
+    modifier: Modifier = Modifier
+) {
+    val safeTotal = totalCards.coerceAtLeast(0)
+    val safeMastered = masteredCards.coerceIn(0, if (safeTotal > 0) safeTotal else 0)
+
+    val (effectiveTotal, effectiveMastered) = if (safeTotal == 0) {
+        0 to 0
+    } else if (safeTotal <= maxNotches) {
+        safeTotal to safeMastered
+    } else {
+        val fraction = safeMastered.toFloat() / safeTotal.toFloat()
+        maxNotches to (fraction * maxNotches).toInt().coerceIn(0, maxNotches)
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        for (notch in 1..maxNotches) {
+            val isMastered = notch <= effectiveMastered
+            val isDeckCard = notch <= effectiveTotal
+
+            val notchColor = when {
+                isMastered -> Color(0xFF0284C7)   // Đã thuộc: Xanh đậm
+                isDeckCard -> Color(0xFF38BDF8)   // Thẻ từ vựng trong bộ: Xanh biển tươi
+                else -> Color(0xFFE2E8F0)         // Khấc trống: Xám
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(
+                        color = notchColor,
+                        shape = RoundedCornerShape(2.dp)
+                    )
+            )
+        }
+    }
+}
+
+/**
  * 4. "BỘ THẺ CỦA BẠN" - HỖ TRỢ ĐA NGÔN NGỮ (Multi-Language Tabs & Language Switcher)
  * - Khi lần đầu vào: Có 1 ngôn ngữ đang chọn + Nút "➕ Thêm ngôn ngữ".
  * - Khi người dùng học nhiều ngôn ngữ: Có thanh chuyển nhanh dạng Chips (🇯🇵 Tiếng Nhật, 🇬🇧 Tiếng Anh, 🇰🇷 Tiếng Hàn...).
@@ -1092,6 +1148,7 @@ fun YourDecksSection(
     onSelectLanguage: (AppLanguage) -> Unit,
     onAddLanguageClick: () -> Unit = {},
     decks: List<DeckEntity> = emptyList(),
+    decksWithStats: List<com.example.data.model.DeckWithStats> = emptyList(),
     onDeckClick: (DeckEntity) -> Unit = {},
     onOpenDeckDetail: (DeckEntity) -> Unit = onDeckClick,
     onStudyDeck: (DeckEntity) -> Unit = {},
@@ -1103,6 +1160,9 @@ fun YourDecksSection(
     modifier: Modifier = Modifier
 ) {
     var selectedCategoryFilter by remember { mutableStateOf("Tất cả") }
+    val statsById = remember(decksWithStats) {
+        decksWithStats.associateBy { it.deck.id }
+    }
 
     Column(
         modifier = modifier
@@ -1283,9 +1343,12 @@ fun YourDecksSection(
         ) {
             // Render Decks
             filteredDecks.forEach { deck ->
+                val deckStat = statsById[deck.id]
                 DynamicDeckCard(
                     deck = deck,
                     language = selectedLanguage,
+                    masteredCount = deckStat?.masteredCards,
+                    totalCardCount = deckStat?.totalCards,
                     onClick = { onDeckClick(deck) },
                     onStudy = { onStudyDeck(deck) },
                     onQuiz = { onQuizDeck(deck) },
@@ -1295,7 +1358,10 @@ fun YourDecksSection(
 
             // Create New Deck Action Card
             CreateNewDeckCard(
-                onClick = onCreateNewDeck,
+                onClick = {
+                    onCreateDeckClick()
+                    onCreateNewDeck()
+                },
                 modifier = Modifier.testTag("card_create_new_deck")
             )
         }
@@ -1313,12 +1379,12 @@ fun DynamicDeckCard(
     onStudy: () -> Unit,
     onQuiz: () -> Unit,
     onMatch: () -> Unit,
+    masteredCount: Int? = null,
+    totalCardCount: Int? = null,
     modifier: Modifier = Modifier
 ) {
-    val cardCount = deck.cardCount
-    // Mock progress calculation for deck
-    val studiedWords = ((cardCount * 0.4f).toInt()).coerceAtLeast(0)
-    val progress = if (cardCount > 0) studiedWords.toFloat() / cardCount.toFloat() else 0f
+    val totalCount = totalCardCount ?: deck.cardCount
+    val mastered = masteredCount ?: 0
 
     Surface(
         onClick = onClick,
@@ -1385,84 +1451,101 @@ fun DynamicDeckCard(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "$cardCount thẻ từ vựng",
-                fontSize = 11.sp,
-                color = Color(0xFF64748B)
-            )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Mini Progress Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .background(Color(0xFFE2E8F0), RoundedCornerShape(2.dp))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progress)
-                        .height(4.dp)
-                        .background(Color(0xFF0284C7), RoundedCornerShape(2.dp))
+            if (mastered > 0) {
+                Text(
+                    text = "Thuộc $mastered/$totalCount thẻ",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF0284C7)
+                )
+            } else {
+                Text(
+                    text = "$totalCount thẻ từ vựng",
+                    fontSize = 11.sp,
+                    color = Color(0xFF64748B)
                 )
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Mini Progress Bar theo khấc: 10 từ = full 10/10 khấc, 5 từ = 5/10 khấc (nửa thanh)
+            NotchedProgressBar(
+                totalCards = totalCount,
+                masteredCards = mastered,
+                maxNotches = 10
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Quick Action Buttons Row: [🎴 Học] [⚡ Quiz] [🧩 Ghép]
-            Row(
+            // Quick Action Buttons stacked in 3 rows for easy tapping: [🎴 Học thẻ] / [⚡ Luyện Quiz] / [🧩 Ghép từ]
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Surface(
                     onClick = onStudy,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = Color(0xFFE0F2FE),
-                    modifier = Modifier.weight(1f)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBAE6FD)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(vertical = 5.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🎴", fontSize = 10.sp)
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(text = "Học", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
+                        Text(text = "🎴", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Học thẻ", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
                     }
                 }
 
                 Surface(
                     onClick = onQuiz,
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFEF3C7),
-                    modifier = Modifier.weight(1f)
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFECFDF5),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(vertical = 5.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "⚡", fontSize = 10.sp)
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(text = "Quiz", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
+                        Text(text = "⚡", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Luyện Quiz", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
                     }
                 }
 
                 Surface(
                     onClick = onMatch,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = Color(0xFFF3E8FF),
-                    modifier = Modifier.weight(1f)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE9D5FF)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(vertical = 5.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🧩", fontSize = 10.sp)
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(text = "Ghép", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9333EA))
+                        Text(text = "🧩", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Ghép từ", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9333EA))
                     }
                 }
             }

@@ -10,6 +10,7 @@ import com.example.data.model.DeckEntity
 import com.example.data.model.FlashCardEntity
 import com.example.data.repository.FlashCardRepository
 import com.example.data.model.UserProfileEntity
+import com.example.data.model.UserLeaderboardProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -107,8 +108,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _selectedLanguage
     ) { session, stats, lang ->
         val lastDeckStats = session?.takeIf {
-            !it.deckId.startsWith("trial_") && !it.deckId.startsWith("unmastered_")
-        }?.let { s -> stats.firstOrNull { it.deck.id == s.deckId } }
+            !it.deckId.startsWith("trial_") && !it.deckId.startsWith("unmastered_") && it.languageCode == lang.code
+        }?.let { s -> stats.firstOrNull { it.deck.id == s.deckId && it.deck.languageCode == lang.code } }
         when {
             lastDeckStats != null ->
                 ContinueLearningInfo(lastDeckStats.deck, session, lastDeckStats.masteredCards, lastDeckStats.totalCards)
@@ -161,6 +162,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Điểm kiếm được trong THÁNG này (từ ngày 1) — BXH thật
     val monthlyPoints: StateFlow<Int> = repository.getPointsEarnedSince(startOfMonthMillis())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val otherUserProfiles: StateFlow<List<UserLeaderboardProfile>> = repository.getOtherUserProfiles()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val studySchedule: StateFlow<com.example.data.model.StudyScheduleEntity?> = repository.getStudySchedule()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -227,11 +231,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val allCardsList: StateFlow<List<FlashCardEntity>> = repository.getAllCards()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val masteredCount: StateFlow<Int> = repository.getMasteredCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val masteredCount: StateFlow<Int> = combine(allCardsList, learningLanguages) { cards, langs ->
+        val langCodes = langs.map { it.code }.toSet()
+        if (langCodes.isNotEmpty()) {
+            cards.count { it.languageCode in langCodes && it.isMastered }
+        } else {
+            cards.count { it.isMastered }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val totalCardsCount: StateFlow<Int> = repository.getTotalCardsCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val totalCardsCount: StateFlow<Int> = combine(allCardsList, learningLanguages) { cards, langs ->
+        val langCodes = langs.map { it.code }.toSet()
+        if (langCodes.isNotEmpty()) {
+            cards.count { it.languageCode in langCodes }
+        } else {
+            cards.size
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     init {
         viewModelScope.launch {
@@ -247,10 +263,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
 
-            // Khởi tạo lịch học AlarmManager thông minh
+            // Khởi tạo lịch học AlarmManager thông minh theo đúng lịch của người dùng
+            val currentScheduleEntity = repository.getStudyScheduleDirect()
+            val schedule = currentScheduleEntity?.let {
+                com.example.data.model.StudySchedule(
+                    isEnabled = it.isEnabled,
+                    reminderHour = it.reminderHour,
+                    reminderMinute = it.reminderMinute,
+                    remindStreak = it.remindStreak,
+                    remindDueWords = it.remindDueWords,
+                    minWordsThreshold = it.minWordsThreshold
+                )
+            } ?: com.example.data.model.StudySchedule()
+
             com.example.notification.StudyAlarmScheduler.scheduleStudyAlarm(
                 getApplication(),
-                com.example.data.model.StudySchedule()
+                schedule
             )
         }
     }
@@ -262,8 +290,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * (StateFlow WhileSubscribed chưa có collector sẽ trả về emptyList).
      */
     private suspend fun applyActiveLanguageFromDb() {
+        val activeUser = repository.getActiveLoggedInUserDirect()
+        val uid = activeUser?.id ?: 1L
+        repository.ensureInitialLanguageForUser(uid)
         val langs = repository.getAllLearningLanguages().first()
-        if (langs.isEmpty()) return
+        if (langs.isEmpty()) {
+            _selectedLanguage.value = AppLanguage.ENGLISH
+            _learningLanguages.value = listOf(AppLanguage.ENGLISH)
+            return
+        }
         val active = langs.firstOrNull { it.isCurrentActive } ?: langs.first()
         _selectedLanguage.value = AppLanguage.fromCode(active.languageCode)
         _learningLanguages.value = langs.map { AppLanguage.fromCode(it.languageCode) }
@@ -398,6 +433,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         deck: DeckEntity,
         score: Int,
         total: Int,
+        totalPoints: Int = score * 100,
+        maxStreak: Int = score,
         correctCards: List<FlashCardEntity>,
         wrongCards: List<FlashCardEntity>,
         durationSecs: Int = 90
@@ -416,17 +453,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
 
-            // 2. Lưu kết quả Quiz vào lịch sử
+            // 2. Tính toán điểm thưởng với cơ chế Chống Spam / Cày điểm & Quy tắc Bộ thẻ tự tạo:
+            // - Bộ thẻ tự tạo / Bộ ôn tập (deck.isCustom == true): 0 điểm BXH (luyện tập tự do, bảo toàn công bằng)
+            // - Bộ thẻ bài học chuẩn:
+            //   + Lần 1 hoàn thành trong ngày: 100% điểm
+            //   + Lần 2 hoàn thành trong ngày (ôn tập lại): 50% điểm
+            //   + Lần 3+ hoàn thành trong ngày: 0 điểm (đã đạt hạn mức thưởng bài này hôm nay, luyện tập miễn phí)
+            val attemptsToday = repository.getDailyQuizAttemptsForDeck(deck.id)
+            val rawPoints = if (totalPoints > 0) totalPoints else score * 100
+            val finalPoints = when {
+                deck.isCustom -> 0
+                attemptsToday == 0 -> rawPoints
+                attemptsToday == 1 -> (rawPoints * 0.5f).toInt()
+                else -> 0
+            }
+
             val accuracy = if (total > 0) (score.toFloat() / total.toFloat()) * 100f else 0f
             repository.recordQuizResult(
                 com.example.data.model.QuizRecordEntity(
                     deckId = deck.id,
                     deckTitle = deck.title,
-                    mode = "QUIZ",
+                    mode = if (deck.isCustom) "PRACTICE_CUSTOM" else "QUIZ",
                     score = score,
                     totalQuestions = total,
-                    pointsEarned = score * 100,
-                    maxStreak = score,
+                    pointsEarned = finalPoints,
+                    maxStreak = maxStreak,
                     accuracyPercent = accuracy,
                     timeSpentSeconds = durationSecs,
                     timestamp = System.currentTimeMillis()
@@ -475,7 +526,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             // 5. Cập nhật điểm, streak theo ngày & Widget
-            repository.addPoints(score * 100)
+            repository.addPoints(finalPoints)
             repository.updateDailyStreakIfNeeded()
             com.example.widget.VocabularyStreakWidgetProvider.updateAllWidgets(getApplication(), streakDays.value)
 
@@ -552,7 +603,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun triggerSmartNotificationTest() {
         viewModelScope.launch {
+            val currentScheduleEntity = repository.getStudyScheduleDirect()
+            val schedule = currentScheduleEntity?.let {
+                com.example.data.model.StudySchedule(
+                    isEnabled = it.isEnabled,
+                    reminderHour = it.reminderHour,
+                    reminderMinute = it.reminderMinute,
+                    remindStreak = it.remindStreak,
+                    remindDueWords = it.remindDueWords,
+                    minWordsThreshold = it.minWordsThreshold
+                )
+            } ?: com.example.data.model.StudySchedule()
+
             smartNotificationEngine.evaluateAndSendSmartNotification(
+                schedule = schedule,
                 isForcedTest = true,
                 onPreviewGenerated = { event ->
                     _notificationPreview.value = event
@@ -577,13 +641,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun createNewDeck(deck: DeckEntity) {
         viewModelScope.launch {
-            repository.insertDeck(deck)
+            val activeUser = repository.getActiveLoggedInUserDirect()
+            val uid = activeUser?.id ?: 1L
+            repository.insertDeck(deck.copy(userId = uid, isCustom = true))
         }
     }
 
     fun createNewDeckWithCards(deck: DeckEntity, selectedCards: List<FlashCardEntity>) {
         viewModelScope.launch {
-            val deckWithCount = deck.copy(cardCount = selectedCards.size)
+            val activeUser = repository.getActiveLoggedInUserDirect()
+            val uid = activeUser?.id ?: 1L
+            val deckWithCount = deck.copy(cardCount = selectedCards.size, userId = uid, isCustom = true)
             repository.insertDeck(deckWithCount)
             
             val newCards = selectedCards.map { card ->
@@ -639,7 +707,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startStudyDeck(deck: DeckEntity) {
         viewModelScope.launch {
-            val cards = repository.getCardsForDeck(deck.id).first()
+            var cards = repository.getCardsForDeck(deck.id).first()
+            if (cards.isEmpty()) {
+                cards = repository.getCardsByLanguage(deck.languageCode).first()
+            }
             _currentScreen.value = ScreenState.Study(deck, cards)
         }
     }
@@ -737,48 +808,126 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun finishOnboardingTrialAndGoToAuth() {
-        _currentScreen.value = ScreenState.Register
-    }
-
-    /**
-     * Gọi sau khi đăng ký tài khoản thành công.
-     * - Đến từ luồng Onboarding Trial: lưu ngôn ngữ đang học, tạo bộ Starter + thẻ,
-     *   và set streak = 1 (vừa học thử hôm nay).
-     * - Đăng ký trực tiếp: đảm bảo có ngôn ngữ mặc định đang theo học.
-     */
-    fun onRegisterSuccess(username: String) {
         viewModelScope.launch {
-            val trialLang = _pendingTrialLanguage
-            _pendingTrialLanguage = null
-            if (trialLang != null) {
+            val activeUser = repository.getActiveLoggedInUserDirect()
+            if (activeUser != null) {
+                // Người dùng đã đăng ký trước đó và vừa hoàn thành các bước onboarding
+                val trialLang = _pendingTrialLanguage ?: _selectedLanguage.value
+                _pendingTrialLanguage = null
                 _selectedLanguage.value = trialLang
                 _learningLanguages.value = listOf(trialLang)
                 repository.addLearningLanguage(trialLang)
                 repository.switchActiveLanguage(trialLang.code)
+
+                val starterDeckId = "${trialLang.code}_starter"
+                val existingDeck = repository.getDeckById(starterDeckId)
                 val starterCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(trialLang)
-                repository.insertDeck(
-                    DeckEntity(
-                        id = "${trialLang.code}_starter",
-                        languageCode = trialLang.code,
-                        title = "${trialLang.displayName} Khởi động",
-                        subtitle = "Bộ từ vựng khởi đầu từ màn hình chào mừng",
-                        iconEmoji = "🚀",
-                        level = "Mới bắt đầu",
-                        colorHex = "#10B981",
-                        cardCount = starterCards.size,
-                        isCustom = false
+                if (existingDeck == null) {
+                    repository.insertDeck(
+                        DeckEntity(
+                            id = starterDeckId,
+                            languageCode = trialLang.code,
+                            title = "${trialLang.displayName} Khởi động",
+                            subtitle = "Bộ từ vựng khởi đầu cho người mới bắt đầu",
+                            iconEmoji = "🚀",
+                            level = "Mới bắt đầu",
+                            colorHex = "#10B981",
+                            cardCount = starterCards.size,
+                            isCustom = false
+                        )
                     )
-                )
-                starterCards.forEach { card ->
-                    repository.insertCard(card.copy(id = 0L))
+                    starterCards.forEach { card ->
+                        repository.insertCard(card.copy(id = 0L))
+                    }
                 }
                 repository.updateStreak(1)
+                _currentScreen.value = ScreenState.Home
             } else {
-                repository.addLearningLanguage(_selectedLanguage.value)
-                repository.switchActiveLanguage(_selectedLanguage.value.code)
+                // Chưa đăng ký -> chuyển đến màn hình Đăng ký
+                _currentScreen.value = ScreenState.Register
             }
         }
-        _currentScreen.value = ScreenState.Home
+    }
+
+    /**
+     * Gọi sau khi đăng ký tài khoản thành công.
+     * - Nếu đã làm xong các bước Onboarding trước đó (_pendingTrialLanguage != null):
+     *   Lưu ngôn ngữ, tạo bộ Starter + thẻ, set streak = 1 và vào thẳng Home.
+     * - Nếu đăng ký trước (trực tiếp):
+     *   Chuyển tiếp đến màn hình làm các bước khảo sát Onboarding để chọn ngôn ngữ, trình độ, giờ nhắc nhở...
+     */
+    fun onRegisterSuccess(username: String) {
+        viewModelScope.launch {
+            val trialLang = _pendingTrialLanguage
+            if (trialLang != null) {
+                _pendingTrialLanguage = null
+                val targetLang = trialLang
+                _selectedLanguage.value = targetLang
+                _learningLanguages.value = listOf(targetLang)
+                repository.addLearningLanguage(targetLang)
+                repository.switchActiveLanguage(targetLang.code)
+
+                val starterDeckId = "${targetLang.code}_starter"
+                val existingDeck = repository.getDeckById(starterDeckId)
+                val starterCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(targetLang)
+                if (existingDeck == null) {
+                    repository.insertDeck(
+                        DeckEntity(
+                            id = starterDeckId,
+                            languageCode = targetLang.code,
+                            title = "${targetLang.displayName} Khởi động",
+                            subtitle = "Bộ từ vựng khởi đầu cho người mới bắt đầu",
+                            iconEmoji = "🚀",
+                            level = "Mới bắt đầu",
+                            colorHex = "#10B981",
+                            cardCount = starterCards.size,
+                            isCustom = false
+                        )
+                    )
+                    starterCards.forEach { card ->
+                        repository.insertCard(card.copy(id = 0L))
+                    }
+                }
+                repository.updateStreak(1)
+                _currentScreen.value = ScreenState.Home
+            } else {
+                // Đăng ký trước -> chuyển sang làm các bước Onboarding
+                _currentScreen.value = ScreenState.Onboarding
+            }
+        }
+    }
+
+    fun onBackFromOnboarding() {
+        viewModelScope.launch {
+            val activeUser = repository.getActiveLoggedInUserDirect()
+            if (activeUser != null) {
+                val targetLang = _selectedLanguage.value
+                val starterDeckId = "${targetLang.code}_starter"
+                val existingDeck = repository.getDeckById(starterDeckId)
+                if (existingDeck == null) {
+                    val starterCards = com.example.data.local.StarterVocabData.getStarterCardsForLanguage(targetLang)
+                    repository.insertDeck(
+                        DeckEntity(
+                            id = starterDeckId,
+                            languageCode = targetLang.code,
+                            title = "${targetLang.displayName} Khởi động",
+                            subtitle = "Bộ từ vựng khởi đầu cho người mới bắt đầu",
+                            iconEmoji = "🚀",
+                            level = "Mới bắt đầu",
+                            colorHex = "#10B981",
+                            cardCount = starterCards.size,
+                            isCustom = false
+                        )
+                    )
+                    starterCards.forEach { card ->
+                        repository.insertCard(card.copy(id = 0L))
+                    }
+                }
+                _currentScreen.value = ScreenState.Home
+            } else {
+                _currentScreen.value = ScreenState.Welcome
+            }
+        }
     }
 
     override fun onCleared() {

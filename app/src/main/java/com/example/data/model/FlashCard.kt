@@ -16,7 +16,8 @@ data class DeckEntity(
     val level: String, // "Cơ bản", "Trung cấp", "Nâng cao"
     val colorHex: String,
     val cardCount: Int = 0,
-    val isCustom: Boolean = false
+    val isCustom: Boolean = false,
+    val userId: Long? = null
 )
 
 @Entity(

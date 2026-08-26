@@ -111,6 +111,7 @@ fun HomeScreen(
     userTotalPoints: Int = 1250,
     userWeeklyPoints: Int = 0,
     userMonthlyPoints: Int = 0,
+    otherUserProfiles: List<com.example.data.model.UserLeaderboardProfile> = emptyList(),
     onSelectVipLevel: (Int) -> Unit = {},
     onOpenDeckDetail: (DeckEntity) -> Unit = {},
     onStudyDeck: (DeckEntity) -> Unit,
@@ -215,7 +216,10 @@ fun HomeScreen(
                             // Dynamic First-Time vs Returning User State
                             val isFirstTimeUser = masteredWordsCount == 0 && streakDays <= 1
                             val currentActiveDeck = remember(decks, effectiveDecks, selectedLanguage.code) {
-                                decks.firstOrNull()
+                                decks.firstOrNull { it.id == "${selectedLanguage.code}_starter" }
+                                    ?: decks.firstOrNull { it.languageCode == selectedLanguage.code }
+                                    ?: decks.firstOrNull()
+                                    ?: effectiveDecks.firstOrNull { it.id == "${selectedLanguage.code}_starter" }
                                     ?: effectiveDecks.firstOrNull { it.languageCode == selectedLanguage.code }
                                     ?: effectiveDecks.firstOrNull()
                             }
@@ -225,6 +229,7 @@ fun HomeScreen(
                                 StarterWelcomeHeroCard(
                                     userName = userName,
                                     language = selectedLanguage,
+                                    starterDeck = currentActiveDeck,
                                     onStartFirstLesson = {
                                         if (currentActiveDeck != null) {
                                             onStudyDeck(currentActiveDeck)
@@ -296,6 +301,7 @@ fun HomeScreen(
                                 }
                                 YourDecksSection(
                                     decks = yourDecks,
+                                    decksWithStats = decksWithStats,
                                     learningLanguages = learningLanguages,
                                     selectedLanguage = selectedLanguage,
                                     onSelectLanguage = onSelectLanguage,
@@ -304,6 +310,7 @@ fun HomeScreen(
                                     onStudyDeck = onStudyDeck,
                                     onQuizDeck = onQuizDeck,
                                     onMatchDeck = onMatchDeck,
+                                    onCreateNewDeck = { showCreateDeckDialog = true },
                                     onCreateDeckClick = { showCreateDeckDialog = true },
                                     onViewAllClick = { showAllDecksSheet = true }
                                 )
@@ -311,8 +318,8 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 // 7. "Mục tiêu hôm nay" CARD: Circular Ring, count / target, Dynamic cheer text
+                                val goalTarget = 20
                                 val goalCurrent = masteredWordsCount
-                                val goalTarget = if (totalWordsCount > 0) totalWordsCount else 20
                                 val goalPercentage = if (goalTarget > 0) ((goalCurrent * 100) / goalTarget).coerceIn(0, 100) else 0
 
                                 DailyGoalCard(
@@ -351,6 +358,7 @@ fun HomeScreen(
                             userMonthlyPoints = userMonthlyPoints,
                             userStreak = streakDays,
                             userCardsLearned = masteredWordsCount,
+                            otherUserProfiles = otherUserProfiles,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -462,6 +470,16 @@ fun HomeScreen(
             streakDays = streakDays,
             masteredCount = masteredWordsCount,
             totalCardsCount = totalWordsCount,
+            totalPoints = userTotalPoints,
+            vipLevel = userVipLevel,
+            userName = userName,
+            learningLanguages = learningLanguages,
+            allCardsList = allCardsList,
+            decksWithStats = decksWithStats,
+            onStartReview = {
+                showStatsDialog = false
+                showReviewOverlay = true
+            },
             onDismiss = { showStatsDialog = false }
         )
     }
@@ -973,66 +991,71 @@ private fun DeckListCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Tiến trình thật: "Đã thuộc X/Y thẻ" — chỉ tính thẻ trả lời ĐÚNG trong Quiz
-            if (showProgress && masteredCount != null && totalCardCount != null) {
-                val percent = ((masteredCount.toFloat() / totalCardCount) * 100f).toInt().coerceIn(0, 100)
-                Text(
-                    text = "✅ Đã thuộc $masteredCount/$totalCardCount thẻ ($percent%)",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (percent >= 100) Color(0xFF16A34A) else Color(0xFF475569)
-                )
-                Spacer(modifier = Modifier.height(5.dp))
-                LinearProgressIndicator(
-                    progress = { percent / 100f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    color = if (percent >= 100) Color(0xFF16A34A) else Color(0xFF0284C7),
-                    trackColor = Color(0xFFE2E8F0)
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-            }
+            val totalCount = totalCardCount ?: deck.cardCount
+            val mastered = masteredCount ?: 0
+            val percent = if (totalCount > 0) ((mastered.toFloat() / totalCount) * 100f).toInt().coerceIn(0, 100) else 0
 
-            // Action Buttons: Học, Trắc nghiệm, Ghép thẻ
-            Row(
+            Text(
+                text = if (mastered > 0) "✅ Đã thuộc $mastered/$totalCount thẻ ($percent%)" else "$totalCount thẻ từ vựng",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (percent >= 100) Color(0xFF16A34A) else Color(0xFF475569)
+            )
+            Spacer(modifier = Modifier.height(5.dp))
+            NotchedProgressBar(
+                totalCards = totalCount,
+                masteredCards = mastered,
+                maxNotches = 10
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Action Buttons: 3 full-width rows for Học ngay, Trắc nghiệm Quiz, Ghép thẻ
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
                     onClick = onStudy,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                    modifier = Modifier.weight(1.2f).height(36.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp)
                 ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Học ngay", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Học ngay", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
 
                 Button(
                     onClick = onQuiz,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFECFDF5)),
-                    modifier = Modifier.weight(1f).height(36.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp)
                 ) {
-                    Icon(Icons.Default.Quiz, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Quiz", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                    Icon(Icons.Default.Quiz, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Luyện Quiz", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
                 }
 
                 Button(
                     onClick = onMatch,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFF7ED)),
-                    modifier = Modifier.weight(1f).height(36.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFED7AA)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp)
                 ) {
-                    Icon(Icons.Default.Extension, contentDescription = null, tint = Color(0xFFEA580C), modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ghép", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC2410C))
+                    Icon(Icons.Default.Extension, contentDescription = null, tint = Color(0xFFEA580C), modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Ghép thẻ từ vựng", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC2410C))
                 }
             }
         }

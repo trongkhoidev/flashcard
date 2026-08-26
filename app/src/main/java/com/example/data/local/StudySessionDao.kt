@@ -14,13 +14,22 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface StudySessionDao {
 
+    @Query("SELECT * FROM study_sessions WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getAllSessionsForUser(userId: Long): Flow<List<StudySessionEntity>>
+
     @Query("SELECT * FROM study_sessions ORDER BY timestamp DESC")
     fun getAllSessions(): Flow<List<StudySessionEntity>>
+
+    @Query("SELECT * FROM study_sessions WHERE userId = :userId ORDER BY timestamp DESC LIMIT :limit")
+    fun getRecentSessionsForUser(userId: Long, limit: Int): Flow<List<StudySessionEntity>>
 
     @Query("SELECT * FROM study_sessions ORDER BY timestamp DESC LIMIT :limit")
     fun getRecentSessions(limit: Int): Flow<List<StudySessionEntity>>
 
-    // Phiên học gần nhất — dùng cho mục "Tiếp tục học" ở Home
+    // Phiên học gần nhất — dùng cho mục "Tiếp tục học" ở Home theo User
+    @Query("SELECT * FROM study_sessions WHERE userId = :userId ORDER BY timestamp DESC LIMIT 1")
+    fun getLastStudySessionForUser(userId: Long): Flow<StudySessionEntity?>
+
     @Query("SELECT * FROM study_sessions ORDER BY timestamp DESC LIMIT 1")
     fun getLastStudySession(): Flow<StudySessionEntity?>
 

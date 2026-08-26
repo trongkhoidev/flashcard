@@ -58,6 +58,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -91,6 +92,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.AppLanguage
 import com.example.data.model.DeckEntity
+import com.example.data.model.DeckWithStats
 import com.example.data.model.FlashCardEntity
 import java.util.UUID
 
@@ -204,158 +206,391 @@ fun ImportCardsDialog(
 }
 
 /**
- * Dialog for Viewing Detailed Stats
+ * Dialog for Viewing Detailed Stats with 2 Tabs (Tổng quan, Theo ngôn ngữ)
  */
 @Composable
 fun StatsSummaryDialog(
     streakDays: Int,
     masteredCount: Int,
     totalCardsCount: Int,
+    totalPoints: Int = 0,
+    vipLevel: Int = 1,
+    userName: String = "bạn",
+    learningLanguages: List<AppLanguage> = emptyList(),
+    allCardsList: List<FlashCardEntity> = emptyList(),
+    decksWithStats: List<DeckWithStats> = emptyList(),
+    onStartReview: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    var selectedStatsTab by remember { mutableIntStateOf(0) }
+    val tabTitles = listOf("📊 Tổng quan", "🌐 Theo ngôn ngữ")
+
+    val filteredCards = remember(allCardsList, learningLanguages) {
+        if (learningLanguages.isNotEmpty() && allCardsList.isNotEmpty()) {
+            val langCodes = learningLanguages.map { it.code }.toSet()
+            allCardsList.filter { card -> card.languageCode in langCodes }
+        } else {
+            allCardsList
+        }
+    }
+    val effectiveTotalCards = remember(filteredCards, totalCardsCount) {
+        if (filteredCards.isNotEmpty()) filteredCards.size else totalCardsCount
+    }
+    val effectiveMasteredCount = remember(filteredCards, masteredCount) {
+        if (filteredCards.isNotEmpty()) filteredCards.count { it.isMastered } else masteredCount
+    }
+
+    val retentionRate = if (effectiveTotalCards > 0) (effectiveMasteredCount * 100 / effectiveTotalCards).coerceIn(0, 100) else 0
+    val learningCount = (effectiveTotalCards - effectiveMasteredCount).coerceAtLeast(0)
+    val needsReviewCount = remember(filteredCards, effectiveTotalCards) {
+        val hardFromCards = filteredCards.count { it.difficulty >= 3 || (!it.isMastered && it.reviewCount > 0) }
+        if (hardFromCards > 0) hardFromCards else (effectiveTotalCards / 4).coerceAtLeast(0)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = Color.White,
-            shadowElevation = 8.dp,
+            shadowElevation = 10.dp,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+                .fillMaxWidth(0.92f)
+                .padding(vertical = 20.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(22.dp)
+                    .fillMaxWidth()
+                    .padding(20.dp)
                     .verticalScroll(rememberScrollState())
             ) {
+                // Top Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .background(Color(0xFFECFDF5), CircleShape),
+                                .size(40.dp)
+                                .background(
+                                    Brush.linearGradient(listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))),
+                                    CircleShape
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Outlined.BarChart, contentDescription = null, tint = Color(0xFF10B981))
+                            Icon(
+                                Icons.Outlined.BarChart,
+                                contentDescription = "Thống kê",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Thống kê học tập",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E1B4B)
+                        Column {
+                            Text(
+                                text = "Thống kê học tập",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E1B4B)
+                            )
+                            Text(
+                                text = "Học viên $userName • VIP Cấp $vipLevel",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Đóng", tint = Color(0xFF64748B), modifier = Modifier.size(16.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Navigation Tab Row
+                TabRow(
+                    selectedTabIndex = selectedStatsTab,
+                    containerColor = Color(0xFFF8FAFC),
+                    contentColor = Color(0xFF4F46E5),
+                    indicator = { tabPositions ->
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedStatsTab]),
+                            color = Color(0xFF4F46E5),
+                            height = 3.dp
                         )
-                    }
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF94A3B8))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Stats Cards Grid
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    StatCard(
-                        title = "Chuỗi ngày",
-                        value = "$streakDays ngày",
-                        icon = Icons.Outlined.LocalFireDepartment,
-                        color = Color(0xFFEA580C),
-                        bgColor = Color(0xFFFFF7ED),
-                        modifier = Modifier.weight(1f)
-                    )
-                    StatCard(
-                        title = "Đã thuộc",
-                        value = "$masteredCount từ",
-                        icon = Icons.Outlined.CheckCircle,
-                        color = Color(0xFF10B981),
-                        bgColor = Color(0xFFECFDF5),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    StatCard(
-                        title = "Tổng từ vựng",
-                        value = "$totalCardsCount thẻ",
-                        icon = Icons.Outlined.Style,
-                        color = Color(0xFF6366F1),
-                        bgColor = Color(0xFFEEF2FF),
-                        modifier = Modifier.weight(1f)
-                    )
-                    StatCard(
-                        title = "Tỷ lệ nhớ",
-                        value = "${if (totalCardsCount > 0) (masteredCount * 100 / totalCardsCount).coerceIn(0, 100) else 0}%",
-                        icon = Icons.Outlined.School,
-                        color = Color(0xFF8B5CF6),
-                        bgColor = Color(0xFFF5F3FF),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Text(
-                    text = "Lịch sử tuần này",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val weekProgress = listOf(100, 100, 100, 100, 100, 85, 40)
-                val weekDays = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
-                Row(
+                    },
+                    divider = {},
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .clip(RoundedCornerShape(12.dp))
                 ) {
-                    weekDays.forEachIndexed { idx, day ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .width(18.dp)
-                                    .height(50.dp)
-                                    .background(Color(0xFFE2E8F0), RoundedCornerShape(9.dp)),
-                                contentAlignment = Alignment.BottomCenter
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .fillMaxHeight(weekProgress[idx] / 100f)
-                                        .background(
-                                            if (weekProgress[idx] >= 100) Color(0xFF6366F1) else Color(0xFFF59E0B),
-                                            RoundedCornerShape(9.dp)
-                                        )
+                    tabTitles.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedStatsTab == index,
+                            onClick = { selectedStatsTab = index },
+                            text = {
+                                Text(
+                                    text = title,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (selectedStatsTab == index) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selectedStatsTab == index) Color(0xFF4F46E5) else Color(0xFF64748B)
                                 )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(day, fontSize = 11.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Tab Content
+                when (selectedStatsTab) {
+                    0 -> {
+                        // TAB 1: TỔNG QUAN
+                        // 1. Core KPIs (4 cards grid)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            StatCard(
+                                title = "Chuỗi ngày",
+                                value = "$streakDays ngày",
+                                subtitle = if (streakDays > 0) "🔥 Đang duy trì" else "Bắt đầu ngay",
+                                icon = Icons.Outlined.LocalFireDepartment,
+                                color = Color(0xFFEA580C),
+                                bgColor = Color(0xFFFFF7ED),
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatCard(
+                                title = "Đã thuộc",
+                                value = "$effectiveMasteredCount từ",
+                                subtitle = "✅ Đã ghi nhớ vững",
+                                icon = Icons.Outlined.CheckCircle,
+                                color = Color(0xFF10B981),
+                                bgColor = Color(0xFFECFDF5),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            StatCard(
+                                title = "Tổng từ vựng",
+                                value = "$effectiveTotalCards thẻ",
+                                subtitle = "📚 Kho từ đang học",
+                                icon = Icons.Outlined.Style,
+                                color = Color(0xFF6366F1),
+                                bgColor = Color(0xFFEEF2FF),
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatCard(
+                                title = "Tỷ lệ nhớ",
+                                value = "$retentionRate%",
+                                subtitle = if (retentionRate >= 80) "🌟 Xuất sắc" else "Đang tiến bộ",
+                                icon = Icons.Outlined.School,
+                                color = Color(0xFF8B5CF6),
+                                bgColor = Color(0xFFF5F3FF),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 2. Mastery Distribution Section
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Phân bổ mức độ nhớ",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E293B)
+                                    )
+                                    Text(
+                                        text = "$effectiveTotalCards từ",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Segmented Progress Bar
+                                val masteredRatio = if (effectiveTotalCards > 0) effectiveMasteredCount.toFloat() / effectiveTotalCards else 0f
+                                val needsReviewRatio = if (effectiveTotalCards > 0) needsReviewCount.toFloat() / effectiveTotalCards else 0f
+                                val learningRatio = (1f - masteredRatio - needsReviewRatio).coerceAtLeast(0f)
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(10.dp)
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .background(Color(0xFFE2E8F0))
+                                ) {
+                                    if (masteredRatio > 0f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .weight(masteredRatio.coerceAtLeast(0.01f))
+                                                .background(Color(0xFF10B981))
+                                        )
+                                    }
+                                    if (learningRatio > 0f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .weight(learningRatio.coerceAtLeast(0.01f))
+                                                .background(Color(0xFFF59E0B))
+                                        )
+                                    }
+                                    if (needsReviewRatio > 0f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .weight(needsReviewRatio.coerceAtLeast(0.01f))
+                                                .background(Color(0xFFEF4444))
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    LegendPill(label = "Đã thuộc: $effectiveMasteredCount", color = Color(0xFF10B981))
+                                    LegendPill(label = "Đang rèn: $learningCount", color = Color(0xFFF59E0B))
+                                    LegendPill(label = "Cần ôn: $needsReviewCount", color = Color(0xFFEF4444))
+                                }
+                            }
+                        }
+                    }
+
+                    1 -> {
+                        // TAB 2: THEO NGÔN NGỮ
+                        val displayLangs = if (learningLanguages.isNotEmpty()) {
+                            learningLanguages
+                        } else {
+                            listOf(AppLanguage.ENGLISH)
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            displayLangs.forEach { lang ->
+                                val langDecks = decksWithStats.filter { it.deck.languageCode.equals(lang.code, ignoreCase = true) }
+                                val langTotalCards = if (langDecks.isNotEmpty()) langDecks.sumOf { it.totalCards } else (totalCardsCount / displayLangs.size.coerceAtLeast(1)).coerceAtLeast(0)
+                                val langMasteredCards = if (langDecks.isNotEmpty()) langDecks.sumOf { it.masteredCards } else (masteredCount / displayLangs.size.coerceAtLeast(1)).coerceAtLeast(0)
+                                val langPercent = if (langTotalCards > 0) (langMasteredCards * 100 / langTotalCards).coerceIn(0, 100) else 0
+
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFFF8FAFC),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(lang.flagEmoji, fontSize = 22.sp)
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Column {
+                                                    Text(
+                                                        text = lang.displayName,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF1E293B)
+                                                    )
+                                                    Text(
+                                                        text = "${langDecks.size} bộ thẻ • $langTotalCards từ vựng",
+                                                        fontSize = 11.sp,
+                                                        color = Color(0xFF64748B)
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = "$langPercent%",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = Color(0xFF4F46E5)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        LinearProgressIndicator(
+                                            progress = { langPercent / 100f },
+                                            color = Color(0xFF10B981),
+                                            trackColor = Color(0xFFE2E8F0),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(6.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                        )
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Đã thuộc: $langMasteredCards từ",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF10B981),
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "Còn lại: ${(langTotalCards - langMasteredCards).coerceAtLeast(0)} từ",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF64748B)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Bottom Action Button
                 Button(
                     onClick = onDismiss,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp)
+                        .height(44.dp)
                 ) {
                     Text("Đóng", fontWeight = FontWeight.Bold, color = Color.White)
                 }
@@ -365,9 +600,31 @@ fun StatsSummaryDialog(
 }
 
 @Composable
+private fun LegendPill(
+    label: String,
+    color: Color
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(color, CircleShape)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = Color(0xFF475569),
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
 private fun StatCard(
     title: String,
     value: String,
+    subtitle: String = "",
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     color: Color,
     bgColor: Color,
@@ -379,12 +636,22 @@ private fun StatCard(
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, fontSize = 11.sp, color = Color(0xFF64748B), fontWeight = FontWeight.SemiBold)
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+            }
+            Spacer(modifier = Modifier.height(4.dp))
             Text(value, fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color(0xFF1E293B))
-            Text(title, fontSize = 11.sp, color = Color(0xFF64748B))
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(subtitle, fontSize = 10.sp, color = color, fontWeight = FontWeight.Medium)
+            }
         }
     }
 }

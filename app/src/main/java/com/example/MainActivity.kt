@@ -128,6 +128,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
     val decksWithStats by viewModel.decksWithStats.collectAsStateWithLifecycle()
     val weeklyPoints by viewModel.weeklyPoints.collectAsStateWithLifecycle()
     val monthlyPoints by viewModel.monthlyPoints.collectAsStateWithLifecycle()
+    val otherUserProfiles by viewModel.otherUserProfiles.collectAsStateWithLifecycle()
 
     var showProfileDialog by remember { mutableStateOf(false) }
     var showCreateDeckDialog by remember { mutableStateOf(false) }
@@ -152,7 +153,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
         when (currentScreen) {
             is ScreenState.Login -> viewModel.navigateTo(ScreenState.Welcome)
             is ScreenState.Register -> viewModel.navigateTo(ScreenState.Welcome)
-            is ScreenState.Onboarding -> viewModel.navigateTo(ScreenState.Welcome)
+            is ScreenState.Onboarding -> viewModel.onBackFromOnboarding()
             else -> viewModel.navigateTo(ScreenState.Home)
         }
     }
@@ -216,7 +217,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                             viewModel.startOnboardingTrial(chosenLang, reminderHour)
                         },
                         onBackToWelcome = {
-                            viewModel.navigateTo(ScreenState.Welcome)
+                            viewModel.onBackFromOnboarding()
                         }
                     )
                 }
@@ -264,7 +265,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         onAnswerWrong = { wrongCard ->
                             viewModel.markCardUnmastered(wrongCard.id)
                         },
-                        onFinishQuiz = { _, _, _, _ -> },
+                        onFinishQuiz = { _, _, _, _, _, _ -> },
                         onCompleteTrial = {
                             viewModel.finishOnboardingTrialAndGoToAuth()
                         }
@@ -289,6 +290,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         userTotalPoints = userTotalPoints,
                         userWeeklyPoints = weeklyPoints,
                         userMonthlyPoints = monthlyPoints,
+                        otherUserProfiles = otherUserProfiles,
                         onSelectVipLevel = { viewModel.updateUserVipLevel(it) },
                         onOpenDeckDetail = { deck -> viewModel.openDeckDetail(deck) },
                         onStudyDeck = { deck -> viewModel.startStudyDeck(deck) },
@@ -394,6 +396,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         deckTitle = screen.deck.title,
                         languageTag = screen.deck.languageCode,
                         cards = screen.cards,
+                        isCustomDeck = screen.deck.isCustom,
                         onBack = { viewModel.navigateTo(ScreenState.Home) },
                         onSpeak = { text, tag -> viewModel.speak(text, tag) },
                         onAnswerCorrect = { correctCard ->
@@ -402,11 +405,13 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                         onAnswerWrong = { wrongCard ->
                             viewModel.markCardUnmastered(wrongCard.id)
                         },
-                        onFinishQuiz = { score, total, correctCards, wrongCards ->
+                        onFinishQuiz = { score, total, totalPoints, maxStreak, correctCards, wrongCards ->
                             viewModel.processQuizResult(
                                 deck = screen.deck,
                                 score = score,
                                 total = total,
+                                totalPoints = totalPoints,
+                                maxStreak = maxStreak,
                                 correctCards = correctCards,
                                 wrongCards = wrongCards,
                                 durationSecs = 90

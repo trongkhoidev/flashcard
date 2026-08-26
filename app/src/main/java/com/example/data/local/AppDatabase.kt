@@ -13,6 +13,9 @@ import com.example.data.model.StudySessionEntity
 import com.example.data.model.UserAccountEntity
 import com.example.data.model.UserLanguageEntity
 import com.example.data.model.UserProfileEntity
+import com.example.data.model.UserSavedCardEntity
+import com.example.data.model.UserMasteredCardEntity
+import com.example.data.local.UserMasteredCardDao
 
 @Database(
     entities = [
@@ -23,9 +26,11 @@ import com.example.data.model.UserProfileEntity
         UserProfileEntity::class,
         UserAccountEntity::class,
         StudyScheduleEntity::class,
-        UserLanguageEntity::class
+        UserLanguageEntity::class,
+        UserSavedCardEntity::class,
+        UserMasteredCardEntity::class
     ],
-    version = 4,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,6 +43,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userAccountDao(): UserAccountDao
     abstract fun studyScheduleDao(): StudyScheduleDao
     abstract fun userLanguageDao(): UserLanguageDao
+    abstract fun userSavedCardDao(): UserSavedCardDao
+    abstract fun userMasteredCardDao(): UserMasteredCardDao
 
     companion object {
         @Volatile
@@ -81,10 +88,11 @@ abstract class AppDatabase : RoomDatabase() {
                 )
             )
 
-            // Khởi tạo các ngôn ngữ học mặc định (Tiếng Anh, Tiếng Nhật, Tiếng Hàn, Tiếng Việt)
+            // Khởi tạo ngôn ngữ mặc định (Tiếng Anh) cho tài khoản mặc định (userId = 1L)
             userLanguageDao?.insertLanguages(
                 listOf(
                     UserLanguageEntity(
+                        userId = 1L,
                         languageCode = AppLanguage.ENGLISH.code,
                         displayName = AppLanguage.ENGLISH.displayName,
                         flagEmoji = AppLanguage.ENGLISH.flagEmoji,
@@ -94,39 +102,6 @@ abstract class AppDatabase : RoomDatabase() {
                         totalWordsEnrolled = 50,
                         streakDays = 7,
                         level = "Cơ bản"
-                    ),
-                    UserLanguageEntity(
-                        languageCode = AppLanguage.JAPANESE.code,
-                        displayName = AppLanguage.JAPANESE.displayName,
-                        flagEmoji = AppLanguage.JAPANESE.flagEmoji,
-                        isCurrentActive = false,
-                        dailyGoalCards = 15,
-                        masteredCardsCount = 10,
-                        totalWordsEnrolled = 50,
-                        streakDays = 3,
-                        level = "N5 Sơ cấp"
-                    ),
-                    UserLanguageEntity(
-                        languageCode = AppLanguage.KOREAN.code,
-                        displayName = AppLanguage.KOREAN.displayName,
-                        flagEmoji = AppLanguage.KOREAN.flagEmoji,
-                        isCurrentActive = false,
-                        dailyGoalCards = 15,
-                        masteredCardsCount = 5,
-                        totalWordsEnrolled = 50,
-                        streakDays = 2,
-                        level = "Sơ cấp 1"
-                    ),
-                    UserLanguageEntity(
-                        languageCode = AppLanguage.VIETNAMESE.code,
-                        displayName = AppLanguage.VIETNAMESE.displayName,
-                        flagEmoji = AppLanguage.VIETNAMESE.flagEmoji,
-                        isCurrentActive = false,
-                        dailyGoalCards = 20,
-                        masteredCardsCount = 20,
-                        totalWordsEnrolled = 50,
-                        streakDays = 5,
-                        level = "Giao tiếp"
                     )
                 )
             )

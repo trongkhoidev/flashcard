@@ -114,11 +114,12 @@ fun QuizScreen(
     deckTitle: String,
     languageTag: String,
     cards: List<FlashCardEntity>,
+    isCustomDeck: Boolean = false,
     allowBack: Boolean = true,
     isOnboardingTrial: Boolean = false,
     onBack: () -> Unit,
     onSpeak: (String, String) -> Unit,
-    onFinishQuiz: (score: Int, total: Int, correctCards: List<FlashCardEntity>, wrongCards: List<FlashCardEntity>) -> Unit,
+    onFinishQuiz: (score: Int, total: Int, totalPoints: Int, maxStreak: Int, correctCards: List<FlashCardEntity>, wrongCards: List<FlashCardEntity>) -> Unit,
     onAnswerCorrect: ((FlashCardEntity) -> Unit)? = null,
     onAnswerWrong: ((FlashCardEntity) -> Unit)? = null,
     onStudyWrongCards: ((List<FlashCardEntity>) -> Unit)? = null,
@@ -379,23 +380,26 @@ fun QuizScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            // Total Points Badge (Cúp điểm thưởng)
+                            // Total Points Badge (Cúp điểm thưởng / Điểm luyện tập)
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFFFEF3C7),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.5f))
+                                color = if (isCustomDeck) Color(0xFFF1F5F9) else Color(0xFFFEF3C7),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isCustomDeck) Color(0xFFCBD5E1) else Color(0xFFF59E0B).copy(alpha = 0.5f)
+                                )
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("🏆", fontSize = 11.sp)
+                                    Text(if (isCustomDeck) "🎮" else "🏆", fontSize = 11.sp)
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Text(
-                                        text = "${totalPoints}đ",
+                                        text = if (isCustomDeck) "${totalPoints} EXP" else "${totalPoints}đ",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = Color(0xFFB45309)
+                                        color = if (isCustomDeck) Color(0xFF475569) else Color(0xFFB45309)
                                     )
                                 }
                             }
@@ -466,7 +470,7 @@ fun QuizScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         IconButton(
-                            onClick = { onSpeak(currentCard.frontWord, languageTag) },
+                            onClick = { onSpeak(currentCard.frontWord, currentCard.languageCode.ifEmpty { languageTag }) },
                             modifier = Modifier
                                 .size(38.dp)
                                 .background(Color(0xFFE0F2FE), CircleShape)
@@ -688,7 +692,7 @@ fun QuizScreen(
                         isAnswerSubmitted = false
                     } else {
                         isQuizCompleted = true
-                        onFinishQuiz(score, quizCards.size, correctCards.toList(), wrongCards.toList())
+                        onFinishQuiz(score, quizCards.size, totalPoints, maxStreak, correctCards.toList(), wrongCards.toList())
                     }
                 },
                 modifier = Modifier
@@ -756,23 +760,55 @@ fun QuizScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     // Total Points Big Callout
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFFFEF3C7),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    if (isCustomDeck) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFF1F5F9),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("🏆", fontSize = 20.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "TỔNG ĐIỂM: ${totalPoints}đ",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color(0xFFB45309)
-                            )
+                            Column(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("🎮", fontSize = 18.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "KẾT QUẢ: +${totalPoints} EXP (0đ BXH)",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF334155)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = "💡 Chế độ Luyện tập: Thẻ tự tạo không tính điểm vào BXH để đảm bảo công bằng.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF64748B),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFFEF3C7),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("🏆", fontSize = 20.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "TỔNG ĐIỂM: ${totalPoints}đ",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFFB45309)
+                                )
+                            }
                         }
                     }
 
@@ -1013,6 +1049,7 @@ fun QuizScreen(
                                 isQuizCompleted = false
                                 popupTrigger = 0
                                 wrongCards.clear()
+                                correctCards.clear()
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1083,7 +1120,7 @@ fun FireworksCanvas(
 
         var frame = 0
         val startTime = System.currentTimeMillis()
-        val maxParticles = 90 // Cap active particles for optimal performance
+        val maxParticles = 45 // Cap active particles for optimal 60fps performance
 
         while (true) {
             val elapsed = System.currentTimeMillis() - startTime
@@ -1093,19 +1130,19 @@ fun FireworksCanvas(
                 frame++
 
                 // Trigger a new firework burst if time remains
-                if (isSpawningAllowed && (frame % 25 == 1 || particles.size < 15) && particles.size < maxParticles) {
+                if (isSpawningAllowed && (frame % 30 == 1 || particles.size < 10) && particles.size < maxParticles) {
                     val cx = 100f + (Math.random().toFloat() * 800f)
                     val cy = 150f + (Math.random().toFloat() * 700f)
-                    val burstCount = (25..35).random()
+                    val burstCount = (12..18).random()
                     val burstColor = colors.random()
 
                     for (i in 0 until burstCount) {
                         if (particles.size >= maxParticles) break
                         val angle = Math.random() * 2 * Math.PI
-                        val speed = 3f + (Math.random().toFloat() * 11f)
+                        val speed = 3f + (Math.random().toFloat() * 10f)
                         val vx = (Math.cos(angle) * speed).toFloat()
                         val vy = (Math.sin(angle) * speed).toFloat()
-                        val maxLife = 35f + (Math.random().toFloat() * 30f)
+                        val maxLife = 30f + (Math.random().toFloat() * 25f)
                         val pColor = if (Math.random() > 0.3) burstColor else colors.random()
 
                         particles.add(
@@ -1116,12 +1153,12 @@ fun FireworksCanvas(
                                 vy = vy,
                                 color = pColor,
                                 alpha = 1f,
-                                size = 5f + (Math.random().toFloat() * 8f),
+                                size = 5f + (Math.random().toFloat() * 7f),
                                 maxLife = maxLife,
                                 currentLife = 0f,
                                 rotation = (Math.random() * 360).toFloat(),
                                 vRot = -10f + (Math.random().toFloat() * 20f),
-                                shape = (0..2).random()
+                                shape = (0..1).random()
                             )
                         )
                     }
@@ -1169,39 +1206,18 @@ fun FireworksCanvas(
                     drawContext.canvas.translate(p.x * scaleX, p.y * scaleY)
                     drawContext.canvas.rotate(p.rotation)
 
-                    when (p.shape) {
-                        0 -> {
-                            drawCircle(
-                                color = p.color.copy(alpha = pAlpha),
-                                radius = (p.size / 2f) * scaleX
-                            )
-                        }
-                        1 -> {
-                            val sz = p.size * scaleX
-                            drawRect(
-                                color = p.color.copy(alpha = pAlpha),
-                                topLeft = Offset(-sz / 2f, -sz / 2f),
-                                size = Size(sz, sz * 1.4f)
-                            )
-                        }
-                        else -> {
-                            val r = p.size * scaleX
-                            val path = Path().apply {
-                                moveTo(0f, -r)
-                                lineTo(r * 0.4f, -r * 0.4f)
-                                lineTo(r, 0f)
-                                lineTo(r * 0.4f, r * 0.4f)
-                                lineTo(0f, r)
-                                lineTo(-r * 0.4f, r * 0.4f)
-                                lineTo(-r, 0f)
-                                lineTo(-r * 0.4f, -r * 0.4f)
-                                close()
-                            }
-                            drawPath(
-                                path = path,
-                                color = p.color.copy(alpha = pAlpha)
-                            )
-                        }
+                    val sz = p.size * scaleX
+                    if (p.shape == 0) {
+                        drawCircle(
+                            color = p.color.copy(alpha = pAlpha),
+                            radius = sz / 2f
+                        )
+                    } else {
+                        drawRect(
+                            color = p.color.copy(alpha = pAlpha),
+                            topLeft = Offset(-sz / 2f, -sz / 2f),
+                            size = Size(sz, sz * 1.4f)
+                        )
                     }
                     drawContext.canvas.restore()
                 }

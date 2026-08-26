@@ -253,23 +253,18 @@ fun CreateDeckDialog(
     var subtitle by remember { mutableStateOf("") }
     var selectedEmoji by remember { mutableStateOf("📚") }
     var selectedLevel by remember { mutableStateOf("Cơ bản") }
-    var wordTypeTab by remember { mutableIntStateOf(0) } // 0 = Từ đã lưu, 1 = Từ chưa thuộc
     val selectedCards = remember { mutableStateListOf<FlashCardEntity>() }
 
     val emojis = listOf("📚", "💡", "✈️", "☕", "💼", "🍲", "🎯", "🌟", "🌸", "🔥")
     val levels = listOf("Cơ bản", "Trung cấp", "Nâng cao")
 
-    // Filter cards matching current deck language
+    // Filter cards matching current deck language and starred status (saved words only)
     val langCards = remember(allCards, currentLanguageCode) {
         allCards.filter { it.languageCode.equals(currentLanguageCode, ignoreCase = true) }
     }
 
-    val candidateCards = remember(langCards, wordTypeTab) {
-        if (wordTypeTab == 0) {
-            langCards.filter { it.isStarred }
-        } else {
-            langCards.filter { !it.isMastered }
-        }
+    val candidateCards = remember(langCards) {
+        langCards.filter { it.isStarred }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -382,47 +377,28 @@ fun CreateDeckDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Chọn từ vựng đưa vào bộ thẻ:", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NTKTextSecondary)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Word Selection Tabs
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val starredCount = langCards.count { it.isStarred }
-                    val weakCount = langCards.count { !it.isMastered }
-
+                    Text(
+                        text = "Chọn từ vựng đã lưu (⭐):",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NTKTextSecondary
+                    )
                     Surface(
-                        onClick = { wordTypeTab = 0 },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (wordTypeTab == 0) Color(0xFFECEBFF) else Color(0xFFF8FAFC),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (wordTypeTab == 0) NTKPrimary else Color(0xFFE2E8F0)),
-                        modifier = Modifier.weight(1f)
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFECEBFF)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text("⭐ Đã lưu", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (wordTypeTab == 0) NTKPrimary else NTKTextSecondary)
-                            Text("($starredCount từ)", fontSize = 10.sp, color = if (wordTypeTab == 0) NTKPrimary.copy(alpha = 0.8f) else Color(0xFF94A3B8))
-                        }
-                    }
-
-                    Surface(
-                        onClick = { wordTypeTab = 1 },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (wordTypeTab == 1) Color(0xFFECEBFF) else Color(0xFFF8FAFC),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (wordTypeTab == 1) NTKPrimary else Color(0xFFE2E8F0)),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text("💡 Chưa thuộc", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (wordTypeTab == 1) NTKPrimary else NTKTextSecondary)
-                            Text("($weakCount từ)", fontSize = 10.sp, color = if (wordTypeTab == 1) NTKPrimary.copy(alpha = 0.8f) else Color(0xFF94A3B8))
-                        }
+                        Text(
+                            text = "${candidateCards.size} từ khả dụng",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NTKPrimary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
                 }
 
@@ -479,12 +455,15 @@ fun CreateDeckDialog(
                 ) {
                     if (candidateCards.isEmpty()) {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (wordTypeTab == 0) "Chưa có từ vựng nào đã lưu" else "Tuyệt vời! Bạn đã thuộc hết từ vựng",
+                                text = "Chưa có từ vựng nào được lưu (gắn sao ⭐). Hãy gắn sao cho các từ bạn muốn gom vào bộ thẻ nhé!",
                                 fontSize = 12.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 color = Color(0xFF94A3B8)
                             )
                         }

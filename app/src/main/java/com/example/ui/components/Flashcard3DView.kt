@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -66,9 +68,13 @@ fun Flashcard3DView(
 ) {
     val rotationY by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = tween(durationMillis = 400),
+        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
         label = "card_rotation_y"
     )
+
+    val isFrontVisible by remember {
+        derivedStateOf { rotationY <= 90f }
+    }
 
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -78,7 +84,7 @@ fun Flashcard3DView(
             .height(340.dp)
             .graphicsLayer {
                 this.rotationY = rotationY
-                cameraDistance = 12f * density
+                cameraDistance = 14f * density
             }
             .clickable(
                 interactionSource = interactionSource,
@@ -89,7 +95,7 @@ fun Flashcard3DView(
             .testTag("flashcard_3d_container"),
         contentAlignment = Alignment.Center
     ) {
-        if (rotationY <= 90f) {
+        if (isFrontVisible) {
             // FRONT SIDE OF CARD
             CardFrontSide(
                 card = card,

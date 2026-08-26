@@ -113,7 +113,9 @@ object NotificationHelper {
         title: String,
         message: String,
         dueWordsCount: Int,
-        streakDays: Int
+        streakDays: Int,
+        totalWordsCount: Int = 0,
+        masteredWordsCount: Int = 0
     ) {
         createNotificationChannels(context)
 
@@ -159,6 +161,12 @@ object NotificationHelper {
             null
         }
 
+        val bigTextSummary = if (totalWordsCount > 0) {
+            "$message\n\n🔥 Streak: $streakDays ngày  •  🎯 Đã thuộc: $masteredWordsCount/$totalWordsCount từ  •  ⏳ Cần ôn: $dueWordsCount từ"
+        } else {
+            "$message\n\n🔥 Streak: $streakDays ngày  •  ⏳ Cần ôn: $dueWordsCount từ"
+        }
+
         val builder = NotificationCompat.Builder(context, CHANNEL_STUDY_REMINDER)
             .setSmallIcon(R.drawable.ic_notification_card)
             .setShowWhen(true)
@@ -167,7 +175,7 @@ object NotificationHelper {
             .setContentText(message)
             .setStyle(
                 NotificationCompat.BigTextStyle()
-                    .bigText("$message\n\n🔥 Streak hiện tại: $streakDays ngày  •  📚 Cần ôn: $dueWordsCount từ")
+                    .bigText(bigTextSummary)
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)

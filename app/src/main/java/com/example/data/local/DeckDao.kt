@@ -15,8 +15,14 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DeckDao {
 
+    @Query("SELECT * FROM decks WHERE languageCode = :langCode AND (isCustom = 0 OR (isCustom = 1 AND userId = :userId)) ORDER BY title ASC")
+    fun getDecksByLanguageForUser(langCode: String, userId: Long): Flow<List<DeckEntity>>
+
     @Query("SELECT * FROM decks WHERE languageCode = :langCode ORDER BY title ASC")
     fun getDecksByLanguage(langCode: String): Flow<List<DeckEntity>>
+
+    @Query("SELECT * FROM decks WHERE isCustom = 0 OR (isCustom = 1 AND userId = :userId) ORDER BY languageCode, title ASC")
+    fun getAllDecksForUser(userId: Long): Flow<List<DeckEntity>>
 
     @Query("SELECT * FROM decks ORDER BY languageCode, title ASC")
     fun getAllDecks(): Flow<List<DeckEntity>>
@@ -27,11 +33,20 @@ interface DeckDao {
     @Query("SELECT * FROM decks WHERE id = :deckId LIMIT 1")
     suspend fun getDeckById(deckId: String): DeckEntity?
 
+    @Query("SELECT * FROM decks WHERE isCustom = 1 AND userId = :userId ORDER BY title ASC")
+    fun getCustomDecksForUser(userId: Long): Flow<List<DeckEntity>>
+
     @Query("SELECT * FROM decks WHERE isCustom = 1 ORDER BY title ASC")
     fun getCustomDecks(): Flow<List<DeckEntity>>
 
+    @Query("SELECT * FROM decks WHERE level = :level AND (isCustom = 0 OR (isCustom = 1 AND userId = :userId)) ORDER BY title ASC")
+    fun getDecksByLevelForUser(level: String, userId: Long): Flow<List<DeckEntity>>
+
     @Query("SELECT * FROM decks WHERE level = :level ORDER BY title ASC")
     fun getDecksByLevel(level: String): Flow<List<DeckEntity>>
+
+    @Query("SELECT * FROM decks WHERE (title LIKE '%' || :query || '%' OR subtitle LIKE '%' || :query || '%') AND (isCustom = 0 OR (isCustom = 1 AND userId = :userId))")
+    fun searchDecksForUser(query: String, userId: Long): Flow<List<DeckEntity>>
 
     @Query("SELECT * FROM decks WHERE title LIKE '%' || :query || '%' OR subtitle LIKE '%' || :query || '%'")
     fun searchDecks(query: String): Flow<List<DeckEntity>>

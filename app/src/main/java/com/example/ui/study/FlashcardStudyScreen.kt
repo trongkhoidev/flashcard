@@ -124,7 +124,8 @@ fun FlashcardStudyScreen(
             val currentCard = cardList.getOrNull(currentIndex)
             if (currentCard != null) {
                 delay(300)
-                onSpeak(currentCard.frontWord, languageTag)
+                val cardLang = currentCard.languageCode.ifEmpty { languageTag }
+                onSpeak(currentCard.frontWord, cardLang)
             }
         }
     }
@@ -133,9 +134,10 @@ fun FlashcardStudyScreen(
     LaunchedEffect(isAutoPlay, currentIndex, isFlipped, isCompleted) {
         if (isAutoPlay && !isCompleted && cardList.isNotEmpty()) {
             val currentCard = cardList[currentIndex]
+            val cardLang = currentCard.languageCode.ifEmpty { languageTag }
             // Speak front word
             if (!isFlipped) {
-                onSpeak(currentCard.frontWord, languageTag)
+                onSpeak(currentCard.frontWord, cardLang)
                 delay(2600)
                 isFlipped = true
             } else {
@@ -360,12 +362,13 @@ fun FlashcardStudyScreen(
                     }
 
                     // 2. MIDDLE 3D FLASHCARD (Centered in screen)
+                    val currentCardLang = currentCard.languageCode.ifEmpty { languageTag }
                     Flashcard3DView(
                         card = currentCard,
                         isFlipped = isFlipped,
                         userVipLevel = userVipLevel,
                         onFlip = { isFlipped = !isFlipped },
-                        onSpeak = { text -> onSpeak(text, languageTag) },
+                        onSpeak = { text -> onSpeak(text, currentCardLang) },
                         onToggleStar = handleToggleStar,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -418,8 +421,12 @@ fun FlashcardStudyScreen(
                         // Pronounce Button
                         Surface(
                             onClick = {
-                                val textToSpeak = if (isFlipped) currentCard.backMeaning else currentCard.frontWord
-                                onSpeak(textToSpeak, languageTag)
+                                val (textToSpeak, speakLang) = if (isFlipped) {
+                                    currentCard.backMeaning to "vi-VN"
+                                } else {
+                                    currentCard.frontWord to currentCardLang
+                                }
+                                onSpeak(textToSpeak, speakLang)
                             },
                             shape = RoundedCornerShape(14.dp),
                             color = NTKPrimary.copy(alpha = 0.1f),

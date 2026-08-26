@@ -27,11 +27,25 @@ class StudyAlarmReceiver : BroadcastReceiver() {
 
         receiverScope.launch {
             try {
-                val engine = SmartNotificationEngine(context)
-                engine.evaluateAndSendSmartNotification(StudySchedule())
+                val database = com.example.data.local.AppDatabase.getDatabase(context.applicationContext)
+                val scheduleEntity = database.studyScheduleDao().getScheduleDirect()
 
-                // Lên lịch lại cho ngày tiếp theo
-                StudyAlarmScheduler.scheduleStudyAlarm(context, StudySchedule())
+                val schedule = scheduleEntity?.let {
+                    StudySchedule(
+                        isEnabled = it.isEnabled,
+                        reminderHour = it.reminderHour,
+                        reminderMinute = it.reminderMinute,
+                        remindStreak = it.remindStreak,
+                        remindDueWords = it.remindDueWords,
+                        minWordsThreshold = it.minWordsThreshold
+                    )
+                } ?: StudySchedule()
+
+                val engine = SmartNotificationEngine(context)
+                engine.evaluateAndSendSmartNotification(schedule)
+
+                // Lên lịch lại cho ngày tiếp theo theo đúng cấu hình của user
+                StudyAlarmScheduler.scheduleStudyAlarm(context, schedule)
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {

@@ -6,10 +6,11 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "study_sessions",
-    indices = [Index("deckId"), Index("timestamp")]
+    indices = [Index("userId"), Index("deckId"), Index("timestamp")]
 )
 data class StudySessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: Long = 1L,
     val deckId: String,
     val deckTitle: String,
     val languageCode: String,
