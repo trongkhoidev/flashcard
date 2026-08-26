@@ -45,8 +45,10 @@ class AppDatabaseSchemaTest {
     fun `prepackaged database passes room schema validation`() = runBlocking {
         val decks = database.deckDao().getAllDecks().firstOrNull().orEmpty()
         val cards = database.flashCardDao().getTotalCardsCount().firstOrNull()
-        assertEquals(12, decks.size)
-        assertEquals(120, cards)
+        assertEquals(38, decks.size)
+        assertEquals(310, cards)
+        // Đủ 9 ngôn ngữ trong data mới
+        assertEquals(9, decks.map { it.languageCode }.distinct().size)
     }
 
     @Test

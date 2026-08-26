@@ -12,7 +12,9 @@ import com.example.data.model.DeckEntity
  */
 object LearningPath {
 
-    private val LEVEL_ORDER = mapOf(
+    // So khớp theo PREFIX để nhận diện các biến thể level trong data đa ngôn ngữ:
+    // "Cơ bản A1-A2", "Cơ bản HSK 1-2", "Trung cấp B1-B2", "Nâng cao C1-C2"...
+    private val LEVEL_PREFIXES = listOf(
         "mới bắt đầu" to 0,
         "cơ bản" to 1,
         "sơ cấp" to 1,
@@ -28,8 +30,10 @@ object LearningPath {
         return parts[2]
     }
 
-    fun levelOrder(deck: DeckEntity): Int =
-        LEVEL_ORDER[deck.level.trim().lowercase()] ?: -1
+    fun levelOrder(deck: DeckEntity): Int {
+        val normalized = deck.level.trim().lowercase()
+        return LEVEL_PREFIXES.firstOrNull { (prefix, order) -> normalized.startsWith(prefix) }?.second ?: -1
+    }
 
     fun isPathDeck(deck: DeckEntity): Boolean =
         topicOf(deck) != null && levelOrder(deck) >= 0

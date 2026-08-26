@@ -100,4 +100,31 @@ class LearningPathTest {
         assertEquals(listOf("deck_en_daily_basic"), path.map { it.id })
         assertFalse(LearningPath.isPathDeck(deck("deck_en_special_bonus", level = "Khó")))
     }
+
+    @Test
+    fun `multi-language level variants are recognized via prefix matching`() {
+        val variants = listOf(
+            deck("deck_ko_daily_basic", lang = "ko", level = "Cơ bản A1-A2"),
+            deck("deck_ko_daily_intermediate", lang = "ko", level = "Trung cấp B1-B2"),
+            deck("deck_ko_daily_advanced", lang = "ko", level = "Nâng cao C1-C2"),
+            deck("deck_zh_work_basic", lang = "zh", level = "Cơ bản HSK 1-2"),
+            deck("deck_fr_travel_basic", lang = "fr", level = "Cơ bản A1")
+        )
+
+        assertEquals(1, LearningPath.levelOrder(variants[0]))
+        assertEquals(2, LearningPath.levelOrder(variants[1]))
+        assertEquals(3, LearningPath.levelOrder(variants[2]))
+        assertEquals(1, LearningPath.levelOrder(variants[3]))
+        assertEquals(1, LearningPath.levelOrder(variants[4]))
+
+        // Tất cả đều hợp lệ trên path của ngôn ngữ tương ứng
+        assertTrue(variants.all { LearningPath.isPathDeck(it) })
+
+        // Path tiếng Hàn sắp đúng thứ tự level
+        val koPath = LearningPath.buildPath(variants, "ko")
+        assertEquals(
+            listOf("deck_ko_daily_basic", "deck_ko_daily_intermediate", "deck_ko_daily_advanced"),
+            koPath.map { it.id }
+        )
+    }
 }
