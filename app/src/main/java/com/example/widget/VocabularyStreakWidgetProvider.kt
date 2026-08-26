@@ -236,25 +236,31 @@ class VocabularyStreakWidgetProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
             // ===== DỮ LIỆU THẬT =====
-            val activeLanguage = db.userLanguageDao().getActiveLearningLanguageDirect()
+            val activeUserId = db.userAccountDao().getActiveLoggedInUserDirect()?.id ?: 1L
+            val activeLanguage = db.userLanguageDao().getActiveLearningLanguageDirectForUser(activeUserId)
+                ?: db.userLanguageDao().getAllLearningLanguagesForUser(activeUserId).firstOrNull()?.firstOrNull()
             val langCode = activeLanguage?.languageCode ?: "en"
             val langLabel = activeLanguage?.let { "${languageLabel(it.languageCode)}" } ?: "🌐 Từ vựng"
             val now = System.currentTimeMillis()
+            val masteredCardIds = db.userMasteredCardDao().getMasteredCardIdsForUserDirect(activeUserId).toSet()
 
-            val streak = db.userProfileDao().getUserProfileDirect()?.streakDays ?: 0
-            val dueCount = db.flashCardDao().getDueCountForLanguage(langCode, now)
-                .firstOrNull() ?: 0
-
-            val dueOrUnmastered = db.flashCardDao()
-                .getDueCardsForLanguage(langCode, now)
-                .firstOrNull()
-                .orEmpty()
+            val streak = db.userProfileDao().getUserProfileByIdDirect(activeUserId)?.streakDays
+                ?: db.userProfileDao().getUserProfileDirect()?.streakDays
+                ?: 0
             val allOfLang = db.flashCardDao()
                 .getAllCardsByLanguage(langCode)
                 .firstOrNull()
                 .orEmpty()
 
-            val displayCards = pickDisplayCards(dueOrUnmastered, allOfLang)
+            // Widget luôn hiển thị TOÀN BỘ card chưa thuộc; card đến hạn được ưu tiên lên trước.
+            val unmasteredCards = allOfLang.filter { it.id !in masteredCardIds }
+            val dueOrUnmastered = unmasteredCards.filter {
+                it.nextReviewTimestamp <= now || it.nextReviewTimestamp == 0L || it.reviewCount == 0
+            }
+            val dueCount = dueOrUnmastered.size
+            val dueIds = dueOrUnmastered.map { it.id }.toHashSet()
+            val remainingUnmastered = unmasteredCards.filterNot { it.id in dueIds }
+            val displayCards = dueOrUnmastered + remainingUnmastered
             val fallbackCard = FlashCardEntity(
                 deckId = "", languageCode = langCode,
                 frontWord = "Học ngay nhé!", phonetic = "",
@@ -293,7 +299,7 @@ class VocabularyStreakWidgetProvider : AppWidgetProvider() {
             val footerParts = mutableListOf<String>()
             footerParts.add("⏰ Cần ôn: $dueCount từ")
             deckLabel?.let { footerParts.add(it) }
-            if (card.isMastered) footerParts.add("✅ Đã thuộc") else footerParts.add("📌 Chưa thuộc")
+            if (card.id in masteredCardIds) footerParts.add("✅ Đã thuộc") else footerParts.add("📌 Chưa thuộc")
             views.setTextViewText(R.id.tv_widget_deck_name, footerParts.joinToString(" • "))
 
             // ===== PHÂN VÙNG CHẠM =====
