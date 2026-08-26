@@ -62,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 import com.example.ui.components.VipAvatarFrame
 import com.example.ui.components.VipLevel
@@ -545,17 +546,22 @@ fun LeaderboardTab(
 
     // USER DETAIL DIALOG ON CLICK
     selectedUserForDialog?.let { user ->
-        Dialog(onDismissRequest = { selectedUserForDialog = null }) {
+        Dialog(
+            onDismissRequest = { selectedUserForDialog = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = Color.White,
                 shadowElevation = 8.dp,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+                    .fillMaxWidth(0.92f)
+                    .padding(vertical = 12.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
@@ -629,17 +635,22 @@ fun LeaderboardTab(
 
     // ALL REWARDS DETAILS DIALOG
     if (showAllRewardsDialog) {
-        Dialog(onDismissRequest = { showAllRewardsDialog = false }) {
+        Dialog(
+            onDismissRequest = { showAllRewardsDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = Color.White,
                 shadowElevation = 8.dp,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+                    .fillMaxWidth(0.92f)
+                    .padding(vertical = 12.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(

@@ -1821,17 +1821,22 @@ private fun AccountProfileTab(
     }
 
     if (showWidgetGuideDialog) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showWidgetGuideDialog = false }) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showWidgetGuideDialog = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = Color.White,
                 shadowElevation = 8.dp,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+                    .fillMaxWidth(0.92f)
+                    .padding(vertical = 12.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(

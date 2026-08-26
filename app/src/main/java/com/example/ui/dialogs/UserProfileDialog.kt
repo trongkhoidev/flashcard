@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.ui.components.VipAvatarFrame
 import com.example.ui.components.VipLevel
 import com.example.ui.components.VipLevelSelectorCard
@@ -70,13 +71,16 @@ fun UserProfileDialog(
     var isEditing by remember { mutableStateOf(false) }
     val vipLevelObj = VipLevel.fromLevel(userVipLevel)
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Color.White,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 4.dp)
+                .fillMaxWidth(0.92f)
+                .padding(vertical = 12.dp)
         ) {
             Column(
                 modifier = Modifier

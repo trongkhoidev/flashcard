@@ -116,14 +116,17 @@ fun ImportCardsDialog(
     }
     var selectedDeckId by remember { mutableStateOf(decks.firstOrNull()?.id ?: "") }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = Color.White,
             shadowElevation = 8.dp,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+                .fillMaxWidth(0.92f)
+                .padding(vertical = 12.dp)
         ) {
             Column(
                 modifier = Modifier
