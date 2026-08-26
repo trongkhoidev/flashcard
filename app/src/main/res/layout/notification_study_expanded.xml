@@ -38,7 +38,7 @@
                 android:id="@+id/notif_expanded_header_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="NTK FlashCard • now 🔔"
+                android:text="Peace FlashCard • now 🔔"
                 android:textColor="#5856D6"
                 android:textSize="12sp"
                 android:textStyle="bold" />

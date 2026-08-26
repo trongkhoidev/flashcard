@@ -514,7 +514,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                             ) {
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_app_notification_logo),
-                                    contentDescription = "NTK FlashCard",
+                                    contentDescription = "Peace FlashCard",
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
@@ -527,7 +527,7 @@ fun NTKFlashCardApp(viewModel: MainViewModel) {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "NTK FlashCard",
+                                        text = "Peace FlashCard",
                                         color = if (preview.isAchievement) Color(0xFFC7D2FE) else Color(0xFF5856D6),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold

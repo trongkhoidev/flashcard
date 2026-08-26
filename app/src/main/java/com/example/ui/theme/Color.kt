@@ -2,7 +2,7 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// NTK FlashCard Brand Colors - Squirtle Turtle Ocean Cyan Palette
+// Peace FlashCard Brand Colors - Squirtle Turtle Ocean Cyan Palette
 val NTKPrimary = Color(0xFF0284C7)         // Vibrant Squirtle Blue
 val NTKPrimaryDark = Color(0xFF0369A1)     // Deep Shell Blue
 val NTKPrimaryLight = Color(0xFF38BDF8)    // Bright Cyan Blue

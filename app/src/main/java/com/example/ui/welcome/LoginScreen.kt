@@ -134,7 +134,7 @@ fun LoginScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Tiếp tục hành trình học tập cùng NTK FlashCard",
+                        text = "Tiếp tục hành trình học tập cùng Peace FlashCard",
                         fontSize = 13.sp,
                         color = NTKTextSecondary,
                         lineHeight = 18.sp

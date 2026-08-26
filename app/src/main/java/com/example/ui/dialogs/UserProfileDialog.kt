@@ -188,7 +188,7 @@ fun UserProfileDialog(
                         }
                     }
                     Text(
-                        text = if (vipLevelObj == VipLevel.NONE) "Học viên NTK FlashCard" else "Học viên ${vipLevelObj.title} ${vipLevelObj.crownEmoji}",
+                        text = if (vipLevelObj == VipLevel.NONE) "Học viên Peace FlashCard" else "Học viên ${vipLevelObj.title} ${vipLevelObj.crownEmoji}",
                         fontSize = 12.sp,
                         fontWeight = if (vipLevelObj != VipLevel.NONE) FontWeight.Bold else FontWeight.Normal,
                         color = if (vipLevelObj != VipLevel.NONE) vipLevelObj.badgeBgColor else NTKTextSecondary

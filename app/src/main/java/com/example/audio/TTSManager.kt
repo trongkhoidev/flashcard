@@ -57,7 +57,7 @@ class TTSManager(context: Context) {
                 Log.d("TTSManager", "Applied locale '$appliedLocale' for tag '$resolvedTag'")
             }
 
-            val utteranceId = "NTK_${System.currentTimeMillis()}"
+            val utteranceId = "Peace_${System.currentTimeMillis()}"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 val params = Bundle().apply {
                     putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)

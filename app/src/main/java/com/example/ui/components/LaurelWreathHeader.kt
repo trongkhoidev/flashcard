@@ -34,9 +34,9 @@ fun LaurelWreathHeader(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // App Name "NTK" and "FlashCard"
+        // App Name "Peace" and "FlashCard"
         Text(
-            text = "NTK",
+            text = "Peace",
             fontSize = 32.sp,
             fontWeight = FontWeight.Black,
             color = NTKPrimary,

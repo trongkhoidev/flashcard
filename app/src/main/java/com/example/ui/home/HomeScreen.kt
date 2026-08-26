@@ -1913,7 +1913,7 @@ private fun AccountProfileTab(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "💡 Hướng dẫn cài đặt ngoài màn hình:\n1. Nhấn giữ màn hình chính điện thoại\n2. Chọn mục Widget / Tiện ích\n3. Tìm ứng dụng 'NTK FlashCard'\n4. Kéo Widget ra vị trí bạn yêu thích!",
+                        text = "💡 Hướng dẫn cài đặt ngoài màn hình:\n1. Nhấn giữ màn hình chính điện thoại\n2. Chọn mục Widget / Tiện ích\n3. Tìm ứng dụng 'Peace FlashCard'\n4. Kéo Widget ra vị trí bạn yêu thích!",
                         fontSize = 12.sp,
                         color = Color(0xFF334155),
                         lineHeight = 18.sp

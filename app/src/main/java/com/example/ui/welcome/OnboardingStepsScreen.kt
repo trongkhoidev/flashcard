@@ -1443,7 +1443,7 @@ private fun StepNotificationPermission(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Cho phép NTK FlashCard gửi thông báo?",
+                                text = "Cho phép Peace FlashCard gửi thông báo?",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = StepDarkText
